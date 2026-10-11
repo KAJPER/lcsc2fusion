@@ -60,7 +60,16 @@ def _print_results(query: str, limit: int, client: EasyEdaClient) -> list[str]:
     return [r.lcsc_id for r in results]
 
 
+def _tolerate_console_encoding() -> None:
+    """Never crash while printing part descriptions with characters the console cannot encode."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _tolerate_console_encoding()
     args = _build_parser().parse_args(argv)
     try:
         client = _make_client(args)
