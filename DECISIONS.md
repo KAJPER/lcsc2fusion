@@ -2,11 +2,11 @@
 
 Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING (czeka na decyzję użytkownika).
 
-## D-001 Parser clean room, bez kodu z easyeda2kicad (PENDING: licencja projektu)
+## D-001 Parser clean room, bez kodu z easyeda2kicad, licencja MIT (ACCEPTED)
 
 - Kontekst: easyeda2kicad (referencyjny parser) jest na AGPL-3.0. Projekty easyeda2eagle kopiują go prawie bez zmian i dziedziczą AGPL.
 - Wybór: parser piszemy od zera na podstawie formatu, dokumentacji EasyEDA i żywych JSON-ów. easyeda2kicad służy tylko do porównania zachowania.
-- Powód: pozwala wybrać licencję MIT dla całego projektu. Koszt: więcej własnej pracy przy łukach, polygonach i pinach.
+- Powód: pozwala wybrać licencję MIT dla całego projektu (zaakceptowane przez użytkownika). Koszt: więcej własnej pracy przy łukach, polygonach i pinach.
 
 ## D-002 Runtime tylko ze stdlib (ACCEPTED)
 
@@ -74,8 +74,14 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Wybór: tekst atrybucji w `<description>` biblioteki, w opisie deviceset i w atrybucie technologii. Pole `license` zachowywane w fixture'ach.
 - Powód: spełnienie warunku licencji, zero kosztu.
 
-## D-013 Fixture'y: realne czy syntetyczne (PENDING)
+## D-013 Fixture'y: syntetyczne w repo, realne tylko lokalnie (ACCEPTED)
 
 - Kontekst: testy offline wymagają JSON-ów w formacie EasyEDA, repo ma być publiczne, treść jest chroniona prawem autorskim EasyEDA (RESEARCH.md sekcja 5).
-- Propozycja: realne fixture'y lokalnie (gitignore), do repo tylko syntetyczne, własnoręcznie napisane w tym samym formacie. Testy parametryzowane, realne uruchamiane gdy katalog istnieje.
-- Alternatywa: commit przyciętych realnych fixture'ów z nienaruszoną licencją. Prostsze, ryzykowniejsze prawnie. Czeka na decyzję użytkownika.
+- Wybór: do repo trafiają tylko syntetyczne fixture'y generowane przez `tests/fixtures/synthetic/generate.py` w formacie EasyEDA, razem z niezależnie policzonymi wartościami oczekiwanymi. Realne odpowiedzi leżą w `tests/fixtures/real/` (gitignore), a testy oznaczone `real` pomijają się, gdy katalogu brak.
+- Powód: nie redystrybuujemy treści chronionej prawem autorskim EasyEDA, a testy geometrii dalej porównują wynik ze źródłem (z wartościami policzonymi z parametrów generatora).
+
+## D-014 Thermal pad jako zwykły pad SMD w v1 (ACCEPTED)
+
+- Kontekst: plik DRV8833 zapisany przez Fusiona obsługuje thermal pad przez `stop="no" cream="no"` plus ręczne prostokąty na warstwach 29 i 31. Wykrywanie, który pad jest termiczny, jest heurystyką.
+- Wybór: w v1 każdy pad SMD (także duży pad centralny) zapisujemy jako zwykły `smd`. Maska i pasta wynikają z reguł DRC Fusiona.
+- Powód: poprawność geometrii i prostota. Optymalizacja pasty pod pad termiczny to zadanie na później, zapisane w znanych ograniczeniach.

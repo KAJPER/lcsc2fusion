@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lcsc2fusion"
+version = "0.1.0"
+description = "Convert EasyEDA/LCSC parts into Eagle .lbr libraries for Autodesk Fusion Electronics"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "matplotlib>=3.8"]
+
+[project.scripts]
+lcsc2fusion = "lcsc2fusion.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["lcsc2fusion*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["real: needs real EasyEDA fixtures in tests/fixtures/real (local only)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["tests/fixtures", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["lcsc2fusion"]

@@ -1,1 +1,14 @@
 claude.md
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+out/
+.lcsc_cache/
+tests/fixtures/real/
+graphify-out/
