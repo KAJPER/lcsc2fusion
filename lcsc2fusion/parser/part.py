@@ -57,8 +57,8 @@ def parse_part(doc: Mapping[str, Any]) -> Part:
 
     attributes: list[tuple[str, str]] = []
     for key, name in (
-        ("package", "PACKAGE"),
-        ("Value", "VALUE"),
+        ("package", "LCSC_PACKAGE"),
+        ("Value", "LCSC_VALUE"),
         ("JLCPCB Part Class", "JLCPCB_CLASS"),
     ):
         value = _text(c_para.get(key))

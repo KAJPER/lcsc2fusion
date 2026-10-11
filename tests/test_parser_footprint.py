@@ -999,7 +999,9 @@ def test_synthetic_fixture_matches_expected_pads(path: Path | None) -> None:
             # The parser merges consecutive duplicate vertices and drops a closing duplicate.
             exp = [pt for i, pt in enumerate(pairs) if i == 0 or pt != pairs[i - 1]]
             assert len(got) in (len(exp), len(exp) - 1), where
-            assert got == pytest.approx(exp[: len(got)], abs=1e-3), where
+            flat_got = [v for pt in got for v in pt]
+            flat_exp = [v for pt in exp[: len(got)] for v in pt]
+            assert flat_got == pytest.approx(flat_exp, abs=1e-3), where
         else:
             rotation = want.get("rotation_deg", want.get("rotation", 0.0))
             assert abs(angle_diff(pad.rotation, rotation)) < 1e-3, where

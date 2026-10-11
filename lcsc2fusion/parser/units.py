@@ -9,6 +9,10 @@ from __future__ import annotations
 from lcsc2fusion.constants import EE_UNIT_MM
 from lcsc2fusion.model import Point
 
+# Output precision: 0.1 micron. EasyEDA stores 4 decimals of a 10 mil unit (0.025 micron),
+# so this only removes float noise such as 0.850011 for a 0.85 mm design value.
+MM_DECIMALS = 4
+
 
 def ee_to_mm(value: float) -> float:
     """Convert a length (no axis, no origin) from EasyEDA units to millimetres."""
@@ -32,9 +36,9 @@ class Transform:
 
     def point(self, x: float, y: float) -> Point:
         return Point(
-            round((x - self.origin_x) * EE_UNIT_MM, 6),
-            round(-(y - self.origin_y) * EE_UNIT_MM, 6),
+            round((x - self.origin_x) * EE_UNIT_MM, MM_DECIMALS),
+            round(-(y - self.origin_y) * EE_UNIT_MM, MM_DECIMALS),
         )
 
     def length(self, value: float) -> float:
-        return round(value * EE_UNIT_MM, 6)
+        return round(value * EE_UNIT_MM, MM_DECIMALS)

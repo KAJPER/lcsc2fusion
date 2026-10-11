@@ -19,7 +19,7 @@ import pytest
 
 from lcsc2fusion.constants import EE_UNIT_MM
 from lcsc2fusion.model import Point
-from lcsc2fusion.parser.units import Transform, ee_rotation_to_ccw, ee_to_mm
+from lcsc2fusion.parser.units import MM_DECIMALS, Transform, ee_rotation_to_ccw, ee_to_mm
 
 REAL_DIR = Path(__file__).parent / "fixtures" / "real"
 TOL = 1e-6
@@ -116,8 +116,8 @@ def test_transform_length_has_no_axis_or_origin() -> None:
 
 def test_transform_rounds_to_micrometres() -> None:
     tf = Transform(0.0, 0.0)
-    assert tf.length(1.234567891) == round(1.234567891 * EE_UNIT_MM, 6)
-    assert tf.point(1.234567891, 0.0).x == round(1.234567891 * EE_UNIT_MM, 6)
+    assert tf.length(1.234567891) == round(1.234567891 * EE_UNIT_MM, MM_DECIMALS)
+    assert tf.point(1.234567891, 0.0).x == round(1.234567891 * EE_UNIT_MM, MM_DECIMALS)
 
 
 @pytest.mark.parametrize(
@@ -158,8 +158,8 @@ def test_model_rotation_reproduces_ee_outline(rotation: float) -> None:
     from_ee = [tf.point(x, y) for x, y in ee_outline(cx, cy, w, h, rotation)]
     from_model = model_outline(tf, cx, cy, w, h, rotation)
     for a, b in zip(from_ee, from_model, strict=True):
-        assert a.x == pytest.approx(b.x, abs=1e-5)
-        assert a.y == pytest.approx(b.y, abs=1e-5)
+        assert a.x == pytest.approx(b.x, abs=1e-4)
+        assert a.y == pytest.approx(b.y, abs=1e-4)
 
 
 def test_opposite_sign_would_differ_at_90_degrees() -> None:
