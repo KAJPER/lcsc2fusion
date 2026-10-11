@@ -1,0 +1,1016 @@
+{
+  "name": "usbc_like",
+  "synthetic": true,
+  "lcsc_id": "C9000009",
+  "mpn": "SYN-USBC-16P",
+  "prefix": "USBC",
+  "package_name": "SYN-USB-C-SMD-16P",
+  "description": "Synthetic USB Type-C receptacle, 16 pin",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    3999.5,
+    3003.25
+  ],
+  "pins": [
+    {
+      "number": "A1B12",
+      "name": "GND",
+      "x_mm": -8.89,
+      "y_mm": 13.97,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "A4B9",
+      "name": "VBUS",
+      "x_mm": -8.89,
+      "y_mm": 11.43,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B8",
+      "name": "SBU2",
+      "x_mm": -8.89,
+      "y_mm": 8.89,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "A5",
+      "name": "CC1",
+      "x_mm": -8.89,
+      "y_mm": 6.35,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B7",
+      "name": "DN2",
+      "x_mm": -8.89,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "A6",
+      "name": "DP1",
+      "x_mm": -8.89,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "A7",
+      "name": "DN1",
+      "x_mm": -8.89,
+      "y_mm": -1.27,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B6",
+      "name": "DP2",
+      "x_mm": -8.89,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "A8",
+      "name": "SBU1",
+      "x_mm": -8.89,
+      "y_mm": -6.35,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B5",
+      "name": "CC2",
+      "x_mm": -8.89,
+      "y_mm": -8.89,
+      "angle_deg": 0,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B4A9",
+      "name": "VBUS",
+      "x_mm": -8.89,
+      "y_mm": -11.43,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "B1A12",
+      "name": "GND",
+      "x_mm": -8.89,
+      "y_mm": -13.97,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "S1",
+      "name": "SHIELD",
+      "x_mm": 8.89,
+      "y_mm": 3.81,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "S2",
+      "name": "SHIELD",
+      "x_mm": 8.89,
+      "y_mm": 1.27,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "S3",
+      "name": "SHIELD",
+      "x_mm": 8.89,
+      "y_mm": -1.27,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "S4",
+      "name": "SHIELD",
+      "x_mm": 8.89,
+      "y_mm": -3.81,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-USBC-16P",
+      "origin_ee": [
+        530,
+        315
+      ],
+      "pin_count": 16,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 16
+      }
+    }
+  ],
+  "pad_count": 16,
+  "unique_pad_numbers": 16,
+  "pad_numbers": [
+    "A1B12",
+    "A4B9",
+    "B8",
+    "A5",
+    "B7",
+    "A6",
+    "A7",
+    "B6",
+    "A8",
+    "B5",
+    "B4A9",
+    "B1A12",
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+  ],
+  "pads": [
+    {
+      "number": "A1B12",
+      "x_mm": -3.299993,
+      "y_mm": 1.199998,
+      "width_mm": 0.599999,
+      "height_mm": 1.099998,
+      "shape": "POLYGON",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -3.599993,
+          0.650011
+        ],
+        [
+          -2.999994,
+          0.650011
+        ],
+        [
+          -2.999994,
+          1.55001
+        ],
+        [
+          -3.199994,
+          1.750009
+        ],
+        [
+          -3.199994,
+          1.750009
+        ],
+        [
+          -3.399993,
+          1.750009
+        ],
+        [
+          -3.599993,
+          1.55001
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -3.599993,
+        0.650011,
+        -2.999994,
+        1.750009
+      ]
+    },
+    {
+      "number": "A4B9",
+      "x_mm": -2.499995,
+      "y_mm": 1.199998,
+      "width_mm": 0.599999,
+      "height_mm": 1.099998,
+      "shape": "POLYGON",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -2.799994,
+          0.650011
+        ],
+        [
+          -2.199996,
+          0.650011
+        ],
+        [
+          -2.199996,
+          1.55001
+        ],
+        [
+          -2.399995,
+          1.750009
+        ],
+        [
+          -2.599995,
+          1.750009
+        ],
+        [
+          -2.799994,
+          1.55001
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -2.799994,
+        0.650011,
+        -2.199996,
+        1.750009
+      ]
+    },
+    {
+      "number": "B8",
+      "x_mm": -1.750009,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.899996,
+          1.750009
+        ],
+        [
+          -1.600022,
+          1.750009
+        ],
+        [
+          -1.600022,
+          0.649986
+        ],
+        [
+          -1.899996,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.899996,
+        0.649986,
+        -1.600022,
+        1.750009
+      ]
+    },
+    {
+      "number": "A5",
+      "x_mm": -1.25001,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.399997,
+          1.750009
+        ],
+        [
+          -1.100023,
+          1.750009
+        ],
+        [
+          -1.100023,
+          0.649986
+        ],
+        [
+          -1.399997,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.399997,
+        0.649986,
+        -1.100023,
+        1.750009
+      ]
+    },
+    {
+      "number": "B7",
+      "x_mm": -0.750011,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.899998,
+          1.750009
+        ],
+        [
+          -0.600024,
+          1.750009
+        ],
+        [
+          -0.600024,
+          0.649986
+        ],
+        [
+          -0.899998,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.899998,
+        0.649986,
+        -0.600024,
+        1.750009
+      ]
+    },
+    {
+      "number": "A6",
+      "x_mm": -0.250012,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.399999,
+          1.750009
+        ],
+        [
+          -0.100025,
+          1.750009
+        ],
+        [
+          -0.100025,
+          0.649986
+        ],
+        [
+          -0.399999,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.399999,
+        0.649986,
+        -0.100025,
+        1.750009
+      ]
+    },
+    {
+      "number": "A7",
+      "x_mm": 0.250012,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.100025,
+          1.750009
+        ],
+        [
+          0.399999,
+          1.750009
+        ],
+        [
+          0.399999,
+          0.649986
+        ],
+        [
+          0.100025,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.100025,
+        0.649986,
+        0.399999,
+        1.750009
+      ]
+    },
+    {
+      "number": "B6",
+      "x_mm": 0.750011,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.600024,
+          1.750009
+        ],
+        [
+          0.899998,
+          1.750009
+        ],
+        [
+          0.899998,
+          0.649986
+        ],
+        [
+          0.600024,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.600024,
+        0.649986,
+        0.899998,
+        1.750009
+      ]
+    },
+    {
+      "number": "A8",
+      "x_mm": 1.25001,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.100023,
+          1.750009
+        ],
+        [
+          1.399997,
+          1.750009
+        ],
+        [
+          1.399997,
+          0.649986
+        ],
+        [
+          1.100023,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.100023,
+        0.649986,
+        1.399997,
+        1.750009
+      ]
+    },
+    {
+      "number": "B5",
+      "x_mm": 1.750009,
+      "y_mm": 1.199998,
+      "width_mm": 0.299999,
+      "height_mm": 1.099998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.600022,
+          1.750009
+        ],
+        [
+          1.899996,
+          1.750009
+        ],
+        [
+          1.899996,
+          0.649986
+        ],
+        [
+          1.600022,
+          0.649986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.600022,
+        0.649986,
+        1.899996,
+        1.750009
+      ]
+    },
+    {
+      "number": "B4A9",
+      "x_mm": 2.499995,
+      "y_mm": 1.199998,
+      "width_mm": 0.599999,
+      "height_mm": 1.099998,
+      "shape": "POLYGON",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          2.199996,
+          0.650011
+        ],
+        [
+          2.799994,
+          0.650011
+        ],
+        [
+          2.799994,
+          1.55001
+        ],
+        [
+          2.599995,
+          1.750009
+        ],
+        [
+          2.399995,
+          1.750009
+        ],
+        [
+          2.199996,
+          1.55001
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        2.199996,
+        0.650011,
+        2.799994,
+        1.750009
+      ]
+    },
+    {
+      "number": "B1A12",
+      "x_mm": 3.299993,
+      "y_mm": 1.199998,
+      "width_mm": 0.599999,
+      "height_mm": 1.099998,
+      "shape": "POLYGON",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          2.999994,
+          0.650011
+        ],
+        [
+          3.599993,
+          0.650011
+        ],
+        [
+          3.599993,
+          1.55001
+        ],
+        [
+          3.399993,
+          1.750009
+        ],
+        [
+          3.199994,
+          1.750009
+        ],
+        [
+          2.999994,
+          1.55001
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        2.999994,
+        0.650011,
+        3.599993,
+        1.750009
+      ]
+    },
+    {
+      "number": "S1",
+      "x_mm": -4.299991,
+      "y_mm": 0.1,
+      "width_mm": 0.999998,
+      "height_mm": 1.999996,
+      "shape": "OVAL",
+      "drill_mm": 0.599999,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 1.599997,
+      "plated": true,
+      "points_mm": [
+        [
+          -4.299991,
+          0.599999
+        ],
+        [
+          -4.299991,
+          -0.399999
+        ]
+      ],
+      "slot_axis_mm": [
+        [
+          -4.299991,
+          -0.399999
+        ],
+        [
+          -4.299991,
+          0.599999
+        ]
+      ],
+      "extent_mm": [
+        -4.79999,
+        -0.899998,
+        -3.799992,
+        1.099998
+      ]
+    },
+    {
+      "number": "S2",
+      "x_mm": 4.299991,
+      "y_mm": 0.1,
+      "width_mm": 0.999998,
+      "height_mm": 1.999996,
+      "shape": "OVAL",
+      "drill_mm": 0.599999,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 1.599997,
+      "plated": true,
+      "points_mm": [
+        [
+          4.299991,
+          0.599999
+        ],
+        [
+          4.299991,
+          -0.399999
+        ]
+      ],
+      "slot_axis_mm": [
+        [
+          4.299991,
+          -0.399999
+        ],
+        [
+          4.299991,
+          0.599999
+        ]
+      ],
+      "extent_mm": [
+        3.799992,
+        -0.899998,
+        4.79999,
+        1.099998
+      ]
+    },
+    {
+      "number": "S3",
+      "x_mm": -4.299991,
+      "y_mm": -3.199994,
+      "width_mm": 0.999998,
+      "height_mm": 1.799996,
+      "shape": "OVAL",
+      "drill_mm": 0.599999,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 1.199998,
+      "plated": true,
+      "points_mm": [
+        [
+          -4.299991,
+          -2.799994
+        ],
+        [
+          -4.299991,
+          -3.599993
+        ]
+      ],
+      "slot_axis_mm": [
+        [
+          -4.299991,
+          -3.499993
+        ],
+        [
+          -4.299991,
+          -2.899994
+        ]
+      ],
+      "extent_mm": [
+        -4.79999,
+        -4.099992,
+        -3.799992,
+        -2.299995
+      ]
+    },
+    {
+      "number": "S4",
+      "x_mm": 4.299991,
+      "y_mm": -3.199994,
+      "width_mm": 0.999998,
+      "height_mm": 1.799996,
+      "shape": "OVAL",
+      "drill_mm": 0.599999,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 1.199998,
+      "plated": true,
+      "points_mm": [
+        [
+          4.299991,
+          -2.799994
+        ],
+        [
+          4.299991,
+          -3.599993
+        ]
+      ],
+      "slot_axis_mm": [
+        [
+          4.299991,
+          -3.499993
+        ],
+        [
+          4.299991,
+          -2.899994
+        ]
+      ],
+      "extent_mm": [
+        3.799992,
+        -4.099992,
+        4.79999,
+        -2.299995
+      ]
+    }
+  ],
+  "holes": [
+    {
+      "x_mm": -2.899994,
+      "y_mm": -1.199998,
+      "drill_mm": 0.999998
+    },
+    {
+      "x_mm": 2.899994,
+      "y_mm": -1.199998,
+      "drill_mm": 0.999998
+    }
+  ],
+  "bbox_mm": {
+    "min_x": -4.79999,
+    "min_y": -4.099992,
+    "max_x": 4.79999,
+    "max_y": 1.750009
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 16,
+      "HOLE": 2,
+      "TRACK": 3,
+      "CIRCLE": 1,
+      "SOLIDREGION": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -3.999992,
+            -4.599991
+          ],
+          [
+            3.999992,
+            -4.599991
+          ],
+          [
+            3.999992,
+            -4.099992
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -3.999992,
+            -4.099992
+          ],
+          [
+            -3.999992,
+            -4.599991
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -3.499993,
+            2.599995
+          ],
+          [
+            3.499993,
+            2.599995
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 101,
+        "x_mm": -3.899992,
+        "y_mm": 2.199996,
+        "radius_mm": 0.150012,
+        "width_mm": 0.0508
+      }
+    ],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -4.199992,
+            2.399995
+          ],
+          [
+            4.199992,
+            2.399995
+          ],
+          [
+            4.199992,
+            -4.399991
+          ],
+          [
+            -4.199992,
+            -4.399991
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "alphanumeric pad numbers",
+    "4 POLYGON SMD pads, the first one repeats a vertex",
+    "4 slotted OVAL through hole pads (hole_length and slot_outline)",
+    "2 non-plated HOLE shapes",
+    "shield pins use an empty pin rotation field (means 0)",
+    "pin names VBUS, GND, SHIELD repeat"
+  ]
+}

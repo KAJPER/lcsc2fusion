@@ -1,0 +1,452 @@
+{
+  "name": "padstress",
+  "synthetic": true,
+  "lcsc_id": "C9000015",
+  "mpn": "SYN-PADSTRESS",
+  "prefix": "J",
+  "package_name": "SYN-PADSTRESS-8",
+  "description": "Synthetic pad shape stress test",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "P1",
+      "x_mm": -3.81,
+      "y_mm": 8.89,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "P2",
+      "x_mm": -3.81,
+      "y_mm": 6.35,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "P3",
+      "x_mm": -3.81,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "P4",
+      "x_mm": -3.81,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "5",
+      "name": "P5",
+      "x_mm": -3.81,
+      "y_mm": -1.27,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "6",
+      "name": "P6",
+      "x_mm": -3.81,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "7",
+      "name": "P7",
+      "x_mm": -3.81,
+      "y_mm": -6.35,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "8",
+      "name": "P8",
+      "x_mm": -3.81,
+      "y_mm": -8.89,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-PADSTRESS",
+      "origin_ee": [
+        395,
+        300
+      ],
+      "pin_count": 8,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 8
+      }
+    }
+  ],
+  "pad_count": 8,
+  "unique_pad_numbers": 8,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -2.499995,
+      "y_mm": 1.999996,
+      "width_mm": 1.599997,
+      "height_mm": 0.799998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 30.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -3.392805,
+          1.946402
+        ],
+        [
+          -2.007184,
+          2.7464
+        ],
+        [
+          -1.607185,
+          2.05359
+        ],
+        [
+          -2.992806,
+          1.253592
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -3.392805,
+        1.253592,
+        -1.607185,
+        2.7464
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 0.0,
+      "y_mm": 1.999996,
+      "width_mm": 1.599997,
+      "height_mm": 0.799998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.399999,
+          1.199998
+        ],
+        [
+          -0.399999,
+          2.799994
+        ],
+        [
+          0.399999,
+          2.799994
+        ],
+        [
+          0.399999,
+          1.199998
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.399999,
+        1.199998,
+        0.399999,
+        2.799994
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": 2.499995,
+      "y_mm": 1.999996,
+      "width_mm": 1.999996,
+      "height_mm": 0.799998,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 45.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          2.075739,
+          1.57574
+        ],
+        [
+          2.924251,
+          2.424252
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.67574,
+        1.175741,
+        3.32425,
+        2.824251
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": -2.499995,
+      "y_mm": 0.0,
+      "width_mm": 1.399997,
+      "height_mm": 0.699999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 270.0,
+      "layer": "bottom",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -2.150008,
+          0.699999
+        ],
+        [
+          -2.150008,
+          -0.699999
+        ],
+        [
+          -2.850007,
+          -0.699999
+        ],
+        [
+          -2.850007,
+          0.699999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -2.850007,
+        -0.699999,
+        -2.150008,
+        0.699999
+      ]
+    },
+    {
+      "number": "5",
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "width_mm": 1.199998,
+      "height_mm": 1.199998,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.599999,
+        -0.599999,
+        0.599999,
+        0.599999
+      ]
+    },
+    {
+      "number": "6",
+      "x_mm": 2.499995,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.799998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": false,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.599997,
+        -0.899998,
+        3.399993,
+        0.899998
+      ]
+    },
+    {
+      "number": "7",
+      "x_mm": -2.499995,
+      "y_mm": -1.999996,
+      "width_mm": 1.799996,
+      "height_mm": 1.399997,
+      "shape": "RECT",
+      "drill_mm": 0.900024,
+      "rotation_deg": 15.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -3.550488,
+          -1.556791
+        ],
+        [
+          -1.811833,
+          -1.090905
+        ],
+        [
+          -1.449502,
+          -2.443201
+        ],
+        [
+          -3.188157,
+          -2.909087
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -3.550488,
+        -2.909087,
+        -1.449502,
+        -1.090905
+      ]
+    },
+    {
+      "number": "8",
+      "x_mm": 0.0,
+      "y_mm": -1.999996,
+      "width_mm": 0.999998,
+      "height_mm": 1.999996,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.499999,
+          -1.999996
+        ],
+        [
+          0.499999,
+          -1.999996
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.999998,
+        -2.499995,
+        0.999998,
+        -1.499997
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -3.550488,
+    "min_y": -2.909087,
+    "max_x": 3.399993,
+    "max_y": 2.824251
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 8,
+      "TRACK": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -3.999992,
+            3.199994
+          ],
+          [
+            3.999992,
+            3.199994
+          ],
+          [
+            3.999992,
+            -3.199994
+          ],
+          [
+            -3.999992,
+            -3.199994
+          ],
+          [
+            -3.999992,
+            3.199994
+          ]
+        ]
+      }
+    ],
+    "circles": [],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "pad 1: RECT rotated 30 degrees, outline vertices include the rotation",
+    "pad 2: RECT rotation 90, pad 4: RECT rotation 270 on the bottom layer",
+    "pad 3: OVAL rotated 45 degrees, pad 8: OVAL rotated 90 degrees",
+    "pad 5: round SMD ELLIPSE (no real sample, empty points assumed)",
+    "pad 6: non-plated ELLIPSE with hole, pad 7: through hole RECT rotated 15 degrees"
+  ]
+}

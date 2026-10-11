@@ -1,0 +1,286 @@
+{
+  "name": "led0603",
+  "synthetic": true,
+  "lcsc_id": "C9000003",
+  "mpn": "SYN-LED0603-R",
+  "prefix": "LED",
+  "package_name": "SYN-LED0603",
+  "description": "Synthetic red LED 0603",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000.8828,
+    3003.1398
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "K",
+      "x_mm": -5.08,
+      "y_mm": 0.0,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "A",
+      "x_mm": 5.08,
+      "y_mm": 0.0,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-LED0603-R",
+      "origin_ee": [
+        0,
+        -5
+      ],
+      "pin_count": 2,
+      "arcs": [],
+      "shape_counts": {
+        "C": 1,
+        "PT": 1,
+        "PL": 5,
+        "P": 2
+      }
+    }
+  ],
+  "pad_count": 2,
+  "unique_pad_numbers": 2,
+  "pad_numbers": [
+    "1",
+    "2"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -0.799998,
+      "y_mm": 0.0,
+      "width_mm": 0.899998,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.25001,
+          0.499999
+        ],
+        [
+          -0.349987,
+          0.499999
+        ],
+        [
+          -0.349987,
+          -0.499999
+        ],
+        [
+          -1.25001,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.25001,
+        -0.499999,
+        -0.349987,
+        0.499999
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 0.799998,
+      "y_mm": 0.0,
+      "width_mm": 0.899998,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.349987,
+          0.499999
+        ],
+        [
+          1.25001,
+          0.499999
+        ],
+        [
+          1.25001,
+          -0.499999
+        ],
+        [
+          0.349987,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.349987,
+        -0.499999,
+        1.25001,
+        0.499999
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -1.25001,
+    "min_y": -0.499999,
+    "max_x": 1.25001,
+    "max_y": 0.499999
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 2,
+      "CIRCLE": 2,
+      "TRACK": 2,
+      "SOLIDREGION": 3,
+      "TEXT": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -0.299999,
+            0.850011
+          ],
+          [
+            0.299999,
+            0.850011
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -0.299999,
+            -0.850011
+          ],
+          [
+            0.299999,
+            -0.850011
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 101,
+        "x_mm": -1.55001,
+        "y_mm": 0.2,
+        "radius_mm": 0.1,
+        "width_mm": 0.0508
+      },
+      {
+        "layer": 3,
+        "x_mm": -1.699997,
+        "y_mm": -0.499999,
+        "radius_mm": 0.150012,
+        "width_mm": 0.0254
+      }
+    ],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 12,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -0.899998,
+            0.499999
+          ],
+          [
+            -0.899998,
+            -0.499999
+          ],
+          [
+            -0.499999,
+            0.0
+          ]
+        ]
+      },
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -0.799998,
+            0.399999
+          ],
+          [
+            0.799998,
+            0.399999
+          ],
+          [
+            0.799998,
+            -0.399999
+          ],
+          [
+            -0.799998,
+            -0.399999
+          ]
+        ]
+      },
+      {
+        "layer": 100,
+        "kind": "cutout",
+        "points_mm": [
+          [
+            0.2,
+            0.2
+          ],
+          [
+            0.599999,
+            0.2
+          ],
+          [
+            0.599999,
+            -0.2
+          ],
+          [
+            0.2,
+            -0.2
+          ]
+        ]
+      }
+    ],
+    "texts": [
+      {
+        "type": "P",
+        "x_mm": 0.0,
+        "y_mm": -1.599997,
+        "layer": 3,
+        "text": "LED?",
+        "rotation_deg": 0.0
+      }
+    ]
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "symbol uses C, PT and PL shapes; footprint has TEXT (layout from docs, no real sample)"
+  ]
+}

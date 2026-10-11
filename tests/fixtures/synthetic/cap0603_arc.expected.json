@@ -1,0 +1,319 @@
+{
+  "name": "cap0603_arc",
+  "synthetic": true,
+  "lcsc_id": "C9000002",
+  "mpn": "SYN-C0603-100NF",
+  "prefix": "C",
+  "package_name": "SYN-C0603",
+  "description": "Synthetic 100nF 50V 0603 capacitor",
+  "manufacturer": "SYN-Maker",
+  "value": "100nF",
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "1",
+      "x_mm": -5.08,
+      "y_mm": 0.0,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "2",
+      "x_mm": 5.08,
+      "y_mm": 0.0,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-C0603-100NF",
+      "origin_ee": [
+        0,
+        0
+      ],
+      "pin_count": 2,
+      "arcs": [],
+      "shape_counts": {
+        "PL": 4,
+        "P": 2
+      }
+    }
+  ],
+  "pad_count": 2,
+  "unique_pad_numbers": 2,
+  "pad_numbers": [
+    "1",
+    "2"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -0.850011,
+      "y_mm": 0.0,
+      "width_mm": 0.950011,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.325016,
+          0.499999
+        ],
+        [
+          -0.375006,
+          0.499999
+        ],
+        [
+          -0.375006,
+          -0.499999
+        ],
+        [
+          -1.325016,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.325016,
+        -0.499999,
+        -0.375006,
+        0.499999
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 0.850011,
+      "y_mm": 0.0,
+      "width_mm": 0.950011,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.375006,
+          0.499999
+        ],
+        [
+          1.325016,
+          0.499999
+        ],
+        [
+          1.325016,
+          -0.499999
+        ],
+        [
+          0.375006,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.375006,
+        -0.499999,
+        1.325016,
+        0.499999
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -1.325016,
+    "min_y": -0.499999,
+    "max_x": 1.325016,
+    "max_y": 0.499999
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 2,
+      "TRACK": 4,
+      "ARC": 5
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.199998,
+            0.850011
+          ],
+          [
+            1.199998,
+            0.850011
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.199998,
+            -0.850011
+          ],
+          [
+            1.199998,
+            -0.850011
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.499997,
+            0.550012
+          ],
+          [
+            -1.499997,
+            -0.550012
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            1.499997,
+            -0.550012
+          ],
+          [
+            1.499997,
+            0.550012
+          ]
+        ]
+      }
+    ],
+    "circles": [],
+    "arcs": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "cx_mm": 1.2,
+        "cy_mm": 0.55,
+        "radius_mm": 0.299999,
+        "start_deg": 90.0,
+        "sweep_deg": -90.0,
+        "large_arc": 0,
+        "svg_sweep_flag": 1,
+        "start_mm": [
+          1.199998,
+          0.850011
+        ],
+        "end_mm": [
+          1.499997,
+          0.550012
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "cx_mm": -1.2,
+        "cy_mm": 0.55,
+        "radius_mm": 0.299999,
+        "start_deg": 180.0,
+        "sweep_deg": -90.0,
+        "large_arc": 0,
+        "svg_sweep_flag": 1,
+        "start_mm": [
+          -1.499997,
+          0.550012
+        ],
+        "end_mm": [
+          -1.199998,
+          0.850011
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "cx_mm": -1.2,
+        "cy_mm": -0.55,
+        "radius_mm": 0.299999,
+        "start_deg": 270.0,
+        "sweep_deg": -90.0,
+        "large_arc": 0,
+        "svg_sweep_flag": 1,
+        "start_mm": [
+          -1.199998,
+          -0.850011
+        ],
+        "end_mm": [
+          -1.499997,
+          -0.550012
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "cx_mm": 1.2,
+        "cy_mm": -0.55,
+        "radius_mm": 0.299999,
+        "start_deg": 0.0,
+        "sweep_deg": -90.0,
+        "large_arc": 0,
+        "svg_sweep_flag": 1,
+        "start_mm": [
+          1.499997,
+          -0.550012
+        ],
+        "end_mm": [
+          1.199998,
+          -0.850011
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1016,
+        "cx_mm": -2.0,
+        "cy_mm": 0.0,
+        "radius_mm": 0.150012,
+        "start_deg": 90.0,
+        "sweep_deg": 270.0,
+        "large_arc": 1,
+        "svg_sweep_flag": 0,
+        "start_mm": [
+          -1.999996,
+          0.150012
+        ],
+        "end_mm": [
+          -1.850009,
+          0.0
+        ]
+      }
+    ],
+    "rects": [],
+    "solid_regions": [],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "4 corner arcs (clockwise), 1 large counter-clockwise arc, both SVG path spellings"
+  ]
+}

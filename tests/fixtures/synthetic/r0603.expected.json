@@ -1,0 +1,263 @@
+{
+  "name": "r0603",
+  "synthetic": true,
+  "lcsc_id": "C9000001",
+  "mpn": "SYN-R0603-10K",
+  "prefix": "R",
+  "package_name": "SYN-R0603",
+  "description": "Synthetic 10kΩ ±1% 0603 resistor",
+  "manufacturer": "SYN-Maker(示例)",
+  "value": "10kΩ",
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "1",
+      "x_mm": -5.08,
+      "y_mm": 0.0,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "2",
+      "x_mm": 5.08,
+      "y_mm": 0.0,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-R0603-10K",
+      "origin_ee": [
+        20,
+        0
+      ],
+      "pin_count": 2,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 2
+      }
+    }
+  ],
+  "pad_count": 2,
+  "unique_pad_numbers": 2,
+  "pad_numbers": [
+    "1",
+    "2"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -0.850011,
+      "y_mm": 0.0,
+      "width_mm": 0.899998,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.300023,
+          -0.499999
+        ],
+        [
+          -1.300023,
+          0.499999
+        ],
+        [
+          -0.399999,
+          0.499999
+        ],
+        [
+          -0.399999,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.300023,
+        -0.499999,
+        -0.399999,
+        0.499999
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 0.850011,
+      "y_mm": 0.0,
+      "width_mm": 0.899998,
+      "height_mm": 0.999998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.399999,
+          -0.499999
+        ],
+        [
+          0.399999,
+          0.499999
+        ],
+        [
+          1.300023,
+          0.499999
+        ],
+        [
+          1.300023,
+          -0.499999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.399999,
+        -0.499999,
+        1.300023,
+        0.499999
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -1.300023,
+    "min_y": -0.499999,
+    "max_x": 1.300023,
+    "max_y": 0.499999
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 2,
+      "TRACK": 4,
+      "SOLIDREGION": 1,
+      "SVGNODE": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -0.299999,
+            0.799998
+          ],
+          [
+            0.299999,
+            0.799998
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -0.299999,
+            -0.799998
+          ],
+          [
+            0.299999,
+            -0.799998
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -0.999998,
+            0.850011
+          ],
+          [
+            -1.55001,
+            0.850011
+          ],
+          [
+            -1.55001,
+            -0.850011
+          ],
+          [
+            -0.999998,
+            -0.850011
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            0.999998,
+            0.850011
+          ],
+          [
+            1.55001,
+            0.850011
+          ],
+          [
+            1.55001,
+            -0.850011
+          ],
+          [
+            0.999998,
+            -0.850011
+          ]
+        ]
+      }
+    ],
+    "circles": [],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -0.799998,
+            0.399999
+          ],
+          [
+            -0.799998,
+            -0.399999
+          ],
+          [
+            0.799998,
+            -0.399999
+          ],
+          [
+            0.799998,
+            0.399999
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "pad vertex order variant: older editor (vertex_shift 0)"
+  ]
+}

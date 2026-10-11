@@ -1,0 +1,1039 @@
+{
+  "name": "qfn16_ep",
+  "synthetic": true,
+  "lcsc_id": "C9000006",
+  "mpn": "SYN-QFN16-EP",
+  "prefix": "U",
+  "package_name": "SYN-QFN-16-EP",
+  "description": "Synthetic QFN-16 with exposed pad",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4012.5,
+    2994.25
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "VDD",
+      "x_mm": -10.16,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "IN1",
+      "x_mm": -10.16,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "IN2",
+      "x_mm": -10.16,
+      "y_mm": -1.27,
+      "angle_deg": 0,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": true,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "GND",
+      "x_mm": -10.16,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "5",
+      "name": "OUT1",
+      "x_mm": -5.08,
+      "y_mm": -10.16,
+      "angle_deg": 90,
+      "direction": "out",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "6",
+      "name": "OUT2",
+      "x_mm": -2.54,
+      "y_mm": -10.16,
+      "angle_deg": 90,
+      "direction": "out",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "17",
+      "name": "GND",
+      "x_mm": 0.0,
+      "y_mm": -10.16,
+      "angle_deg": 90,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "7",
+      "name": "OUT3",
+      "x_mm": 2.54,
+      "y_mm": -10.16,
+      "angle_deg": 90,
+      "direction": "out",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "8",
+      "name": "OUT4",
+      "x_mm": 5.08,
+      "y_mm": -10.16,
+      "angle_deg": 90,
+      "direction": "out",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "12",
+      "name": "IO12",
+      "x_mm": 10.16,
+      "y_mm": 3.81,
+      "angle_deg": 180,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "11",
+      "name": "IO11",
+      "x_mm": 10.16,
+      "y_mm": 1.27,
+      "angle_deg": 180,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "10",
+      "name": "IO10",
+      "x_mm": 10.16,
+      "y_mm": -1.27,
+      "angle_deg": 180,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "9",
+      "name": "IO9",
+      "x_mm": 10.16,
+      "y_mm": -3.81,
+      "angle_deg": 180,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "16",
+      "name": "VDD",
+      "x_mm": -3.81,
+      "y_mm": 10.16,
+      "angle_deg": 270,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "15",
+      "name": "IO15",
+      "x_mm": -1.27,
+      "y_mm": 10.16,
+      "angle_deg": 270,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "14",
+      "name": "IO14",
+      "x_mm": 1.27,
+      "y_mm": 10.16,
+      "angle_deg": 270,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "13",
+      "name": "CLK",
+      "x_mm": 3.81,
+      "y_mm": 10.16,
+      "angle_deg": 270,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": true,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-QFN16-EP",
+      "origin_ee": [
+        400,
+        300
+      ],
+      "pin_count": 17,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 17
+      }
+    }
+  ],
+  "pad_count": 17,
+  "unique_pad_numbers": 17,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -1.45001,
+      "y_mm": 0.750011,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.875003,
+          0.899998
+        ],
+        [
+          -1.025017,
+          0.899998
+        ],
+        [
+          -1.025017,
+          0.600024
+        ],
+        [
+          -1.875003,
+          0.600024
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.875003,
+        0.600024,
+        -1.025017,
+        0.899998
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": -1.45001,
+      "y_mm": 0.250012,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.875003,
+          0.399999
+        ],
+        [
+          -1.025017,
+          0.399999
+        ],
+        [
+          -1.025017,
+          0.100025
+        ],
+        [
+          -1.875003,
+          0.100025
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.875003,
+        0.100025,
+        -1.025017,
+        0.399999
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": -1.45001,
+      "y_mm": -0.250012,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.875003,
+          -0.100025
+        ],
+        [
+          -1.025017,
+          -0.100025
+        ],
+        [
+          -1.025017,
+          -0.399999
+        ],
+        [
+          -1.875003,
+          -0.399999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.875003,
+        -0.399999,
+        -1.025017,
+        -0.100025
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": -1.45001,
+      "y_mm": -0.750011,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.875003,
+          -0.600024
+        ],
+        [
+          -1.025017,
+          -0.600024
+        ],
+        [
+          -1.025017,
+          -0.899998
+        ],
+        [
+          -1.875003,
+          -0.899998
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.875003,
+        -0.899998,
+        -1.025017,
+        -0.600024
+      ]
+    },
+    {
+      "number": "5",
+      "x_mm": -0.750011,
+      "y_mm": -1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.899998,
+          -1.875003
+        ],
+        [
+          -0.899998,
+          -1.025017
+        ],
+        [
+          -0.600024,
+          -1.025017
+        ],
+        [
+          -0.600024,
+          -1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.899998,
+        -1.875003,
+        -0.600024,
+        -1.025017
+      ]
+    },
+    {
+      "number": "6",
+      "x_mm": -0.250012,
+      "y_mm": -1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.399999,
+          -1.875003
+        ],
+        [
+          -0.399999,
+          -1.025017
+        ],
+        [
+          -0.100025,
+          -1.025017
+        ],
+        [
+          -0.100025,
+          -1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.399999,
+        -1.875003,
+        -0.100025,
+        -1.025017
+      ]
+    },
+    {
+      "number": "7",
+      "x_mm": 0.250012,
+      "y_mm": -1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.100025,
+          -1.875003
+        ],
+        [
+          0.100025,
+          -1.025017
+        ],
+        [
+          0.399999,
+          -1.025017
+        ],
+        [
+          0.399999,
+          -1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.100025,
+        -1.875003,
+        0.399999,
+        -1.025017
+      ]
+    },
+    {
+      "number": "8",
+      "x_mm": 0.750011,
+      "y_mm": -1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.600024,
+          -1.875003
+        ],
+        [
+          0.600024,
+          -1.025017
+        ],
+        [
+          0.899998,
+          -1.025017
+        ],
+        [
+          0.899998,
+          -1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.600024,
+        -1.875003,
+        0.899998,
+        -1.025017
+      ]
+    },
+    {
+      "number": "9",
+      "x_mm": 1.45001,
+      "y_mm": -0.750011,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 180.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.875003,
+          -0.899998
+        ],
+        [
+          1.025017,
+          -0.899998
+        ],
+        [
+          1.025017,
+          -0.600024
+        ],
+        [
+          1.875003,
+          -0.600024
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.025017,
+        -0.899998,
+        1.875003,
+        -0.600024
+      ]
+    },
+    {
+      "number": "10",
+      "x_mm": 1.45001,
+      "y_mm": -0.250012,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 180.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.875003,
+          -0.399999
+        ],
+        [
+          1.025017,
+          -0.399999
+        ],
+        [
+          1.025017,
+          -0.100025
+        ],
+        [
+          1.875003,
+          -0.100025
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.025017,
+        -0.399999,
+        1.875003,
+        -0.100025
+      ]
+    },
+    {
+      "number": "11",
+      "x_mm": 1.45001,
+      "y_mm": 0.250012,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 180.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.875003,
+          0.100025
+        ],
+        [
+          1.025017,
+          0.100025
+        ],
+        [
+          1.025017,
+          0.399999
+        ],
+        [
+          1.875003,
+          0.399999
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.025017,
+        0.100025,
+        1.875003,
+        0.399999
+      ]
+    },
+    {
+      "number": "12",
+      "x_mm": 1.45001,
+      "y_mm": 0.750011,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 180.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.875003,
+          0.600024
+        ],
+        [
+          1.025017,
+          0.600024
+        ],
+        [
+          1.025017,
+          0.899998
+        ],
+        [
+          1.875003,
+          0.899998
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.025017,
+        0.600024,
+        1.875003,
+        0.899998
+      ]
+    },
+    {
+      "number": "13",
+      "x_mm": 0.750011,
+      "y_mm": 1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 270.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.899998,
+          1.875003
+        ],
+        [
+          0.899998,
+          1.025017
+        ],
+        [
+          0.600024,
+          1.025017
+        ],
+        [
+          0.600024,
+          1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.600024,
+        1.025017,
+        0.899998,
+        1.875003
+      ]
+    },
+    {
+      "number": "14",
+      "x_mm": 0.250012,
+      "y_mm": 1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 270.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.399999,
+          1.875003
+        ],
+        [
+          0.399999,
+          1.025017
+        ],
+        [
+          0.100025,
+          1.025017
+        ],
+        [
+          0.100025,
+          1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.100025,
+        1.025017,
+        0.399999,
+        1.875003
+      ]
+    },
+    {
+      "number": "15",
+      "x_mm": -0.250012,
+      "y_mm": 1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 270.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.100025,
+          1.875003
+        ],
+        [
+          -0.100025,
+          1.025017
+        ],
+        [
+          -0.399999,
+          1.025017
+        ],
+        [
+          -0.399999,
+          1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.399999,
+        1.025017,
+        -0.100025,
+        1.875003
+      ]
+    },
+    {
+      "number": "16",
+      "x_mm": -0.750011,
+      "y_mm": 1.45001,
+      "width_mm": 0.850011,
+      "height_mm": 0.299999,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 270.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.600024,
+          1.875003
+        ],
+        [
+          -0.600024,
+          1.025017
+        ],
+        [
+          -0.899998,
+          1.025017
+        ],
+        [
+          -0.899998,
+          1.875003
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.899998,
+        1.025017,
+        -0.600024,
+        1.875003
+      ]
+    },
+    {
+      "number": "17",
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "width_mm": 1.699997,
+      "height_mm": 1.699997,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.850011,
+          0.850011
+        ],
+        [
+          0.850011,
+          0.850011
+        ],
+        [
+          0.850011,
+          -0.850011
+        ],
+        [
+          -0.850011,
+          -0.850011
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.850011,
+        -0.850011,
+        0.850011,
+        0.850011
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -1.875003,
+    "min_y": -1.875003,
+    "max_x": 1.875003,
+    "max_y": 1.875003
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 17,
+      "TRACK": 4,
+      "CIRCLE": 1,
+      "SOLIDREGION": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.699997,
+            -1.199998
+          ],
+          [
+            -1.699997,
+            -1.699997
+          ],
+          [
+            -1.199998,
+            -1.699997
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.699997,
+            1.199998
+          ],
+          [
+            -1.699997,
+            1.699997
+          ],
+          [
+            -1.199998,
+            1.699997
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            1.699997,
+            -1.199998
+          ],
+          [
+            1.699997,
+            -1.699997
+          ],
+          [
+            1.199998,
+            -1.699997
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            1.699997,
+            1.199998
+          ],
+          [
+            1.699997,
+            1.699997
+          ],
+          [
+            1.199998,
+            1.699997
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 101,
+        "x_mm": -2.199996,
+        "y_mm": 2.199996,
+        "radius_mm": 0.11999,
+        "width_mm": 0.0508
+      }
+    ],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -1.499997,
+            1.499997
+          ],
+          [
+            1.499997,
+            1.499997
+          ],
+          [
+            1.499997,
+            -1.499997
+          ],
+          [
+            -1.499997,
+            -1.499997
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "exposed pad 17 is a RECT and shares its number with symbol pin 17",
+    "side pads use rotations 0, 90, 180, 270 with non-square sizes",
+    "footprint origin is off the exposed pad centre",
+    "pin names VDD and GND appear twice"
+  ]
+}

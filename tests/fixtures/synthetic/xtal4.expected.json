@@ -1,0 +1,353 @@
+{
+  "name": "xtal4",
+  "synthetic": true,
+  "lcsc_id": "C9000011",
+  "mpn": "SYN-XTAL-3225-16M",
+  "prefix": "X",
+  "package_name": "SYN-XTAL-SMD-4P-3.2X2.5",
+  "description": "Synthetic 16MHz crystal, 4 pad",
+  "manufacturer": "SYN-Maker",
+  "value": "16MHz",
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000.0005
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "OSC1",
+      "x_mm": -7.62,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "OSC2",
+      "x_mm": 7.62,
+      "y_mm": 1.27,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "GND",
+      "x_mm": -2.54,
+      "y_mm": -6.35,
+      "angle_deg": 90,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "GND",
+      "x_mm": 2.54,
+      "y_mm": -6.35,
+      "angle_deg": 90,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-XTAL-3225-16M",
+      "origin_ee": [
+        50,
+        40
+      ],
+      "pin_count": 4,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "PL": 5,
+        "P": 4
+      }
+    }
+  ],
+  "pad_count": 4,
+  "unique_pad_numbers": 4,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -1.099998,
+      "y_mm": -0.950011,
+      "width_mm": 1.399997,
+      "height_mm": 1.15001,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.799996,
+          -1.525016
+        ],
+        [
+          -1.799996,
+          -0.375006
+        ],
+        [
+          -0.399999,
+          -0.375006
+        ],
+        [
+          -0.399999,
+          -1.525016
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.799996,
+        -1.525016,
+        -0.399999,
+        -0.375006
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 1.099998,
+      "y_mm": -0.950011,
+      "width_mm": 1.399997,
+      "height_mm": 1.15001,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.399999,
+          -1.525016
+        ],
+        [
+          0.399999,
+          -0.375006
+        ],
+        [
+          1.799996,
+          -0.375006
+        ],
+        [
+          1.799996,
+          -1.525016
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.399999,
+        -1.525016,
+        1.799996,
+        -0.375006
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": 1.099998,
+      "y_mm": 0.950011,
+      "width_mm": 1.399997,
+      "height_mm": 1.15001,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.399999,
+          0.375006
+        ],
+        [
+          0.399999,
+          1.525016
+        ],
+        [
+          1.799996,
+          1.525016
+        ],
+        [
+          1.799996,
+          0.375006
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.399999,
+        0.375006,
+        1.799996,
+        1.525016
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": -1.099998,
+      "y_mm": 0.950011,
+      "width_mm": 1.399997,
+      "height_mm": 1.15001,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.799996,
+          0.375006
+        ],
+        [
+          -1.799996,
+          1.525016
+        ],
+        [
+          -0.399999,
+          1.525016
+        ],
+        [
+          -0.399999,
+          0.375006
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -1.799996,
+        0.375006,
+        -0.399999,
+        1.525016
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -1.799996,
+    "min_y": -1.525016,
+    "max_x": 1.799996,
+    "max_y": 1.525016
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 4,
+      "TRACK": 3,
+      "CIRCLE": 1,
+      "SOLIDREGION": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -1.699997,
+            1.750009
+          ],
+          [
+            1.699997,
+            1.750009
+          ],
+          [
+            1.699997,
+            1.599997
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -1.699997,
+            -1.750009
+          ],
+          [
+            1.699997,
+            -1.750009
+          ],
+          [
+            1.699997,
+            -1.599997
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -1.699997,
+            1.750009
+          ],
+          [
+            -1.699997,
+            -1.750009
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 101,
+        "x_mm": -2.199996,
+        "y_mm": -1.499997,
+        "radius_mm": 0.11999,
+        "width_mm": 0.0508
+      }
+    ],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -1.599997,
+            1.25001
+          ],
+          [
+            1.599997,
+            1.25001
+          ],
+          [
+            1.599997,
+            -1.25001
+          ],
+          [
+            -1.599997,
+            -1.25001
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "two symbol pins called GND (pads 2 and 4)",
+    "footprint origin y has 4 decimals"
+  ]
+}

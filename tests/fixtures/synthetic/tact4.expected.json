@@ -1,0 +1,351 @@
+{
+  "name": "tact4",
+  "synthetic": true,
+  "lcsc_id": "C9000013",
+  "mpn": "SYN-SW-TACT-4P",
+  "prefix": "SW",
+  "package_name": "SYN-SW-SMD-4P-5.1X5.1",
+  "description": "Synthetic tactile switch, 4 pad",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "A",
+      "x_mm": -5.08,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "B",
+      "x_mm": 5.08,
+      "y_mm": 3.81,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "C",
+      "x_mm": -5.08,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "D",
+      "x_mm": 5.08,
+      "y_mm": -3.81,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-SW-TACT-4P",
+      "origin_ee": [
+        400,
+        300
+      ],
+      "pin_count": 4,
+      "arcs": [],
+      "shape_counts": {
+        "PL": 5,
+        "E": 2,
+        "P": 4
+      }
+    }
+  ],
+  "pad_count": 4,
+  "unique_pad_numbers": 4,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -3.099994,
+      "y_mm": 1.999996,
+      "width_mm": 1.199998,
+      "height_mm": 1.899996,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -3.699993,
+          2.949981
+        ],
+        [
+          -2.499995,
+          2.949981
+        ],
+        [
+          -2.499995,
+          1.049985
+        ],
+        [
+          -3.699993,
+          1.049985
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -3.699993,
+        1.049985,
+        -2.499995,
+        2.949981
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 3.099994,
+      "y_mm": 1.999996,
+      "width_mm": 1.199998,
+      "height_mm": 1.899996,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          2.499995,
+          2.949981
+        ],
+        [
+          3.699993,
+          2.949981
+        ],
+        [
+          3.699993,
+          1.049985
+        ],
+        [
+          2.499995,
+          1.049985
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        2.499995,
+        1.049985,
+        3.699993,
+        2.949981
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": -3.099994,
+      "y_mm": -1.999996,
+      "width_mm": 1.899996,
+      "height_mm": 1.199998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -3.699993,
+          -2.949981
+        ],
+        [
+          -3.699993,
+          -1.049985
+        ],
+        [
+          -2.499995,
+          -1.049985
+        ],
+        [
+          -2.499995,
+          -2.949981
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -3.699993,
+        -2.949981,
+        -2.499995,
+        -1.049985
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": 3.099994,
+      "y_mm": -1.999996,
+      "width_mm": 1.899996,
+      "height_mm": 1.199998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 90.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          2.499995,
+          -2.949981
+        ],
+        [
+          2.499995,
+          -1.049985
+        ],
+        [
+          3.699993,
+          -1.049985
+        ],
+        [
+          3.699993,
+          -2.949981
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        2.499995,
+        -2.949981,
+        3.699993,
+        -1.049985
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -3.699993,
+    "min_y": -2.949981,
+    "max_x": 3.699993,
+    "max_y": 2.949981
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 4,
+      "TRACK": 1,
+      "CIRCLE": 2,
+      "SOLIDREGION": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -1.399997,
+            2.599995
+          ],
+          [
+            1.399997,
+            2.599995
+          ],
+          [
+            2.599995,
+            1.399997
+          ],
+          [
+            2.599995,
+            -1.399997
+          ],
+          [
+            1.399997,
+            -2.599995
+          ],
+          [
+            -1.399997,
+            -2.599995
+          ],
+          [
+            -2.599995,
+            -1.399997
+          ],
+          [
+            -2.599995,
+            1.399997
+          ],
+          [
+            -1.399997,
+            2.599995
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 3,
+        "x_mm": 0.0,
+        "y_mm": 0.0,
+        "radius_mm": 1.599997,
+        "width_mm": 0.254
+      },
+      {
+        "layer": 101,
+        "x_mm": -3.599993,
+        "y_mm": 3.199994,
+        "radius_mm": 0.11999,
+        "width_mm": 0.0508
+      }
+    ],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -2.499995,
+            2.499995
+          ],
+          [
+            2.499995,
+            2.499995
+          ],
+          [
+            2.499995,
+            -2.499995
+          ],
+          [
+            -2.499995,
+            -2.499995
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "pads 3 and 4 are 1.9 x 1.2 with rotation 90, copper equals pads 1 and 2"
+  ]
+}

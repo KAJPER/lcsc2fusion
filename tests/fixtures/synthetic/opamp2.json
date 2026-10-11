@@ -1,0 +1,367 @@
+{
+  "success": true,
+  "code": 0,
+  "result": {
+    "uuid": "252d5956d5baa8bdeb5a1c16025563f2",
+    "title": "SYN-OPAMP2",
+    "description": "Synthetic dual op-amp, 2 amplifier units plus power unit",
+    "docType": 2,
+    "type": 3,
+    "thumb": "//example.invalid/synthetic/252d5956d5baa8bdeb5a1c16025563f2.png",
+    "szlcsc": {
+      "id": 9000014,
+      "number": "C9000014",
+      "step": 1,
+      "min": 1,
+      "price": 0.01,
+      "stock": 0,
+      "url": "https://example.invalid/synthetic/szlcsc/C9000014",
+      "image": ""
+    },
+    "lcsc": {
+      "id": 9000014,
+      "number": "C9000014",
+      "step": 1,
+      "min": 1,
+      "price": 0.01,
+      "stock": 1000,
+      "url": "https://example.invalid/synthetic/lcsc/C9000014"
+    },
+    "owner": {
+      "uuid": "9dedf518610e4c08eb676bd3c5f74645",
+      "username": "synthetic",
+      "nickname": "Synthetic",
+      "avatar": ""
+    },
+    "tags": [
+      "Operational Amplifiers"
+    ],
+    "updateTime": 1700000000,
+    "updated_at": "2026-01-01 00:00:00",
+    "dataStr": {
+      "head": {
+        "docType": "2",
+        "editorVersion": "6.5.51",
+        "c_para": {
+          "pre": "U?",
+          "name": "SYN-OPAMP2",
+          "package": "SYN-TSSOP-8",
+          "Supplier": "LCSC",
+          "Manufacturer": "SYN-Maker",
+          "Manufacturer Part": "SYN-OPAMP2",
+          "Supplier Part": "C9000014",
+          "JLCPCB Part Class": "Basic Part",
+          "subpart_no": "1"
+        },
+        "x": 60,
+        "y": 40,
+        "puuid": "e2c164005ad4309a2ee5523c7634b58b",
+        "uuid": "252d5956d5baa8bdeb5a1c16025563f2",
+        "utime": 1700000000,
+        "importFlag": 0,
+        "c_spiceCmd": null,
+        "hasIdFlag": true,
+        "license": "Synthetic test fixture, not EasyEDA data"
+      },
+      "canvas": "CA~1000~1000~#FFFFFF~yes~#CCCCCC~5~1000~1000~line~5~pixel~5~60~40",
+      "shape": [],
+      "BBox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "colors": []
+    },
+    "verify": true,
+    "SMT": true,
+    "datastrid": "98df634b8effe95d71541f17cbd37081",
+    "jlcOnSale": 1,
+    "subparts": [
+      {
+        "uuid": "68983ae53dc96e65c3ece9c4fc437cc5",
+        "title": "SYN-OPAMP2.1",
+        "dataStr": {
+          "head": {
+            "docType": "6",
+            "editorVersion": "6.5.51",
+            "c_para": {
+              "pre": "U?.1",
+              "name": "SYN-OPAMP2",
+              "package": "SYN-TSSOP-8",
+              "Supplier": "LCSC",
+              "Manufacturer": "SYN-Maker",
+              "Manufacturer Part": "SYN-OPAMP2",
+              "Supplier Part": "C9000014",
+              "JLCPCB Part Class": "Basic Part",
+              "subpart_no": "1"
+            },
+            "x": 100,
+            "y": 120,
+            "puuid": "e2c164005ad4309a2ee5523c7634b58b",
+            "uuid": "68983ae53dc96e65c3ece9c4fc437cc5",
+            "utime": 1700000000,
+            "importFlag": 0,
+            "c_spiceCmd": null,
+            "hasIdFlag": true,
+            "license": "Synthetic test fixture, not EasyEDA data"
+          },
+          "canvas": "CA~1000~1000~#FFFFFF~yes~#CCCCCC~5~1000~1000~line~5~pixel~5~100~120",
+          "shape": [
+            "PL~80 95 120 120 80 145 80 95~#880000~1~0~none~gge2~0",
+            "PL~84 110 90 110~#880000~1~0~none~gge5~0",
+            "PL~84 130 90 130~#880000~1~0~none~gge8~0",
+            "PL~87 127 87 133~#880000~1~0~none~gge11~0",
+            "P~show~1~2~60~110~180~gge14~0^^60~110^^M 60 110 h 20~#880000^^1~85~113~0~IN-~start~~~#0000FF^^1~65~109~0~2~end~~~#0000FF^^0~77~110^^0~M 80 113 L 83 110 L 80 107",
+            "P~show~1~3~60~130~180~gge17~0^^60~130^^M 60 130 h 20~#880000^^1~85~133~0~IN+~start~~~#0000FF^^1~65~129~0~3~end~~~#0000FF^^0~77~130^^0~M 80 133 L 83 130 L 80 127",
+            "P~show~2~1~140~120~0~gge20~0^^140~120^^M 140 120 h -20~#880000^^1~115~123~0~OUT~end~~~#0000FF^^1~135~119~0~1~start~~~#0000FF^^0~123~120^^0~M 120 117 L 117 120 L 120 123"
+          ],
+          "BBox": {
+            "x": 59,
+            "y": 94,
+            "width": 82,
+            "height": 52
+          },
+          "colors": []
+        },
+        "updateTime": 1700000000,
+        "description": "",
+        "datastrid": "0702fde86932cea4d217fa57f0e474c2",
+        "thumb": "//example.invalid/synthetic/68983ae53dc96e65c3ece9c4fc437cc5.png"
+      },
+      {
+        "uuid": "a3f2e485e115105f325c6146f491c29d",
+        "title": "SYN-OPAMP2.2",
+        "dataStr": {
+          "head": {
+            "docType": "6",
+            "editorVersion": "6.5.51",
+            "c_para": {
+              "pre": "U?.2",
+              "name": "SYN-OPAMP2",
+              "package": "SYN-TSSOP-8",
+              "Supplier": "LCSC",
+              "Manufacturer": "SYN-Maker",
+              "Manufacturer Part": "SYN-OPAMP2",
+              "Supplier Part": "C9000014",
+              "JLCPCB Part Class": "Basic Part",
+              "subpart_no": "2"
+            },
+            "x": 100,
+            "y": 200,
+            "puuid": "e2c164005ad4309a2ee5523c7634b58b",
+            "uuid": "a3f2e485e115105f325c6146f491c29d",
+            "utime": 1700000000,
+            "importFlag": 0,
+            "c_spiceCmd": null,
+            "hasIdFlag": true,
+            "license": "Synthetic test fixture, not EasyEDA data"
+          },
+          "canvas": "CA~1000~1000~#FFFFFF~yes~#CCCCCC~5~1000~1000~line~5~pixel~5~100~200",
+          "shape": [
+            "PL~80 175 120 200 80 225 80 175~#880000~1~0~none~gge2~0",
+            "PL~84 190 90 190~#880000~1~0~none~gge5~0",
+            "PL~84 210 90 210~#880000~1~0~none~gge8~0",
+            "PL~87 207 87 213~#880000~1~0~none~gge11~0",
+            "P~show~1~5~60~190~180~gge14~0^^60~190^^M 60 190 h 20~#880000^^1~85~193~0~IN+~start~~~#0000FF^^1~65~189~0~5~end~~~#0000FF^^0~77~190^^0~M 80 193 L 83 190 L 80 187",
+            "P~show~1~6~60~210~180~gge17~0^^60~210^^M 60 210 h 20~#880000^^1~85~213~0~IN-~start~~~#0000FF^^1~65~209~0~6~end~~~#0000FF^^0~77~210^^0~M 80 213 L 83 210 L 80 207",
+            "P~show~2~7~140~200~0~gge20~0^^140~200^^M 140 200 h -20~#880000^^1~115~203~0~OUT~end~~~#0000FF^^1~135~199~0~7~start~~~#0000FF^^0~123~200^^0~M 120 197 L 117 200 L 120 203"
+          ],
+          "BBox": {
+            "x": 59,
+            "y": 174,
+            "width": 82,
+            "height": 52
+          },
+          "colors": []
+        },
+        "updateTime": 1700000000,
+        "description": "",
+        "datastrid": "1f67754ab564d6ccfd7553a528371704",
+        "thumb": "//example.invalid/synthetic/a3f2e485e115105f325c6146f491c29d.png"
+      },
+      {
+        "uuid": "46157b1119dbfa6e34be568f14b58b93",
+        "title": "SYN-OPAMP2.3",
+        "dataStr": {
+          "head": {
+            "docType": "6",
+            "editorVersion": "6.5.51",
+            "c_para": {
+              "pre": "U?.3",
+              "name": "SYN-OPAMP2",
+              "package": "SYN-TSSOP-8",
+              "Supplier": "LCSC",
+              "Manufacturer": "SYN-Maker",
+              "Manufacturer Part": "SYN-OPAMP2",
+              "Supplier Part": "C9000014",
+              "JLCPCB Part Class": "Basic Part",
+              "subpart_no": "3"
+            },
+            "x": 180,
+            "y": 160,
+            "puuid": "e2c164005ad4309a2ee5523c7634b58b",
+            "uuid": "46157b1119dbfa6e34be568f14b58b93",
+            "utime": 1700000000,
+            "importFlag": 0,
+            "c_spiceCmd": null,
+            "hasIdFlag": true,
+            "license": "Synthetic test fixture, not EasyEDA data"
+          },
+          "canvas": "CA~1000~1000~#FFFFFF~yes~#CCCCCC~5~1000~1000~line~5~pixel~5~180~160",
+          "shape": [
+            "R~170~145~~~20~30~#880000~1~0~none~gge2~0",
+            "P~show~4~8~180~135~90~gge5~0^^180~135^^M 180 135 v 10~#880000^^1~183~148~270~V+~end~~~#0000FF^^1~179~149~270~8~start~~~#0000FF^^0~180~142^^0~M 177 145 L 180 148 L 183 145",
+            "P~show~4~4~180~185~270~gge8~0^^180~185^^M 180 185 v -10~#880000^^1~183~172~270~V-~start~~~#0000FF^^1~179~171~270~4~end~~~#0000FF^^0~180~178^^0~M 183 175 L 180 172 L 177 175"
+          ],
+          "BBox": {
+            "x": 169,
+            "y": 134,
+            "width": 22,
+            "height": 52
+          },
+          "colors": []
+        },
+        "updateTime": 1700000000,
+        "description": "",
+        "datastrid": "150d8758b119c991bfb2784b24690030",
+        "thumb": "//example.invalid/synthetic/46157b1119dbfa6e34be568f14b58b93.png"
+      }
+    ],
+    "writable": false,
+    "isFavorite": false,
+    "packageDetail": {
+      "uuid": "e2c164005ad4309a2ee5523c7634b58b",
+      "title": "SYN-TSSOP-8",
+      "docType": 4,
+      "updateTime": 1700000000,
+      "owner": {
+        "uuid": "9dedf518610e4c08eb676bd3c5f74645",
+        "username": "synthetic",
+        "nickname": "Synthetic",
+        "avatar": ""
+      },
+      "datastrid": "2c4bf1db8916dd9a00da374af13d34b9",
+      "writable": false,
+      "dataStr": {
+        "head": {
+          "docType": "4",
+          "editorVersion": "6.5.51",
+          "c_para": {
+            "package": "SYN-TSSOP-8",
+            "pre": "U?",
+            "Contributor": "synthetic",
+            "3DModel": "SYN-opamp2-3D",
+            "link": "https://example.invalid/synthetic/opamp2"
+          },
+          "hasIdFlag": true,
+          "x": 4000,
+          "y": 3000,
+          "utime": 1700000000,
+          "uuid": "e2c164005ad4309a2ee5523c7634b58b",
+          "importFlag": 0,
+          "transformList": "",
+          "newgId": true,
+          "uuid_3d": "9934586390053b360971b4cf43ea4efb",
+          "license": "Synthetic test fixture, not EasyEDA data"
+        },
+        "canvas": "CA~1000~1000~#000000~yes~#FFFFFF~10~1000~1000~line~0.03937~mm~1~45~visible~0.5~4000~3000~0~none",
+        "shape": [
+          "PAD~RECT~3996.1614~3011.4173~1.5748~5.9055~1~~1~0~3995.374 3008.4646 3996.9488 3008.4646 3996.9488 3014.37 3995.374 3014.37~0~gge1001~0~~Y~0~0~0.2000~3996.1614,3011.4173",
+          "PAD~RECT~3998.7205~3011.4173~1.5748~5.9055~1~~2~0~3997.9331 3008.4646 3999.5079 3008.4646 3999.5079 3014.37 3997.9331 3014.37~0~gge1002~0~~Y~0~0~0.2000~3998.7205,3011.4173",
+          "PAD~RECT~4001.2795~3011.4173~1.5748~5.9055~1~~3~0~4000.4921 3008.4646 4002.0669 3008.4646 4002.0669 3014.37 4000.4921 3014.37~0~gge1003~0~~Y~0~0~0.2000~4001.2795,3011.4173",
+          "PAD~RECT~4003.8386~3011.4173~1.5748~5.9055~1~~4~0~4003.0512 3008.4646 4004.626 3008.4646 4004.626 3014.37 4003.0512 3014.37~0~gge1004~0~~Y~0~0~0.2000~4003.8386,3011.4173",
+          "PAD~RECT~3996.1614~2988.5827~1.5748~5.9055~1~~8~0~3995.374 2985.63 3996.9488 2985.63 3996.9488 2991.5354 3995.374 2991.5354~0~gge1005~0~~Y~0~0~0.2000~3996.1614,2988.5827",
+          "PAD~RECT~3998.7205~2988.5827~1.5748~5.9055~1~~7~0~3997.9331 2985.63 3999.5079 2985.63 3999.5079 2991.5354 3997.9331 2991.5354~0~gge1006~0~~Y~0~0~0.2000~3998.7205,2988.5827",
+          "PAD~RECT~4001.2795~2988.5827~1.5748~5.9055~1~~6~0~4000.4921 2985.63 4002.0669 2985.63 4002.0669 2991.5354 4000.4921 2991.5354~0~gge1007~0~~Y~0~0~0.2000~4001.2795,2988.5827",
+          "PAD~RECT~4003.8386~2988.5827~1.5748~5.9055~1~~5~0~4003.0512 2985.63 4004.626 2985.63 4004.626 2991.5354 4003.0512 2991.5354~0~gge1008~0~~Y~0~0~0.2000~4003.8386,2988.5827",
+          "TRACK~1~3~~3993.3071 2993.7008 4006.6929 2993.7008~gge1009~0",
+          "TRACK~1~3~~3993.3071 3006.2992 4006.6929 3006.2992~gge1010~0",
+          "CIRCLE~3991.3386~3014.1732~0.3937~0.2~101~gge1011~0~~",
+          "SOLIDREGION~99~~M 3993.7008 2994.0945 L 4006.2992 2994.0945 L 4006.2992 3005.9055 L 3993.7008 3005.9055 Z ~solid~gge1012~~~~0"
+        ],
+        "layers": [
+          "1~TopLayer~#FF0000~true~true~true~",
+          "2~BottomLayer~#0000FF~true~false~true~",
+          "3~TopSilkLayer~#FFCC00~true~false~true~",
+          "4~BottomSilkLayer~#66CC33~true~false~true~",
+          "5~TopPasteMaskLayer~#808080~true~false~true~",
+          "6~BottomPasteMaskLayer~#800000~true~false~true~",
+          "7~TopSolderMaskLayer~#800080~true~false~true~0.3",
+          "8~BottomSolderMaskLayer~#AA00FF~true~false~true~0.3",
+          "9~Ratlines~#6464FF~true~false~true~",
+          "10~BoardOutLine~#FF00FF~true~false~true~",
+          "11~Multi-Layer~#FFFFFF~true~false~true~0.5",
+          "12~Document~#FFFFFF~true~false~true~",
+          "13~TopAssembly~#33CC99~true~false~true~",
+          "14~BottomAssembly~#5555FF~true~false~true~",
+          "15~Mechanical~#F022F0~true~false~true~",
+          "19~3DModel~#66CCFF~true~false~true~",
+          "21~Inner1~#4D835D~false~false~false~~",
+          "22~Inner2~#72DE92~false~false~false~~",
+          "23~Inner3~#9771C7~false~false~false~~",
+          "24~Inner4~#BCCC34~false~false~false~~",
+          "25~Inner5~#E15F69~false~false~false~~",
+          "26~Inner6~#3EBA9E~false~false~false~~",
+          "27~Inner7~#634DD3~false~false~false~~",
+          "28~Inner8~#88A840~false~false~false~~",
+          "29~Inner9~#AD3B75~false~false~false~~",
+          "30~Inner10~#D296AA~false~false~false~~",
+          "31~Inner11~#2F29DF~false~false~false~~",
+          "32~Inner12~#54844C~false~false~false~~",
+          "33~Inner13~#79DF81~false~false~false~~",
+          "34~Inner14~#9E72B6~false~false~false~~",
+          "35~Inner15~#C3CDEB~false~false~false~~",
+          "36~Inner16~#E86058~false~false~false~~",
+          "37~Inner17~#45BB8D~false~false~false~~",
+          "38~Inner18~#6A4EC2~false~false~false~~",
+          "39~Inner19~#8FA92F~false~false~false~~",
+          "40~Inner20~#B43C64~false~false~false~~",
+          "41~Inner21~#D99799~false~false~false~~",
+          "42~Inner22~#362ACE~false~false~false~~",
+          "43~Inner23~#5B853B~false~false~false~~",
+          "44~Inner24~#80E070~false~false~false~~",
+          "45~Inner25~#A573A5~false~false~false~~",
+          "46~Inner26~#CACEDA~false~false~false~~",
+          "47~Inner27~#EF6147~false~false~false~~",
+          "48~Inner28~#4CBC7C~false~false~false~~",
+          "49~Inner29~#714FB1~false~false~false~~",
+          "50~Inner30~#96AAE6~false~false~false~~",
+          "51~Inner31~#BB3D53~false~false~false~~",
+          "52~Inner32~#E09888~false~false~false~~",
+          "99~ComponentShapeLayer~#00CCCC~true~false~true~",
+          "100~LeadShapeLayer~#CC9999~true~false~true~",
+          "101~ComponentMarkingLayer~#66FFCC~true~false~true~",
+          "Hole~Hole~#222222~false~false~true~",
+          "DRCError~DRCError~#FAD609~false~false~true~"
+        ],
+        "objects": [
+          "All~true~false",
+          "Component~true~true",
+          "Prefix~true~true",
+          "Name~true~false",
+          "Track~true~true",
+          "Pad~true~true",
+          "Via~true~true",
+          "Hole~true~true",
+          "Copper_Area~true~true",
+          "Circle~true~true",
+          "Arc~true~true",
+          "Solid_Region~true~true",
+          "Text~true~true",
+          "Image~true~true",
+          "Rect~true~true",
+          "Dimension~true~true",
+          "Protractor~true~true"
+        ],
+        "BBox": {
+          "x": 3990.9,
+          "y": 2985.6,
+          "width": 15.8,
+          "height": 29.0
+        },
+        "netColors": []
+      }
+    }
+  }
+}

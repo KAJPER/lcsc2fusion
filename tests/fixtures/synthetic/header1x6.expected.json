@@ -1,0 +1,351 @@
+{
+  "name": "header1x6",
+  "synthetic": true,
+  "lcsc_id": "C9000008",
+  "mpn": "SYN-HDR-1X6",
+  "prefix": "H",
+  "package_name": "SYN-HDR-TH-1X6-P2.54",
+  "description": "Synthetic 1x6 pin header 2.54mm",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "1",
+      "x_mm": -3.81,
+      "y_mm": 6.35,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "2",
+      "x_mm": -3.81,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "3",
+      "x_mm": -3.81,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "4",
+      "x_mm": -3.81,
+      "y_mm": -1.27,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "5",
+      "name": "5",
+      "x_mm": -3.81,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "6",
+      "name": "6",
+      "x_mm": -3.81,
+      "y_mm": -6.35,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-HDR-1X6",
+      "origin_ee": [
+        395,
+        300
+      ],
+      "pin_count": 6,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "E": 1,
+        "P": 6
+      }
+    }
+  ],
+  "pad_count": 6,
+  "unique_pad_numbers": 6,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -6.35,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "RECT",
+      "drill_mm": 0.999998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -7.249998,
+          0.899998
+        ],
+        [
+          -5.450002,
+          0.899998
+        ],
+        [
+          -5.450002,
+          -0.899998
+        ],
+        [
+          -7.249998,
+          -0.899998
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -7.249998,
+        -0.899998,
+        -5.450002,
+        0.899998
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": -3.81,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.999998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -4.709998,
+        -0.899998,
+        -2.910002,
+        0.899998
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": -1.27,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.999998,
+      "rotation_deg": 90.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -2.169998,
+        -0.899998,
+        -0.370002,
+        0.899998
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": 1.27,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.999998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.370002,
+        -0.899998,
+        2.169998,
+        0.899998
+      ]
+    },
+    {
+      "number": "5",
+      "x_mm": 3.81,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.999998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        2.910002,
+        -0.899998,
+        4.709998,
+        0.899998
+      ]
+    },
+    {
+      "number": "6",
+      "x_mm": 6.35,
+      "y_mm": 0.0,
+      "width_mm": 1.799996,
+      "height_mm": 1.799996,
+      "shape": "ELLIPSE",
+      "drill_mm": 0.999998,
+      "rotation_deg": 0.0,
+      "layer": "thru",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        5.450002,
+        -0.899998,
+        7.249998,
+        0.899998
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -7.249998,
+    "min_y": -0.899998,
+    "max_x": 7.249998,
+    "max_y": 0.899998
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 6,
+      "TRACK": 2,
+      "SOLIDREGION": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -7.62,
+            -1.27
+          ],
+          [
+            7.62,
+            -1.27
+          ],
+          [
+            7.62,
+            1.27
+          ],
+          [
+            -7.62,
+            1.27
+          ],
+          [
+            -7.62,
+            -1.27
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -6.35,
+            1.799996
+          ],
+          [
+            -5.599989,
+            1.799996
+          ]
+        ]
+      }
+    ],
+    "circles": [],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -7.50001,
+            1.099998
+          ],
+          [
+            7.50001,
+            1.099998
+          ],
+          [
+            7.50001,
+            -1.099998
+          ],
+          [
+            -7.50001,
+            -1.099998
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "through hole pads on layer 11: RECT pad 1, ELLIPSE pads, pad 3 has rotation 90",
+    "symbol pin paths use the compact spelling M x,y h10"
+  ]
+}

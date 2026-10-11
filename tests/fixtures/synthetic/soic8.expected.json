@@ -1,0 +1,554 @@
+{
+  "name": "soic8",
+  "synthetic": true,
+  "lcsc_id": "C9000005",
+  "mpn": "SYN-SOIC8-LOGIC",
+  "prefix": "U",
+  "package_name": "SYN-SOIC-8",
+  "description": "Synthetic logic IC SOIC-8",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    4000,
+    3000
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "VDD",
+      "x_mm": -7.62,
+      "y_mm": 3.81,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "CLK",
+      "x_mm": -7.62,
+      "y_mm": 1.27,
+      "angle_deg": 0,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": true,
+      "unit": 1
+    },
+    {
+      "number": "3",
+      "name": "RST",
+      "x_mm": -7.62,
+      "y_mm": -1.27,
+      "angle_deg": 0,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": true,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "4",
+      "name": "GND",
+      "x_mm": -7.62,
+      "y_mm": -3.81,
+      "angle_deg": 0,
+      "direction": "pwr",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "8",
+      "name": "NC",
+      "x_mm": 7.62,
+      "y_mm": 3.81,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "7",
+      "name": "IO",
+      "x_mm": 7.62,
+      "y_mm": 1.27,
+      "angle_deg": 180,
+      "direction": "io",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "6",
+      "name": "DO",
+      "x_mm": 7.62,
+      "y_mm": -1.27,
+      "angle_deg": 180,
+      "direction": "out",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "5",
+      "name": "DI",
+      "x_mm": 7.62,
+      "y_mm": -3.81,
+      "angle_deg": 180,
+      "direction": "in",
+      "length_mm": 2.54,
+      "inverted": true,
+      "clock": true,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-SOIC8-LOGIC",
+      "origin_ee": [
+        400,
+        300
+      ],
+      "pin_count": 8,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 8
+      }
+    }
+  ],
+  "pad_count": 8,
+  "unique_pad_numbers": 8,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "8",
+    "7",
+    "6",
+    "5"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": -1.905,
+      "y_mm": -2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.905,
+          -2.199996
+        ],
+        [
+          -1.905,
+          -3.199994
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -2.204999,
+        -3.499993,
+        -1.605001,
+        -1.899996
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": -0.635,
+      "y_mm": -2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.635,
+          -2.199996
+        ],
+        [
+          -0.635,
+          -3.199994
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.934999,
+        -3.499993,
+        -0.335001,
+        -1.899996
+      ]
+    },
+    {
+      "number": "3",
+      "x_mm": 0.635,
+      "y_mm": -2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.635,
+          -2.199996
+        ],
+        [
+          0.635,
+          -3.199994
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.335001,
+        -3.499993,
+        0.934999,
+        -1.899996
+      ]
+    },
+    {
+      "number": "4",
+      "x_mm": 1.905,
+      "y_mm": -2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.905,
+          -2.199996
+        ],
+        [
+          1.905,
+          -3.199994
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.605001,
+        -3.499993,
+        2.204999,
+        -1.899996
+      ]
+    },
+    {
+      "number": "8",
+      "x_mm": -1.905,
+      "y_mm": 2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -1.905,
+          3.199994
+        ],
+        [
+          -1.905,
+          2.199996
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -2.204999,
+        1.899996,
+        -1.605001,
+        3.499993
+      ]
+    },
+    {
+      "number": "7",
+      "x_mm": -0.635,
+      "y_mm": 2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.635,
+          3.199994
+        ],
+        [
+          -0.635,
+          2.199996
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.934999,
+        1.899996,
+        -0.335001,
+        3.499993
+      ]
+    },
+    {
+      "number": "6",
+      "x_mm": 0.635,
+      "y_mm": 2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          0.635,
+          3.199994
+        ],
+        [
+          0.635,
+          2.199996
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        0.335001,
+        1.899996,
+        0.934999,
+        3.499993
+      ]
+    },
+    {
+      "number": "5",
+      "x_mm": 1.905,
+      "y_mm": 2.699995,
+      "width_mm": 0.599999,
+      "height_mm": 1.599997,
+      "shape": "OVAL",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          1.905,
+          3.199994
+        ],
+        [
+          1.905,
+          2.199996
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        1.605001,
+        1.899996,
+        2.204999,
+        3.499993
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -2.204999,
+    "min_y": -3.499993,
+    "max_x": 2.204999,
+    "max_y": 3.499993
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 8,
+      "TRACK": 5,
+      "ARC": 1,
+      "CIRCLE": 1,
+      "SOLIDREGION": 2
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -2.450008,
+            1.950009
+          ],
+          [
+            2.450008,
+            1.950009
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -2.450008,
+            -1.950009
+          ],
+          [
+            2.450008,
+            -1.950009
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -2.450008,
+            1.950009
+          ],
+          [
+            -2.450008,
+            0.499999
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            -2.450008,
+            -0.499999
+          ],
+          [
+            -2.450008,
+            -1.950009
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "points_mm": [
+          [
+            2.450008,
+            -1.950009
+          ],
+          [
+            2.450008,
+            1.950009
+          ]
+        ]
+      }
+    ],
+    "circles": [
+      {
+        "layer": 101,
+        "x_mm": -2.899994,
+        "y_mm": -3.699993,
+        "radius_mm": 0.11999,
+        "width_mm": 0.0508
+      }
+    ],
+    "arcs": [
+      {
+        "layer": 3,
+        "width_mm": 0.254,
+        "cx_mm": -2.45,
+        "cy_mm": 0.0,
+        "radius_mm": 0.499999,
+        "start_deg": 90.0,
+        "sweep_deg": -180.0,
+        "large_arc": 0,
+        "svg_sweep_flag": 1,
+        "start_mm": [
+          -2.450008,
+          0.499999
+        ],
+        "end_mm": [
+          -2.450008,
+          -0.499999
+        ]
+      }
+    ],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -2.399995,
+            1.899996
+          ],
+          [
+            2.399995,
+            1.899996
+          ],
+          [
+            2.399995,
+            -1.899996
+          ],
+          [
+            -2.399995,
+            -1.899996
+          ]
+        ]
+      },
+      {
+        "layer": 100,
+        "kind": "cutout",
+        "points_mm": [
+          [
+            -2.399995,
+            1.899996
+          ],
+          [
+            -1.799996,
+            1.899996
+          ],
+          [
+            -1.799996,
+            1.499997
+          ],
+          [
+            -2.399995,
+            1.499997
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "pin 3 inverted, pin 2 clock, pin 5 inverted and clock, pin 8 empty type"
+  ]
+}
