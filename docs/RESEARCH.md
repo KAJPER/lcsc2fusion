@@ -486,3 +486,30 @@ Etap 2 (po zielonym Etapie 1): szkielet add-inu, paleta, `controller.py` z testa
 1. Fixture'y w repo: realne odpowiedzi EasyEDA są wymagane przez testy, ale to treść objęta prawem autorskim EasyEDA, a repo ma być publiczne. Opcje: (a) commitować przycięte realne fixture'y z nienaruszoną licencją i atrybucją, (b) trzymać realne fixture'y lokalnie (gitignore) i commitować tylko własnoręcznie napisane, syntetyczne w tym samym formacie. Rekomendacja: (b) dla repo publicznego, z testami przeciwko realnym lokalnie. Do decyzji.
 2. Licencja projektu: MIT przy parserze clean room (rekomendacja), albo AGPL-3.0 przy pochodnym od easyeda2kicad.
 3. Czy wykonasz Bramę 0 we Fusionie przed rozbudową parsera (zgodnie z CLAUDE.md).
+
+## 9. Addendum z implementacji (2026-10-11)
+
+Co implementacja potwierdziła lub skorygowała względem sekcji 1 do 8:
+
+- Znak rotacji (poprawka do 1.9): dodatni kąt w EasyEDA to obrót przeciwnie do ruchu wskazówek
+  zegara na ekranie, więc po odwróceniu osi Y kąt pozostaje bez zmian. Dowód: kolejność wierzchołków
+  w polu `points` dla 50 z 50 padów RECT obróconych o 90 lub 270 stopni w C2040. Kąty ukośne nie
+  występują w realnych danych (D-015).
+- Rotacja pinów symbolu `angle = (ee_rotation + 180) % 360` potwierdzona porównaniem renderu z
+  podglądem EasyEDA dla C2040.
+- Porównanie wizualne (render z naszego modelu kontra obraz PNG z EasyEDA) dla C2040 (QFN z padem
+  termicznym), C165948 (USB-C z padami wielokątnymi, slotami i otworami), C2913202 (moduł z
+  dziewięcioma padami o numerze 41) i symbolu RP2040: liczba i położenie padów, kształt silkscreenu,
+  strony i kolejność pinów zgadzają się. Różnica kosmetyczna: warstwa ComponentMarkingLayer (101)
+  jest u nas na silkscreenie (21), w EasyEDA rysowana na biało.
+- `wmsc.lcsc.com/ftps/wm/product/detail` odpowiada 200 także dla naszego opisowego User-Agenta
+  (w badaniach 403 dostawały UA pythonowe). Używane tylko jako best effort do adresu datasheetu.
+- Wyszukiwanie po numerze LCSC bez danych EasyEDA kończy się `PartNotFoundError`, a nie pustą listą.
+- Pozycje pinów leżą na siatce 1,27 mm, nie 2,54 mm (D-016).
+- Wyjście zaokrąglamy do 0,1 mikrona (`MM_DECIMALS = 4`), żeby usunąć szum typu 0.850011.
+- Atrybuty technologii `PACKAGE` i `VALUE` kolidują z wbudowanymi atrybutami Eagle, więc zapisujemy
+  `LCSC_PACKAGE` i `LCSC_VALUE`.
+- Pady niemetalizowane (`plated = N`) nie występują w 24 realnych częściach, a Eagle ich nie ma. Są
+  zapisywane jako zwykłe pady metalizowane.
+- Open library: otwarcie .lbr uruchamiamy tylko z handlera `incomingFromHTML` palety (przycisk),
+  nigdy automatycznie ze zdarzenia niestandardowego.
