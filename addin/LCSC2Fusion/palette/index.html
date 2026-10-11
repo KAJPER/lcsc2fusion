@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LCSC2Fusion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" aria-busy="false">
+    <header class="app-header">
+      <h1>LCSC2Fusion</h1>
+      <p class="subtitle">Find an LCSC part and add its symbol and footprint to Fusion Electronics.</p>
+    </header>
+
+    <p id="mock-banner" class="mock-banner" hidden>
+      Mock mode: this page is not running inside Fusion. The data below is fake.
+    </p>
+
+    <form id="search-form" class="search-form" role="search" autocomplete="off" novalidate>
+      <label for="query">LCSC number or search phrase</label>
+      <div class="search-row">
+        <input id="query" name="query" type="search" maxlength="100" spellcheck="false"
+               autocapitalize="off" placeholder="C2040 or RP2040" aria-describedby="query-hint">
+        <button id="search-button" type="submit" class="primary">Search</button>
+      </div>
+      <p id="query-hint" class="hint">Example: C2040, or words such as "0603 100nF".</p>
+    </form>
+
+    <div class="status-row">
+      <p id="status" class="status status-info" role="status" aria-live="polite">
+        <span id="status-badge" class="status-badge">Info</span>
+        <span id="status-text">Connecting to Fusion...</span>
+      </p>
+      <span id="busy" class="spinner" hidden aria-hidden="true"></span>
+    </div>
+
+    <div id="error-box" class="error-box" role="alert" hidden>
+      <p id="error-text"></p>
+      <button id="error-dismiss" type="button" class="link">Dismiss</button>
+    </div>
+
+    <section id="results-section" aria-labelledby="results-heading" hidden>
+      <h2 id="results-heading">Results</h2>
+      <table id="results-table" class="results-table" role="table" aria-label="Search results">
+        <thead role="rowgroup" class="sr-only">
+          <tr role="row">
+            <th role="columnheader" scope="col">LCSC</th>
+            <th role="columnheader" scope="col">MPN</th>
+            <th role="columnheader" scope="col">Type</th>
+            <th role="columnheader" scope="col">Manufacturer</th>
+            <th role="columnheader" scope="col">Package</th>
+            <th role="columnheader" scope="col">Description</th>
+            <th role="columnheader" scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody id="results-body" role="rowgroup"></tbody>
+      </table>
+      <p id="results-empty" class="hint" hidden>No parts to show.</p>
+    </section>
+
+    <section id="added-section" aria-labelledby="added-heading" hidden>
+      <h2 id="added-heading">Saved libraries</h2>
+      <ul id="added-list" class="added-list"></ul>
+    </section>
+
+    <footer class="footer">
+      <p>Data: JLCEDA/EasyEDA Official Library, https://easyeda.com . Personal use; you are responsible for complying with the EasyEDA and LCSC terms.</p>
+    </footer>
+  </main>
+
+  <script src="mock-bridge.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
