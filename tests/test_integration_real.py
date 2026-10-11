@@ -1,4 +1,4 @@
-"""End to end checks on real EasyEDA responses (local only, skipped when the directory is absent)."""
+"""End to end checks on real EasyEDA responses (local only, skipped without the directory)."""
 
 from __future__ import annotations
 
