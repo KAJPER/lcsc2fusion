@@ -957,7 +957,11 @@ def _expected_symbols(expected: Any) -> list[list[dict[str, Any]]]:
     if isinstance(expected, dict) and "symbols" in expected:
         return [list(s["pins"]) for s in expected["symbols"]]
     if isinstance(expected, dict) and "pins" in expected:
-        return [list(expected["pins"])]
+        pins = list(expected["pins"])
+        if any("unit" in pin for pin in pins):
+            units = sorted({int(pin.get("unit", 1)) for pin in pins})
+            return [[pin for pin in pins if int(pin.get("unit", 1)) == unit] for unit in units]
+        return [pins]
     if isinstance(expected, list):
         return [list(expected)]
     raise AssertionError("unrecognised expected file layout")
@@ -971,7 +975,8 @@ def assert_symbols_match(result: Mapping[str, Any], expected_doc: Any, base_name
         assert len(symbol.pins) == len(exp_pins)
         for got, want in zip(symbol.pins, exp_pins, strict=True):
             assert got.number == str(want["number"])
-            assert got.name == want["name"]
+            # Duplicate names get "@n" suffixes; Eagle displays only the part before "@".
+            assert got.name.split("@")[0] == want["name"]
             assert got.x == pytest.approx(want["x_mm"], abs=1e-3)
             assert got.y == pytest.approx(want["y_mm"], abs=1e-3)
             assert got.angle == int(want["angle_deg"])

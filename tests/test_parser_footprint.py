@@ -953,8 +953,10 @@ def angle_diff(a: float, b: float) -> float:
     return (a - b + 180.0) % 360.0 - 180.0
 
 
-def line_angle(points: list[float]) -> float:
-    return math.degrees(math.atan2(points[3] - points[1], points[2] - points[0])) % 180.0
+def line_angle(points: list[Any]) -> float:
+    """Direction (mod 180) of a two point line given flat or as [[x1, y1], [x2, y2]]."""
+    flat = [float(v) for pt in points for v in (pt if isinstance(pt, list) else [pt])]
+    return math.degrees(math.atan2(flat[3] - flat[1], flat[2] - flat[0])) % 180.0
 
 
 @pytest.mark.parametrize("path", synthetic_cases() or [None], ids=lambda p: p.stem if p else "none")
@@ -988,8 +990,15 @@ def test_synthetic_fixture_matches_expected_pads(path: Path | None) -> None:
         if pad.shape is PadShape.POLYGON:
             assert pad.rotation == 0.0, where
             got = [(q.x, q.y) for q in pad.outline]
-            exp = [tuple(want["points_mm"][i : i + 2]) for i in range(0, len(want["points_mm"]), 2)]
-            assert len(got) in (len(exp), len(exp) - 1), where  # closing duplicate may be dropped
+            raw = want["points_mm"]
+            pairs = (
+                [tuple(pt) for pt in raw]
+                if raw and isinstance(raw[0], list)
+                else [tuple(raw[i : i + 2]) for i in range(0, len(raw), 2)]
+            )
+            # The parser merges consecutive duplicate vertices and drops a closing duplicate.
+            exp = [pt for i, pt in enumerate(pairs) if i == 0 or pt != pairs[i - 1]]
+            assert len(got) in (len(exp), len(exp) - 1), where
             assert got == pytest.approx(exp[: len(got)], abs=1e-3), where
         else:
             rotation = want.get("rotation_deg", want.get("rotation", 0.0))

@@ -85,3 +85,15 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Kontekst: plik DRV8833 zapisany przez Fusiona obsługuje thermal pad przez `stop="no" cream="no"` plus ręczne prostokąty na warstwach 29 i 31. Wykrywanie, który pad jest termiczny, jest heurystyką.
 - Wybór: w v1 każdy pad SMD (także duży pad centralny) zapisujemy jako zwykły `smd`. Maska i pasta wynikają z reguł DRC Fusiona.
 - Powód: poprawność geometrii i prostota. Optymalizacja pasty pod pad termiczny to zadanie na później, zapisane w znanych ograniczeniach.
+
+## D-015 Znak rotacji EasyEDA: dodatni to przeciwnie do ruchu wskazówek zegara (ACCEPTED, częściowo zweryfikowane)
+
+- Kontekst: znak rotacji padów i tekstu nie jest udokumentowany. Wstępne założenie (dodatni zgodnie z zegarem) okazało się błędne.
+- Wybór: `ee_rotation_to_ccw(d) = d % 360`. Dowód: w C2040 dla wszystkich 50 padów RECT obróconych o 90 lub 270 stopni kolejność wierzchołków w polu `points` zgadza się z obrotem przeciwnym do zegara, a z zegarem w żadnym. Rotacja pinów symbolu: `angle = (ee_rotation + 180) % 360`.
+- Powód: dane źródłowe. Ryzyko: realne dane zawierają tylko kąty 0, 90, 180, 270, więc kąty ukośne są wnioskowane. Test syntetyczny z padem 30 stopni dokumentuje przyjętą konwencję, a ostateczne potwierdzenie to oko we Fusionie.
+
+## D-016 Siatka pinów symbolu nie jest wymuszana (ACCEPTED, znane ograniczenie)
+
+- Kontekst: pozycje pinów w EasyEDA leżą na siatce 1,27 mm (5 jednostek), a Eagle domyślnie pracuje na 2,54 mm. Tylko część symboli ma wszystkie piny na siatce 2,54 mm. Przyciągnięcie pojedynczych pinów groziłoby kolizjami (rozstaw 2,54 mm) i zniekształceniem symbolu.
+- Wybór: pozycje pinów zachowujemy dokładnie ze źródła, początek symbolu to środek BBox przyciągnięty do siatki 5 jednostek.
+- Powód: wierność geometrii. Konsekwencja: we Fusionie mogą pojawić się ostrzeżenia ERC "off grid" dla części symboli, a podłączanie przewodów wymaga mniejszej siatki. Do zmierzenia w MANUAL_TEST i ewentualnej optymalizacji fazy początku układu.
