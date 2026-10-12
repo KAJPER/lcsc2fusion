@@ -453,7 +453,7 @@ def test_the_turn_maps_xyz_to_x_minus_z_y(fa: ModuleType) -> None:
 
 def test_the_turn_axes_are_snapedas_without_float_noise(fa: ModuleType) -> None:
     angle = math.pi * 0.5
-    assert angle == fa.STEP_IMPORT_TURN_RAD
+    assert angle == fa.SNAPEDA_TURN_RAD
     _, x_axis, y_axis, z_axis = fa.step_turn_axes()
     assert x_axis == (1.0, 0.0, 0.0)
     assert y_axis == (0.0, 0.0, 1.0)  # snapeda: (0, cos a, sin a) with cos(pi/2) = 6e-17
@@ -993,6 +993,27 @@ def test_create_3d_package_with_a_bad_path_runs_no_command(
 # import_step ---------------------------------------------------------------------------------
 
 
+@pytest.fixture
+def turned(fa: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make `import_step` turn the occurrence like SnapEDA does (not our default)."""
+    monkeypatch.setattr(fa, "STEP_IMPORT_TURN_RAD", fa.SNAPEDA_TURN_RAD)
+
+
+def test_the_default_leaves_the_imported_step_alone(
+    fa: ModuleType, api: Any, world: Fusion, casts: Casts, tmp_path: Path
+) -> None:
+    """Our placed STEP is already in the package frame: turning it laid the part on its side."""
+    assert fa.STEP_IMPORT_TURN_RAD == 0.0
+    occurrence = OccurrenceWithTransform2()
+    start_design(world, FakeCollection([occurrence]))
+
+    api.import_step(write_step(tmp_path))
+
+    assert casts.matrices == []  # no matrix was even built
+    assert not hasattr(occurrence, "transform") or getattr(occurrence, "transform", None) is None
+    assert any("left as imported" in line for line in world.logs)
+
+
 def start_design(world: Fusion, result: Any) -> FakeDesign:
     world.open_document("3D package", design=True)
     world.app.importManager.result = result
@@ -1001,7 +1022,7 @@ def start_design(world: Fusion, result: Any) -> FakeDesign:
 
 
 def test_import_step_imports_into_the_root_component_and_turns_the_occurrence(
-    api: Any, world: Fusion, casts: Casts, tmp_path: Path
+    turned: None, api: Any, world: Fusion, casts: Casts, tmp_path: Path
 ) -> None:
     step = write_step(tmp_path)
     occurrence = OccurrenceWithTransform2()
@@ -1024,7 +1045,7 @@ def test_import_step_imports_into_the_root_component_and_turns_the_occurrence(
 
 
 def test_import_step_falls_back_to_transform(
-    api: Any, world: Fusion, casts: Casts, tmp_path: Path
+    turned: None, api: Any, world: Fusion, casts: Casts, tmp_path: Path
 ) -> None:
     occurrence = OccurrenceWithoutTransform2()
     start_design(world, FakeCollection([occurrence]))
@@ -1035,7 +1056,7 @@ def test_import_step_falls_back_to_transform(
 
 
 def test_import_step_survives_a_transform2_that_raises(
-    api: Any, world: Fusion, casts: Casts, tmp_path: Path
+    turned: None, api: Any, world: Fusion, casts: Casts, tmp_path: Path
 ) -> None:
     occurrence = OccurrenceWithBrokenTransform2()
     start_design(world, FakeCollection([occurrence]))
@@ -1047,7 +1068,7 @@ def test_import_step_survives_a_transform2_that_raises(
 
 
 def test_import_step_takes_the_first_imported_object(
-    api: Any, world: Fusion, casts: Casts, tmp_path: Path
+    turned: None, api: Any, world: Fusion, casts: Casts, tmp_path: Path
 ) -> None:
     first, second = OccurrenceWithTransform2(), OccurrenceWithTransform2()
     start_design(world, FakeCollection([first, second]))
@@ -1320,7 +1341,7 @@ def test_the_real_flow_creates_then_merges_through_the_adsk_facade(
 
 
 def test_the_real_flow_with_3d_after_the_first_part(
-    fa: ModuleType, world: Fusion, api: Any, casts: Casts, tmp_path: Path
+    turned: None, fa: ModuleType, world: Fusion, api: Any, casts: Casts, tmp_path: Path
 ) -> None:
     occurrence = OccurrenceWithTransform2()
     world.app.importManager.result = FakeCollection([occurrence])

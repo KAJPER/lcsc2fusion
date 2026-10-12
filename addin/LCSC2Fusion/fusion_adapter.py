@@ -73,9 +73,12 @@ ELECTRON_COMMAND = "Electron.run"
 CREATE_3D_COMMAND = "Electron.Create3DPackage"
 LIBRARY_EXTENSION = "flbr"  # DataFile.fileExtension of a Fusion Electronics library
 THREE_D_PACKAGE_DESCRIPTION = "LCSC2Fusion 3D package"
-# SnapEDA turns the imported occurrence by 90 degrees about X (to compensate for Fusion turning a
-# Z up STEP into Y up on import), so that (x, y, z) -> (x, -z, y).
-STEP_IMPORT_TURN_RAD = math.pi / 2
+# SnapEDA turns the imported occurrence by 90 degrees about X, so that (x, y, z) -> (x, -z, y).
+# That compensates for ITS OWN STEP files. Our `placed.step` already has Z up, the origin at the
+# footprint origin and the body on the board, and attaching it by hand lined up in Fusion with no
+# turn (gate 3). Gate 5 showed that turning it like SnapEDA lays the part on its side, so we do not.
+SNAPEDA_TURN_RAD = math.pi / 2
+STEP_IMPORT_TURN_RAD = 0.0
 
 DISPATCH_TIMEOUT_S = 30.0  # how long an HTTP request may wait for the main thread
 MAX_PENDING_REQUESTS = 64  # queued requests while the main thread is busy (modal dialog)
@@ -653,7 +656,7 @@ def build_create_3d_command(lbr_path: Path) -> str:
 
 
 def step_turn_axes(
-    angle: float = STEP_IMPORT_TURN_RAD,
+    angle: float = SNAPEDA_TURN_RAD,
 ) -> tuple[Vector3, Vector3, Vector3, Vector3]:
     """Origin and x, y, z axes of the matrix applied to the imported STEP (SnapEDA `rotate_step`).
 
@@ -670,7 +673,7 @@ def step_turn_axes(
     return (0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, cosine, sine), (0.0, snap(-sine), cosine)
 
 
-def build_turn_matrix(angle: float = STEP_IMPORT_TURN_RAD) -> adsk.core.Matrix3D:
+def build_turn_matrix(angle: float = SNAPEDA_TURN_RAD) -> adsk.core.Matrix3D:
     """The `step_turn_axes` as an `adsk.core.Matrix3D`."""
     origin, x_axis, y_axis, z_axis = step_turn_axes(angle)
     matrix = adsk.core.Matrix3D.create()
@@ -919,8 +922,12 @@ class AdskLibraryApi:
             occurrence = adsk.fusion.Occurrence.cast(imported.item(0))
             if occurrence is None:
                 raise LibraryApiError("The imported STEP file did not produce an occurrence.")
-            used = turn_occurrence(occurrence, build_turn_matrix(), self._log)
-            step.detail = f"imported {step_path.name}, turned about X via {used}"
+            if STEP_IMPORT_TURN_RAD == 0.0:
+                step.detail = f"imported {step_path.name}, left as imported"
+            else:
+                matrix = build_turn_matrix(STEP_IMPORT_TURN_RAD)
+                used = turn_occurrence(occurrence, matrix, self._log)
+                step.detail = f"imported {step_path.name}, turned about X via {used}"
 
     # Helpers ------------------------------------------------------------------------------
 

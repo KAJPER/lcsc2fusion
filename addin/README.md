@@ -180,8 +180,8 @@ to Fusion on the main thread, in the background (about 45 s, progress shown in t
    then `Electron.run` `Use`, `Copy "<DEVICESET>.dev@<file>"`, `Use "-<file>"` (the same three commands SnapEDA
    uses) and `document.save`. The active document of the user is never closed.
 2. With the 3D box ticked: `Electron.Create3DPackage "<part.lbr>"`, `saveAs` of the new package design, import of
-   `<id>.placed.step`, turn of the occurrence like SnapEDA does ((x,y,z) to (x,-z,y)). The window then asks to check
-   the position and to press Finish, Save, OK in Fusion.
+   `<id>.placed.step`, left exactly as imported (SnapEDA's 90 degree turn is for its own files; for ours it lays the
+   part on its side, D-026). The window then asks to check the position and to press Finish, Save, OK in Fusion.
 3. `%LOCALAPPDATA%\LCSC2Fusion\state.json` remembers the library id and the added parts. The same part again is not
    merged twice; a package with an existing name but different geometry is renamed before the `.lbr` is written.
 

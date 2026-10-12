@@ -129,6 +129,10 @@ minuty (okno pokazuje postęp), więc w tym czasie nie klikaj w Fusionie.
 - [ ] Przycisk "Add to Fusion library" przy karcie części działa, gdy pole automatyczne jest odznaczone.
 - [ ] Zamknij Fusion i uruchom ponownie: kolejna część dodaje się do tej samej biblioteki (id zapamiętane).
 
+Pierwszy przebieg (C25804): biblioteka i pakiet 3D powstały, model leżał na boku (poprawione, D-026), a Fusion
+pokazał raz błąd "Can't rename ... Error code: 5". Powtórz najpierw tę samą część z 3D (karta pokaże, że część jest
+już w bibliotece, a 3D zrobi się od nowa), potem drugą część. Zamknij najpierw stare okno edytora pakietu 3D.
+
 Co wkleić przy błędzie: statusy z okna, linie `LCSC2Fusion` z najnowszego `AppLogFile*.log` (zwłaszcza `merge`,
 `create_3d_package`, `import_step`) i zawartość `%LOCALAPPDATA%\LCSC2Fusion\state.json`. Wynik zapiszemy jako D-026.
 
