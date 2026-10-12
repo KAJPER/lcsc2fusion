@@ -110,6 +110,7 @@ class LoopApp:
         self.fired: list[tuple[str, str]] = []
         self.fire_error: Exception | None = None
         self.fire_result = True
+        self.deliver = True  # False: the call is accepted but no handler runs
         self.logged: list[str] = []
 
     def log(self, message: str, *args: Any) -> None:
@@ -129,7 +130,7 @@ class LoopApp:
             raise self.fire_error
         self.fired.append((event_id, info))
         event = self.registered.get(event_id)
-        if event is not None:
+        if event is not None and self.deliver:
             self.loop.post(lambda: [handler.notify(None) for handler in list(event.handlers)])
         return self.fire_result
 
@@ -363,19 +364,27 @@ def test_close_wakes_the_waiting_requests_with_an_error_and_refuses_new_ones(
 def test_a_failing_fire_custom_event_takes_the_request_back(
     fa: ModuleType, app: LoopApp, loop: MainLoop
 ) -> None:
-    dispatcher, _, recorder = make_dispatcher(fa, app, loop)
+    dispatcher, _, _recorder = make_dispatcher(fa, app, loop)
     app.fire_error = RuntimeError("fusion is closing")
     with pytest.raises(RuntimeError, match="fusion is closing"):
         dispatcher.dispatch("act", "1")
     assert len(dispatcher._queue) == 0
 
-    app.fire_error = None
-    app.fire_result = False  # the event is not registered or Fusion refused it
-    with pytest.raises(RuntimeError, match="did not accept"):
-        dispatcher.dispatch("act", "2")
-    assert len(dispatcher._queue) == 0
-    loop.call(lambda: None)
-    assert recorder.calls == []
+
+def test_a_false_return_from_fire_custom_event_is_not_an_error(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    """On Fusion 2705 the call returned False from server threads although events were delivered."""
+    dispatcher, safe_log, recorder = make_dispatcher(fa, app, loop)
+    app.fire_result = False
+
+    assert dispatcher.dispatch("act", "2") == "reply:act:2"  # the simulated main thread ran it
+    assert dispatcher.dispatch("act", "3") == "reply:act:3"
+    assert [call[:2] for call in recorder.calls] == [("act", "2"), ("act", "3")]
+
+    loop.call(safe_log.flush)
+    hints = [line for line in app.logged if "returned False" in line]
+    assert len(hints) == 1  # reported once, not on every request
 
 
 def test_too_many_waiting_requests_are_refused(
@@ -512,3 +521,74 @@ def test_unbound_log_writes_directly(fa: ModuleType) -> None:
     written: list[str] = []
     fa.ThreadSafeLog(direct=written.append)("hello")
     assert written == ["hello"]
+
+
+def test_a_false_return_wakes_the_main_thread_through_the_fallback(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, safe_log, _recorder = make_dispatcher(fa, app, loop)
+    app.fire_result = False
+    app.deliver = False  # the own event never reaches the handler
+    fallback_calls: list[int] = []
+
+    def fallback() -> bool:
+        fallback_calls.append(1)
+        loop.post(dispatcher.drain)  # what the job event's handler does
+        return True
+
+    dispatcher.set_fallback_fire(fallback)
+
+    assert dispatcher.dispatch("act", "1") == "reply:act:1"
+    assert dispatcher.dispatch("act", "2") == "reply:act:2"
+    assert len(fallback_calls) >= 2  # used for every request (the log hint wakes it once more)
+    loop.call(safe_log.flush)
+    assert len([line for line in app.logged if "returned False" in line]) == 1
+
+
+def test_without_a_working_wake_up_the_request_ends_in_a_timeout(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, recorder = make_dispatcher(fa, app, loop, timeout_s=0.3)
+    app.fire_result = False
+    app.deliver = False
+
+    with pytest.raises(TimeoutError):
+        dispatcher.dispatch("act", "1")
+    assert recorder.calls == []
+    assert len(dispatcher._queue) == 0  # taken back, so it never runs later
+
+
+def test_a_failing_fallback_is_logged_and_does_not_break_the_request(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, safe_log, _ = make_dispatcher(fa, app, loop, timeout_s=0.3)
+    app.fire_result = False
+    app.deliver = False
+
+    def broken() -> bool:
+        raise RuntimeError("no event")
+
+    dispatcher.set_fallback_fire(broken)
+    with pytest.raises(TimeoutError):
+        dispatcher.dispatch("act", "1")
+    loop.call(safe_log.flush)
+    assert any("fallback failed" in line for line in app.logged)
+
+
+def test_the_job_runner_also_drains_the_dispatcher(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    runner = fa.ThreadJobRunner(app, "job_event")
+    drained: list[str] = []
+    runner.set_extra_drain(lambda: drained.append("dispatcher"))
+    loop.call(runner.start)
+
+    done = threading.Event()
+    runner.run(lambda: 41 + 1, lambda result: (drained.append(f"job:{result.value}"), done.set()))
+    assert done.wait(WAIT_S)
+    loop.call(lambda: None)
+    assert drained[0] == "job:42"
+    assert "dispatcher" in drained  # the extra drain runs after the job callbacks
+    runner.fire()  # a bare fire (used as the dispatcher fallback) runs the extra drain as well
+    loop.call(lambda: None)
+    assert drained.count("dispatcher") >= 2

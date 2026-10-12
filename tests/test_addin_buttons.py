@@ -209,7 +209,6 @@ def test_targets_cover_the_four_electronics_environments_and_design(fa: ModuleTy
         ("ElectronEmptyLbrEnvironment", "ToolsTab", "EagleLbrScriptsAddinsPanel"),
         ("SchEditorEnvironement", "ToolsTab", "EagleSchScriptsAddinsPanel"),
         ("BoardLayoutEnvironement", "ToolsTab", "EaglePcbScriptsAddinsPanel"),
-        ("PCBDesignEnvironement", "ToolsTab", "EagleScriptsAddinsPanel"),
     ]
 
 
@@ -246,7 +245,7 @@ def test_missing_workspace_tab_and_panel_are_logged_and_skipped(fa: ModuleType) 
 
     added = fa.register_buttons(ui, definition_stub(fa), logs.append)
 
-    assert added == ["SolidScriptsAddinsPanel", "EagleScriptsAddinsPanel"]
+    assert added == ["SolidScriptsAddinsPanel"]
     by_workspace = {line.split(" / ")[0]: line for line in logs}
     assert "-> missing (workspace not found)" in by_workspace["button: ElectronEmptyLbrEnvironment"]
     assert "-> missing (tab not found)" in by_workspace["button: SchEditorEnvironement"]
@@ -391,7 +390,7 @@ def test_unregister_removes_exactly_the_controls_that_were_added(fa: ModuleType)
 
     fa.unregister_buttons(ui, added[:3], lambda _: None)
 
-    assert [ours[panel_id].deleted for panel_id in added] == [True, True, True, False, False]
+    assert [ours[panel_id].deleted for panel_id in added] == [True, True, True, False]
     assert foreign.deleted is False
 
     fa.unregister_buttons(ui, added, lambda _: None)  # idempotent, finishes the rest
@@ -565,7 +564,6 @@ def test_an_unchanged_toolbar_logs_nothing_on_activation(
     fa: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     layout = full_layout(fa)
-    del layout[("PCBDesignEnvironement", "ToolsTab", "EagleScriptsAddinsPanel")]
     ui = FakeUi(layout)
     addin, fake = start_app(fa, monkeypatch, ui, tmp_path)
     before = list(fake.logged)

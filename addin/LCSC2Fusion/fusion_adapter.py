@@ -69,14 +69,14 @@ class ButtonTarget(NamedTuple):
 
 
 # Environments that get the open-window button. The ids come from Fusion's toolbar XML and the
-# Autodesk add-ins, they were not verified with itemById, so registration is fail soft and
-# `register_buttons` logs what it finds.
+# Autodesk add-ins; registration is fail soft and `register_buttons` logs what it finds. Confirmed
+# on Fusion 2705.1.30: these four exist (`PCBDesignEnvironement` does not: "foundEnv" validation
+# error from `ui.workspaces.itemById`).
 TARGETS: tuple[ButtonTarget, ...] = (
     ButtonTarget("FusionSolidEnvironment", "ToolsTab", "SolidScriptsAddinsPanel"),
     ButtonTarget("ElectronEmptyLbrEnvironment", "ToolsTab", "EagleLbrScriptsAddinsPanel"),
     ButtonTarget("SchEditorEnvironement", "ToolsTab", "EagleSchScriptsAddinsPanel"),
     ButtonTarget("BoardLayoutEnvironement", "ToolsTab", "EaglePcbScriptsAddinsPanel"),
-    ButtonTarget("PCBDesignEnvironement", "ToolsTab", "EagleScriptsAddinsPanel"),
 )
 
 _TOKEN_PARAMETER = re.compile(r"([?&]t=)[^&\s'\"]+")
@@ -201,28 +201,39 @@ class MainThreadDispatcher:
         handle: Callable[[str, str], str] | None = None,
         safe_log: ThreadSafeLog | None = None,
         timeout_s: float = DISPATCH_TIMEOUT_S,
+        fallback_fire: Callable[[], object] | None = None,
     ) -> None:
         self._app = app
         self._event_id = event_id
+        self._fallback_fire = fallback_fire
         self._handle = handle
         self._safe_log = safe_log
         self._timeout_s = timeout_s
         self._lock = threading.Lock()
         self._queue: deque[_Request] = deque()
         self._closed = False
+        self._false_reported = False
+        self._true_reported = False
+        self._drain_reported = False
         self._handler = _DrainHandler(self.drain, "Dispatch")
         self._event: adsk.core.CustomEvent | None = None
 
     def set_handler(self, handle: Callable[[str, str], str]) -> None:
         self._handle = handle
 
+    def set_fallback_fire(self, fallback_fire: Callable[[], object]) -> None:
+        """Another way to wake the main thread (it must lead to `drain`), see `wake`."""
+        self._fallback_fire = fallback_fire
+
     def start(self) -> None:
         self._app.unregisterCustomEvent(self._event_id)  # leftover of an unclean stop
         event = self._app.registerCustomEvent(self._event_id)
         if event is None:
             raise RuntimeError(f"Could not register the custom event {self._event_id!r}.")
-        event.add(self._handler)
+        added = event.add(self._handler)
         self._event = event
+        if added is False and self._safe_log is not None:
+            self._safe_log(f"event.add returned False for {self._event_id!r}: no handler attached?")
         with self._lock:
             self._closed = False
         if self._safe_log is not None:
@@ -252,9 +263,39 @@ class MainThreadDispatcher:
                 self._safe_log.flush()
 
     def wake(self) -> None:
-        """Ask Fusion to run `drain` on the main thread. Safe from any thread."""
-        if self._app.fireCustomEvent(self._event_id, "x") is False:
-            raise RuntimeError(f"Fusion did not accept the custom event {self._event_id!r}.")
+        """Wake the main thread without reporting anything (used by the log, so no recursion)."""
+        self._fire(report=False)
+
+    def _fire(self, *, report: bool) -> None:
+        """Ask Fusion to run `drain` on the main thread. Safe from any thread.
+
+        The return value of `fireCustomEvent` is not trusted: the documentation says it is True when
+        the event was queued, yet on Fusion 2705 it returned False for calls made from the HTTP
+        server threads. When it does, the main thread is woken through the fallback as well (the
+        job event, which is known to be delivered, and whose handler also runs `drain`). A request
+        that really never runs ends in the dispatch timeout. The first False is logged once.
+        """
+        queued = self._app.fireCustomEvent(self._event_id, "x")
+        if queued is not False:
+            if report and not self._true_reported:
+                self._true_reported = True
+                if self._safe_log is not None:
+                    self._safe_log(f"fireCustomEvent({self._event_id!r}) returned {queued!r}.")
+            return
+        via = "no fallback"
+        fallback = self._fallback_fire
+        if fallback is not None:
+            try:
+                via = f"fallback returned {fallback()!r}"
+            except Exception as exc:  # the request then ends in the dispatch timeout
+                via = f"fallback failed: {exc!r}"
+        if report and not self._false_reported:
+            self._false_reported = True
+            if self._safe_log is not None:
+                self._safe_log(
+                    f"fireCustomEvent({self._event_id!r}) returned False from a worker thread "
+                    f"({via}). A request that never runs ends in a timeout."
+                )
 
     def dispatch(self, action: str, data: str) -> str:
         """Run the action on the main thread and return its reply (any thread, blocks).
@@ -271,7 +312,7 @@ class MainThreadDispatcher:
                 raise DispatcherBusyError("Fusion is busy: too many pending requests.")
             self._queue.append(request)
         try:
-            self.wake()
+            self._fire(report=True)
         except Exception as exc:  # the request would never run: take it back
             self._abandon(request)
             raise RuntimeError(f"Could not reach Fusion's main thread: {exc}") from exc
@@ -293,6 +334,10 @@ class MainThreadDispatcher:
                 if not self._queue:
                     break
                 request = self._queue.popleft()
+            if not self._drain_reported:
+                self._drain_reported = True
+                if self._safe_log is not None:
+                    self._safe_log("The first request reached the main thread.")
             self._run(request)
         if self._safe_log is not None:
             self._safe_log.flush()
@@ -346,12 +391,26 @@ class PaletteSinkAdapter:
 class ThreadJobRunner:
     """`JobRunner`: job on a worker thread, completion callback on the main thread."""
 
-    def __init__(self, app: adsk.core.Application, event_id: str = CUSTOM_EVENT_ID) -> None:
+    def __init__(
+        self,
+        app: adsk.core.Application,
+        event_id: str = CUSTOM_EVENT_ID,
+        extra_drain: Callable[[], None] | None = None,
+    ) -> None:
         self._app = app
         self._event_id = event_id
         self._finished: queue.SimpleQueue[Callable[[], None]] = queue.SimpleQueue()
+        self._extra_drain = extra_drain
         self._handler = _DrainHandler(self.drain)
         self._event: adsk.core.CustomEvent | None = None
+
+    def set_extra_drain(self, extra_drain: Callable[[], None]) -> None:
+        """Also run `extra_drain` (main thread) whenever this runner's event is handled."""
+        self._extra_drain = extra_drain
+
+    def fire(self) -> object:
+        """Fire this runner's custom event (any thread). This event is known to be delivered."""
+        return self._app.fireCustomEvent(self._event_id, "done")
 
     def start(self) -> None:
         self._app.unregisterCustomEvent(self._event_id)  # leftover of an unclean stop
@@ -374,7 +433,7 @@ class ThreadJobRunner:
             except Exception as exc:  # handed to on_done, which reports it on the main thread
                 result = JobResult(error=exc)
             self._finished.put(lambda: on_done(result))
-            self._app.fireCustomEvent(self._event_id, "done")
+            self.fire()
 
         threading.Thread(target=work, name="LCSC2Fusion-worker", daemon=True).start()
 
@@ -384,8 +443,11 @@ class ThreadJobRunner:
             try:
                 callback = self._finished.get_nowait()
             except queue.Empty:
-                return
+                break
             callback()
+        extra = self._extra_drain
+        if extra is not None:
+            extra()
 
 
 # Opening the library --------------------------------------------------------------------
@@ -612,6 +674,10 @@ class AddinApp:
         self._log = ThreadSafeLog()
         self._runner = ThreadJobRunner(self._app)
         self._dispatcher = MainThreadDispatcher(self._app, DISPATCH_EVENT_ID, safe_log=self._log)
+        # The job event is the one known to be delivered: use it as the second way to wake the
+        # main thread, and let its handler also drain the dispatcher.
+        self._runner.set_extra_drain(self._dispatcher.drain)
+        self._dispatcher.set_fallback_fire(self._runner.fire)
         self._hub: Hub | None = None
         self._transport: HttpTransport | None = None
         self._window: BrowserWindow | None = None
