@@ -6,6 +6,10 @@ minimum interval, an on-disk cache, fail fast after a block, and clear errors.
 Default path (D-003): `searchByNumbers` resolves the LCSC id to the symbol uuid, then
 `/api/components/{uuid}` returns the full document (symbol plus `packageDetail`). The rate
 limited `/api/products/{id}/components` endpoint is used only as a fallback.
+
+3D models (stage 3, opt-in): `fetch_model_step(uuid)` downloads the STEP file of a footprint from
+the separate host modules.easyeda.com. It goes through the same limiter and retry policy, but has
+its own per host block guard entry and its own, longer cache lifetime.
 """
 
 from __future__ import annotations
@@ -30,11 +34,13 @@ from lcsc2fusion.client.ratelimit import BlockGuard, RateLimiter
 from lcsc2fusion.client.retry import retry_call
 from lcsc2fusion.errors import (
     LcscError,
+    ModelError,
     NetworkError,
     ParseError,
     PartNotFoundError,
     RateLimitedError,
 )
+from lcsc2fusion.step import read_step
 
 _log = logging.getLogger(__name__)
 
@@ -44,12 +50,22 @@ COMPONENT_URL = f"{EASYEDA_BASE_URL}/api/components/{{uuid}}"
 PRODUCT_COMPONENTS_URL = f"{EASYEDA_BASE_URL}/api/products/{{lcsc_id}}/components"
 LCSC_DETAIL_URL = "https://wmsc.lcsc.com/ftps/wm/product/detail?productCode={lcsc_id}"
 
+# 3D models live on their own host. The first path segment is a fixed bucket id of the EasyEDA
+# model store (found by research, undocumented, so it may change), followed by the model uuid
+# (`SVGNODE.attrs.uuid` of the footprint, see parser/model3d.py).
+MODEL_BUCKET = "qAxj6KHrDKw4blvCG8QJPs7Y"
+MODEL_STEP_URL = f"https://modules.easyeda.com/{MODEL_BUCKET}/{{uuid}}"
+
 FORM_CONTENT_TYPE = "application/x-www-form-urlencoded"
 
 DEFAULT_PART_TTL_S = 7 * 24 * 3600.0
+# Models are updated in place under the same uuid, so they expire sooner than "never" but far
+# later than part documents: a STEP file is 1 to 3 MB and rarely changes.
+DEFAULT_MODEL_TTL_S = 30 * 24 * 3600.0
 DEFAULT_MIN_INTERVAL_S = 0.5
 
 _LCSC_ID_RE = re.compile(r"C[0-9]+")
+_MODEL_UUID_RE = re.compile(r"[0-9a-f]{32}")
 _BLOCK_STATUSES = frozenset({403, 429})
 _MAX_RETRY_AFTER_S = 3600.0
 
@@ -90,12 +106,14 @@ class EasyEdaClient:
         retry_attempts: int = 3,
         retry_base_delay_s: float = 1.0,
         timeout_s: float = DEFAULT_TIMEOUT_S,
+        model_ttl_s: float = DEFAULT_MODEL_TTL_S,
     ) -> None:
         self._transport: Transport = transport if transport is not None else UrllibTransport()
         self._cache = cache if cache is not None else DiskCache(default_cache_dir(), ttl_s)
         self._limiter = limiter if limiter is not None else RateLimiter(DEFAULT_MIN_INTERVAL_S)
         self._guard = guard if guard is not None else BlockGuard()
         self._ttl_s = ttl_s
+        self._model_ttl_s = model_ttl_s
         self._sleep = sleep
         self._retry_attempts = retry_attempts
         self._retry_base_delay_s = retry_base_delay_s
@@ -218,6 +236,44 @@ class EasyEdaClient:
             self._cache.put(key, url.encode("utf-8"))
         return url
 
+    def fetch_model_step(self, uuid: str) -> bytes:
+        """Return the STEP file of one EasyEDA 3D model, byte for byte as served.
+
+        `uuid` is the model id from the footprint (32 lowercase hex digits). The bytes are
+        cached under `step-{uuid}` for `model_ttl_s`; a cached entry that no longer validates is
+        discarded and downloaded once more. Invalid downloads are never cached.
+
+        Raises `ModelError` for a malformed uuid, HTTP 404, and an answer that is not a complete
+        millimetre STEP file (an HTML page, a truncated body), `RateLimitedError` on HTTP 403/429
+        and `NetworkError` on transport failures and other unexpected statuses.
+        """
+        model_id = _validated_model_uuid(uuid)
+        key = _model_key(model_id)
+        cached = self._cache.get(key, ttl_s=self._model_ttl_s)
+        if cached is not None:
+            try:
+                read_step(cached)
+            except ModelError:
+                _log.debug("Dropping unusable cache entry %s", key)
+                self._cache.discard(key)
+            else:
+                return cached
+        data = self._download_model(model_id)
+        self._cache.put(key, data)
+        return data
+
+    def _download_model(self, model_id: str) -> bytes:
+        url = MODEL_STEP_URL.format(uuid=model_id)
+        response = self.request("GET", url)
+        if response.status == 404:
+            raise ModelError(f"3D model {model_id} not found on EasyEDA (HTTP 404).")
+        _require_ok(response, url)
+        try:
+            read_step(response.body)
+        except ModelError as exc:
+            raise ModelError(f"EasyEDA returned an unusable 3D model {model_id}: {exc}") from exc
+        return response.body
+
     def _read_cached_document(self, key: str) -> dict[str, Any] | None:
         raw = self._cache.get(key, ttl_s=self._ttl_s)
         if raw is None:
@@ -294,6 +350,20 @@ class EasyEdaClient:
 
 def _part_key(part_id: str) -> str:
     return f"easyeda-{part_id}"
+
+
+def _model_key(model_id: str) -> str:
+    return f"step-{model_id}"
+
+
+def _validated_model_uuid(uuid: str) -> str:
+    """The uuid unchanged, or `ModelError`. Nothing else may reach the URL."""
+    if not isinstance(uuid, str) or _MODEL_UUID_RE.fullmatch(uuid) is None:
+        shown = uuid[:40] if isinstance(uuid, str) else type(uuid).__name__
+        raise ModelError(
+            f"{shown!r} is not a valid 3D model id. Expected 32 lowercase hexadecimal digits."
+        )
+    return uuid
 
 
 def _decode_json(raw: bytes) -> Any:
