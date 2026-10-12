@@ -519,3 +519,28 @@ Co implementacja potwierdziła lub skorygowała względem sekcji 1 do 8:
 - Natywne sloty (D-018): `<pad shape="slot" drill slotLength rot>`, opcjonalnie `diameter` i
   `solderMask`. To poprawka do sekcji 2.4 (slot jako wiercenie plus frezowanie).
 - Znak `curve` potwierdzony na realnych danych Fusiona (24 z 24 łuków).
+
+## 10. Addendum: modele 3D (2026-10-12)
+
+Dwa niezależne researche (dane EasyEDA i workflow Fusiona) oraz plan Etapu 3 (D-020):
+
+- Uuid modelu to `SVGNODE.attrs.uuid` w footprincie (to samo co `step` z `searchByNumbers`). Pole
+  `head.uuid_3d` jest inne i nie służy do pobierania. STEP: `https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{uuid}`,
+  OBJ: `https://modules.easyeda.com/3dmodel/{uuid}`. 23 z 24 realnych części ma model (brak: C476261).
+- STEP z EasyEDA: AP214 z SolidWorks 2020, milimetry, jedna PRODUCT, bez drzewa montażu, wiele brył,
+  kolory na ścianę, 1 do 3 MB, nazwy z bajtami GBK, CRLF. Bbox z `VERTEX_POINT` zgadza się z OBJ do 0,01 mm,
+  bbox ze wszystkich `CARTESIAN_POINT` jest błędny.
+- Transformacja do układu paczki (potwierdzona na C25804, C2040, C165948, C46749): obrót modelu wokół
+  środka jego bbox o `c_rotation[2]` (dodatni przeciwnie do zegara), potem przesunięcie do
+  `(c_origin - head) * 0,254 mm` (Y odwrócone) i podniesienie tak, by najniższy punkt leżał na
+  `z * 0,254 mm`. Zwykłe dodanie `z` jest błędne. `c_origin` jest nieaktualne w C1035, C14663, C6186,
+  C20526, wtedy bierzemy środek konturu SVGNODE.
+- Fusion: model jest osobnym projektem w Hubie, w `.lbr` tylko referencja (`<package3d type="model"
+  urn="" wip_urn="urn:adsk.wipprod:fs.file:vf.XXX?version=N" locally_modified="yes">` i
+  `<package3dinstance package3d_urn=...>` w device). Oficjalne kroki ręczne: Content Manager >
+  Footprints > prawy przycisk na footprincie > Attach Existing 3D Model > Select from my computer.
+  `Electron.Create3DPackage "<lbr>"` istnieje w zainstalowanym Fusionie 2705.1.30 i wymaga aktywnego
+  dokumentu biblioteki, ale nie importuje STEP. SnapEDA następnie importuje STEP przez API i obraca
+  model o 90 stopni wokół X (stąd wariant Y-up w Bramie 3).
+- Licencja w JSON-ie: "3D models" są wprost własnością JLCEDA/EasyEDA, użycie komercyjne tylko w EasyEDA,
+  obowiązek atrybucji. Dlatego `--3d` jest opt-in, a pliki STEP nie trafiają do repo.

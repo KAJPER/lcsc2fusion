@@ -58,9 +58,28 @@
     <library>
       <description>&lt;b&gt;lcsc2fusion library&lt;/b&gt;
 &lt;p&gt;lcsc2fusion synthetic manual test library&lt;/p&gt;
-&lt;p&gt;LCSC parts: C9000002, C9000008, C9000012, C9000003, C9000010, C9000014, C9000015, C9000006, C9000001, C9000005, C9000004, C9000013, C9000007, C9000009, C9000011&lt;/p&gt;
+&lt;p&gt;LCSC parts: C9000016, C9000018, C9000017, C9000002, C9000008, C9000012, C9000003, C9000010, C9000014, C9000015, C9000006, C9000001, C9000005, C9000004, C9000013, C9000007, C9000009, C9000011&lt;/p&gt;
 &lt;p&gt;Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA.&lt;/p&gt;</description>
       <packages>
+        <package name="SYN-BOX3D-1X2">
+          <description>SYN-BOX3D-1X2</description>
+          <smd name="1" x="0" y="-1" dx="1.4" dy="0.9" layer="1" roundness="0"/>
+          <smd name="2" x="0" y="1" dx="1.4" dy="0.9" layer="1" roundness="0"/>
+          <wire x1="-1" y1="-0.3" x2="-1" y2="0.3" width="0.1524" layer="21"/>
+          <wire x1="1" y1="-0.3" x2="1" y2="0.3" width="0.1524" layer="21"/>
+          <polygon width="0.01" layer="51">
+            <vertex x="-0.8" y="1.6"/>
+            <vertex x="0.8" y="1.6"/>
+            <vertex x="0.8" y="-1.6"/>
+            <vertex x="-0.8" y="-1.6"/>
+          </polygon>
+          <wire x1="-0.95" y1="-1.7" x2="0.95" y2="-1.7" width="0.05" layer="39"/>
+          <wire x1="0.95" y1="-1.7" x2="0.95" y2="1.7" width="0.05" layer="39"/>
+          <wire x1="0.95" y1="1.7" x2="-0.95" y2="1.7" width="0.05" layer="39"/>
+          <wire x1="-0.95" y1="1.7" x2="-0.95" y2="-1.7" width="0.05" layer="39"/>
+          <text x="0" y="1.7" size="0.8" layer="25" font="vector" ratio="12" align="bottom-center">&gt;NAME</text>
+          <text x="0" y="-1.7" size="0.8" layer="27" font="vector" ratio="12" align="top-center">&gt;VALUE</text>
+        </package>
         <package name="SYN-C0603">
           <description>SYN-C0603</description>
           <smd name="1" x="-0.85" y="0" dx="0.95" dy="1" layer="1" roundness="0"/>
@@ -525,6 +544,36 @@
         </package>
       </packages>
       <symbols>
+        <symbol name="SYN-BOX3D-ROT90">
+          <wire x1="-2.54" y1="1.016" x2="2.54" y2="1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="1.016" x2="2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="-1.016" x2="-2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="-2.54" y1="-1.016" x2="-2.54" y2="1.016" width="0.254" layer="94"/>
+          <text x="-2.54" y="1.651" size="1.778" layer="95" font="vector" ratio="12">&gt;NAME</text>
+          <text x="-2.54" y="-1.651" size="1.778" layer="96" font="vector" ratio="12" align="top-left">&gt;VALUE</text>
+          <pin name="1" x="-5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
+          <pin name="2" x="5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1" rot="R180"/>
+        </symbol>
+        <symbol name="SYN-BOX3D-STALE">
+          <wire x1="-2.54" y1="1.016" x2="2.54" y2="1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="1.016" x2="2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="-1.016" x2="-2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="-2.54" y1="-1.016" x2="-2.54" y2="1.016" width="0.254" layer="94"/>
+          <text x="-2.54" y="1.651" size="1.778" layer="95" font="vector" ratio="12">&gt;NAME</text>
+          <text x="-2.54" y="-1.651" size="1.778" layer="96" font="vector" ratio="12" align="top-left">&gt;VALUE</text>
+          <pin name="1" x="-5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
+          <pin name="2" x="5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1" rot="R180"/>
+        </symbol>
+        <symbol name="SYN-BOX3D-Z">
+          <wire x1="-2.54" y1="1.016" x2="2.54" y2="1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="1.016" x2="2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="2.54" y1="-1.016" x2="-2.54" y2="-1.016" width="0.254" layer="94"/>
+          <wire x1="-2.54" y1="-1.016" x2="-2.54" y2="1.016" width="0.254" layer="94"/>
+          <text x="-2.54" y="1.651" size="1.778" layer="95" font="vector" ratio="12">&gt;NAME</text>
+          <text x="-2.54" y="-1.651" size="1.778" layer="96" font="vector" ratio="12" align="top-left">&gt;VALUE</text>
+          <pin name="1" x="-5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
+          <pin name="2" x="5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1" rot="R180"/>
+        </symbol>
         <symbol name="SYN-C0603-100NF">
           <wire x1="-0.508" y1="-2.032" x2="-0.508" y2="2.032" width="0.254" layer="94"/>
           <wire x1="0.508" y1="2.032" x2="0.508" y2="-2.032" width="0.254" layer="94"/>
@@ -831,6 +880,84 @@
         </symbol>
       </symbols>
       <devicesets>
+        <deviceset name="SYN-BOX3D-ROT90" prefix="J">
+          <description>&lt;b&gt;SYN-BOX3D-ROT90&lt;/b&gt;
+&lt;p&gt;Synthetic 3D model rotated by 90 degrees, off centre&lt;/p&gt;
+&lt;p&gt;Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA.&lt;/p&gt;</description>
+          <gates>
+            <gate name="G$1" symbol="SYN-BOX3D-ROT90" x="0" y="0"/>
+          </gates>
+          <devices>
+            <device name="" package="SYN-BOX3D-1X2">
+              <connects>
+                <connect gate="G$1" pin="1" pad="1"/>
+                <connect gate="G$1" pin="2" pad="2"/>
+              </connects>
+              <technologies>
+                <technology name="">
+                  <attribute name="MPN" value="SYN-BOX3D-ROT90" constant="no"/>
+                  <attribute name="MANUFACTURER" value="SYN-Maker" constant="no"/>
+                  <attribute name="LCSC_PART" value="C9000016" constant="no"/>
+                  <attribute name="LCSC_PACKAGE" value="SYN-BOX3D-1X2" constant="no"/>
+                  <attribute name="JLCPCB_CLASS" value="Basic Part" constant="no"/>
+                  <attribute name="SOURCE" value="Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA." constant="no"/>
+                </technology>
+              </technologies>
+            </device>
+          </devices>
+        </deviceset>
+        <deviceset name="SYN-BOX3D-STALE" prefix="J">
+          <description>&lt;b&gt;SYN-BOX3D-STALE&lt;/b&gt;
+&lt;p&gt;Synthetic 3D model with an outdated c_origin&lt;/p&gt;
+&lt;p&gt;Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA.&lt;/p&gt;</description>
+          <gates>
+            <gate name="G$1" symbol="SYN-BOX3D-STALE" x="0" y="0"/>
+          </gates>
+          <devices>
+            <device name="" package="SYN-BOX3D-1X2">
+              <connects>
+                <connect gate="G$1" pin="1" pad="1"/>
+                <connect gate="G$1" pin="2" pad="2"/>
+              </connects>
+              <technologies>
+                <technology name="">
+                  <attribute name="MPN" value="SYN-BOX3D-STALE" constant="no"/>
+                  <attribute name="MANUFACTURER" value="SYN-Maker" constant="no"/>
+                  <attribute name="LCSC_PART" value="C9000018" constant="no"/>
+                  <attribute name="LCSC_PACKAGE" value="SYN-BOX3D-1X2" constant="no"/>
+                  <attribute name="JLCPCB_CLASS" value="Basic Part" constant="no"/>
+                  <attribute name="SOURCE" value="Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA." constant="no"/>
+                </technology>
+              </technologies>
+            </device>
+          </devices>
+        </deviceset>
+        <deviceset name="SYN-BOX3D-Z" prefix="J">
+          <description>&lt;b&gt;SYN-BOX3D-Z&lt;/b&gt;
+&lt;p&gt;Synthetic 3D model sunk into the board&lt;/p&gt;
+&lt;p&gt;Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA.&lt;/p&gt;</description>
+          <gates>
+            <gate name="G$1" symbol="SYN-BOX3D-Z" x="0" y="0"/>
+          </gates>
+          <devices>
+            <device name="" package="SYN-BOX3D-1X2">
+              <connects>
+                <connect gate="G$1" pin="1" pad="1"/>
+                <connect gate="G$1" pin="2" pad="2"/>
+              </connects>
+              <technologies>
+                <technology name="">
+                  <attribute name="MPN" value="SYN-BOX3D-Z" constant="no"/>
+                  <attribute name="MANUFACTURER" value="SYN-Maker" constant="no"/>
+                  <attribute name="LCSC_PART" value="C9000017" constant="no"/>
+                  <attribute name="LCSC_PACKAGE" value="SYN-BOX3D-1X2" constant="no"/>
+                  <attribute name="JLCPCB_CLASS" value="Basic Part" constant="no"/>
+                  <attribute name="SOURCE" value="Source: JLCEDA/EasyEDA Official Library (https://lceda.cn/ , https://easyeda.com). Copyright of the library data belongs to JLCEDA/EasyEDA." constant="no"/>
+                </technology>
+              </technologies>
+            </device>
+          </devices>
+        </deviceset>
         <deviceset name="SYN-C0603-100NF" prefix="C" uservalue="yes">
           <description>&lt;b&gt;SYN-C0603-100NF&lt;/b&gt;
 &lt;p&gt;Synthetic 100nF 50V 0603 capacitor&lt;/p&gt;

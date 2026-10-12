@@ -28,9 +28,21 @@ python -m lcsc2fusion C2040 C14663 -n mylib -o out/   # several parts in one lib
 python -m lcsc2fusion --search 100nF 0603          # list search results
 python -m lcsc2fusion 100nF 0603 --pick 1 -o out/  # convert the first search result
 python -m lcsc2fusion C2040 --render -o out/       # also write footprint/symbol PNGs
+python -m lcsc2fusion C25804 --3d -o out/          # also download the 3D model (STEP), see below
 ```
 
 Responses are cached on disk (7 days) and requests are rate limited. Use `--no-cache` to refetch.
+
+## 3D models (opt-in)
+
+`--3d` (or the "Include 3D model (STEP)" checkbox in the add-in) downloads the EasyEDA 3D model and
+writes next to the `.lbr`: `<id>.step` (as downloaded), `<id>.placed.step` (the same model moved into
+the package frame: millimetres, Z up, origin at the footprint origin, bottom on the board) and
+`<id>.3d.json` (placement, checksums, attribution). Fusion keeps 3D models as separate designs in its
+Hub and cannot be given one through the `.lbr`, so you attach the model yourself: in the library
+open Content Manager > Footprints, right click the footprint, "Attach Existing 3D Model", "Select
+from my computer...", pick `<id>.placed.step`. Use is personal only (the data belongs to
+JLCEDA/EasyEDA), do not redistribute the STEP files.
 
 ## Fusion add-in
 
@@ -73,7 +85,7 @@ Research notes and decisions: [docs/RESEARCH.md](docs/RESEARCH.md), [DECISIONS.m
   commands (with a manual fallback), which may change between Fusion builds.
 - Lossy conversions: polygon pads become rectangles, through-hole rectangles become square pads,
   per pad mask/paste expansion is not representable, thermal pads are plain SMD pads, oval
-  through-hole pads follow the DRC elongation, and 3D models are not included yet.
+  through-hole pads follow the DRC elongation, and 3D models are only downloaded as STEP files, you attach them by hand.
 - Non-plated pads (Eagle has none) are written as plated pads. Symbol pins keep the EasyEDA
   1.27 mm grid, so Fusion may report "off grid" pins for some symbols. Multi-unit symbols become
   several gates. Datasheet links are best effort.
