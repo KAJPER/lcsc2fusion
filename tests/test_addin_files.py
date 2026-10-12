@@ -82,6 +82,31 @@ def parse_html(name: str = "index.html") -> _ElementCollector:
     return collector
 
 
+DICTIONARY_SCRIPT = """
+global.window = {};
+require(process.argv[1]);
+console.log(JSON.stringify(window.LcscI18n.DICTIONARIES));
+"""
+
+
+def dictionary_texts(language: str) -> dict[str, str]:
+    """The strings of one dictionary of i18n.js (a plural entry is returned as its `other` form)."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    completed = subprocess.run(
+        [node, "-e", DICTIONARY_SCRIPT, str(PALETTE_DIR / "i18n.js")],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    raw = json.loads(completed.stdout)[language]
+    return {key: value["other"] if isinstance(value, dict) else value for key, value in raw.items()}
+
+
 def js_action_pairs(source: str, name: str) -> dict[str, str]:
     """KEY -> 'action' entries of `const <name> = Object.freeze({...})` in app.js."""
     match = re.search(rf"const {name} = Object\.freeze\(\{{(.*?)\}}\)", source, re.DOTALL)
@@ -150,6 +175,24 @@ def test_only_the_adapter_imports_adsk() -> None:
     assert importers == {"fusion_adapter.py"}
 
 
+def test_the_entry_point_unloads_every_module_of_the_add_in() -> None:
+    entry = ast.parse((ADDIN_DIR / "LCSC2Fusion.py").read_text(encoding="utf-8"))
+    listed: set[str] = set()
+    for node in entry.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "ADDIN_MODULES" for target in node.targets
+        ):
+            listed = {ast.literal_eval(element) for element in node.value.elts}  # type: ignore[attr-defined]
+    modules = {path.stem for path in python_files()} - {"LCSC2Fusion"}
+    assert listed == modules
+
+
+def test_the_local_api_stays_free_of_fusion_and_third_party_code() -> None:
+    allowed = set(sys.stdlib_module_names) | {"lcsc2fusion", "__future__"}
+    for name in ("local_api.py", "http_transport.py"):
+        assert imported_modules(ADDIN_DIR / name) <= allowed, name
+
+
 def test_controller_and_core_service_do_not_import_the_core_service_module_at_top_level() -> None:
     for name in ("controller.py", "core_service.py"):
         tree = ast.parse((ADDIN_DIR / name).read_text(encoding="utf-8"))
@@ -198,9 +241,14 @@ def test_every_js_action_constant_is_used_by_the_page() -> None:
 
 def test_palette_offers_the_fusion_library_and_the_separate_library_buttons() -> None:
     source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
-    assert f"'{controller.BUTTON_ADD_TO_FUSION}'" in source
-    assert f"'{controller.BUTTON_OPEN_SEPARATE}'" in source
+    # The captions are texts of i18n.js: the English ones are the names the controller quotes.
+    english = dictionary_texts("en")
+    assert english["button.addToFusion"] == controller.BUTTON_ADD_TO_FUSION
+    assert english["button.openSeparate"] == controller.BUTTON_OPEN_SEPARATE
+    assert "'button.addToFusion'" in source
+    assert "'button.openSeparate'" in source
     assert "Open in Fusion Electronics" not in source  # renamed: it is the fallback now
+    assert all("Open in Fusion Electronics" not in text for text in english.values())
     assert "TO_PYTHON.ADD_TO_FUSION" in source
     assert "TO_PYTHON.OPEN_LIBRARY" in source
     assert "TO_PYTHON.OPEN_FOLDER" in source
@@ -434,11 +482,28 @@ def test_html_references_existing_local_files_only() -> None:
         assert (PALETTE_DIR / reference).is_file(), reference
 
 
+LCSC_URL_PREFIX = "https://www.lcsc.com/"
+# Scripts that may name LCSC pages: the prefix constant of app.js and the sample links of the mock.
+# They are only ever link targets (href); nothing is fetched from them.
+FILES_WITH_LCSC_LINKS = ("app.js", "mock-bridge.js")
+
+
 def test_no_external_urls_in_scripts_and_styles() -> None:
     for name in ("app.js", "mock-bridge.js", "http-bridge.js", "style.css"):
         text = (PALETTE_DIR / name).read_text(encoding="utf-8")
-        assert not re.search(r"https?://", text), name
+        for url in re.findall(r"https?://[^\s'\"`)]*", text):
+            assert name in FILES_WITH_LCSC_LINKS and url.startswith(LCSC_URL_PREFIX), (name, url)
         assert "@import" not in text
+    app = js_code("app.js")
+    for call in (
+        "fetch(",
+        "XMLHttpRequest",
+        "WebSocket",
+        "EventSource",
+        "window.open(",
+        "sendBeacon",
+    ):
+        assert call not in app, call  # the page talks to Fusion through the bridge only
 
 
 def test_footer_carries_the_source_attribution() -> None:
@@ -448,7 +513,7 @@ def test_footer_carries_the_source_attribution() -> None:
 
 def test_html_has_the_required_controls_and_accessibility_hooks() -> None:
     html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
-    assert '<label for="query">' in html
+    assert re.search(r'<label for="query"[^>]*>LCSC number or search phrase</label>', html)
     assert 'id="query"' in html
     assert 'type="submit"' in html
     assert 'aria-live="polite"' in html
@@ -482,7 +547,7 @@ def test_fusion_checkbox_has_a_label_and_is_on_by_default() -> None:
 def test_the_manual_3d_steps_are_titled_as_the_fallback() -> None:
     html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
     template = html[html.index('<template id="model-template">') : html.index("</template>")]
-    assert "<summary>Attach the 3D model by hand</summary>" in template
+    assert re.search(r"<summary[^>]*>Attach the 3D model by hand</summary>", template)
     assert controller.BUTTON_OPEN_SEPARATE in template  # step 1 names the renamed button
 
 
@@ -599,7 +664,12 @@ def js_code(name: str) -> str:
 def test_html_loads_the_http_bridge_after_the_mock_and_before_app_js() -> None:
     html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
     scripts = re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', html)
-    assert scripts == ["mock-bridge.js", "http-bridge.js", "app.js"]
+    # theme-init.js sits in <head> (before the first paint), the texts come before the scripts
+    # that use them
+    assert scripts == ["theme-init.js", "i18n.js", "mock-bridge.js", "http-bridge.js", "app.js"]
+    head_end = html.index("</head>")
+    assert '<script src="theme-init.js"></script>' in html[:head_end]  # classic: no defer, async
+    assert "theme-init.js" not in html[head_end:]
 
 
 def test_html_has_no_inline_scripts_styles_or_event_handlers() -> None:
@@ -710,6 +780,366 @@ def test_connection_banner_is_styled_with_the_theme_variables() -> None:
     assert "#" not in block  # no hard coded colour, so both themes work
 
 
+# Result rows, LCSC links and the look of the page ------------------------------------------------
+
+NODE = shutil.which("node")
+PRODUCT_PREFIX = "https://www.lcsc.com/product-detail/"
+
+# app.js loads without a DOM as long as the document is still "loading": init() is deferred and the
+# two link checks are reachable through the read only hook window.__lcscPalette.
+LINK_CHECKS_SCRIPT = """
+global.window = {};
+global.document = { readyState: 'loading', addEventListener() {} };
+require(process.argv[1]);
+const checks = window.__lcscPalette;
+const cases = JSON.parse(process.argv[2]);
+console.log(JSON.stringify(cases.map(([name, args]) => checks[name](...args))));
+"""
+
+
+def run_link_checks(cases: list[tuple[str, list[object]]]) -> list[str]:
+    """Runs the link checks of the real app.js under Node: [(function name, arguments)]."""
+    assert NODE is not None
+    completed = subprocess.run(
+        [NODE, "-e", LINK_CHECKS_SCRIPT, str(PALETTE_DIR / "app.js"), json.dumps(cases)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    results = json.loads(completed.stdout)
+    assert isinstance(results, list)
+    return [str(result) for result in results]
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_product_link_check_accepts_only_the_exact_lcsc_product_url() -> None:
+    good = PRODUCT_PREFIX + "C2040.html"
+    cases: list[tuple[list[object], str]] = [
+        (["C2040"], good),  # built from the id alone (saved cards)
+        (["C2040", good], good),  # the URL of the controller (result rows)
+        (["C1", PRODUCT_PREFIX + "C1.html"], PRODUCT_PREFIX + "C1.html"),
+        (
+            ["C123456789012", PRODUCT_PREFIX + "C123456789012.html"],
+            PRODUCT_PREFIX + "C123456789012.html",
+        ),
+        # the controller sends "" for an id that is not canonical: no link
+        (["C2040", ""], ""),
+        # hostile or malformed values never give a link
+        (["C2040", "javascript:alert(1)"], ""),
+        (["C2040", "javascript:" + good], ""),
+        (["C2040", "data:text/html,<script>alert(1)</script>"], ""),
+        (["C2040", "https://evil.example/product-detail/C2040.html"], ""),
+        (["C2040", "https://www.lcsc.com.evil.example/product-detail/C2040.html"], ""),
+        (["C2040", "https://user@www.lcsc.com/product-detail/C2040.html"], ""),
+        (["C2040", "http://www.lcsc.com/product-detail/C2040.html"], ""),
+        (["C2040", "HTTPS://WWW.LCSC.COM/product-detail/C2040.html"], ""),
+        (["C2040", " " + good], ""),
+        (["C2040", good + "\n"], ""),
+        (["C2040", good + "?next=https://evil.example"], ""),
+        (["C2040", good + "#.html"], ""),
+        (["C2040", PRODUCT_PREFIX + "../C2040.html"], ""),
+        (["C2040", PRODUCT_PREFIX + "C2040/../../x.html"], ""),
+        (["C2040", PRODUCT_PREFIX + "C2040%2f..%2fx.html"], ""),
+        (["C2040", PRODUCT_PREFIX + "C2040.html.html"], ""),
+        (["C2040", PRODUCT_PREFIX + ".html"], ""),
+        (["C2040", PRODUCT_PREFIX + "c2040.html"], ""),  # lower case c is not an LCSC id
+        (["C2040", PRODUCT_PREFIX + "C0123456789012.html"], ""),  # 13 digits
+        (["C2040", PRODUCT_PREFIX + "C.html"], ""),
+        # the id in the URL must be the id of the row
+        (["C2040", PRODUCT_PREFIX + "C2041.html"], ""),
+        # ids that are not canonical, also without a supplied URL
+        (["c2040"], ""),
+        (["C2040\n"], ""),
+        (["C2040/../x"], ""),
+        (["X1; DROP"], ""),
+        ([""], ""),
+        # wrong types from a broken or hostile message
+        (["C2040", None], ""),
+        (["C2040", 12], ""),
+        (["C2040", ["https://www.lcsc.com/product-detail/C2040.html"]], ""),
+        ([None, good], ""),
+        ([2040, good], ""),
+    ]
+    results = run_link_checks([("lcscProductUrl", args) for args, _ in cases])
+    assert results == [expected for _, expected in cases]
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_datasheet_link_check_allows_https_on_lcsc_jlcpcb_and_easyeda_only() -> None:
+    allowed: list[tuple[str, str]] = [
+        ("https://www.lcsc.com/datasheet/lcsc_datasheet_C2040.pdf",) * 2,
+        ("https://datasheet.lcsc.com/lcsc/1912111437_RP2040_C2040.pdf",) * 2,
+        ("https://lcsc.com/a.pdf",) * 2,
+        ("https://jlcpcb.com/a.pdf",) * 2,
+        ("https://www.jlcpcb.com/a.pdf",) * 2,
+        ("https://easyeda.com/a.pdf",) * 2,
+        ("https://docs.easyeda.com/en/a.pdf",) * 2,
+        ("HTTPS://DATASHEET.LCSC.COM/A.pdf", "https://datasheet.lcsc.com/A.pdf"),
+    ]
+    refused: list[object] = [
+        "",
+        None,
+        12,
+        ["https://lcsc.com/a.pdf"],
+        "http://www.lcsc.com/a.pdf",  # not https
+        "javascript:alert(1)",
+        "data:application/pdf;base64,AAAA",
+        "file:///C:/Windows/win.ini",
+        "//www.lcsc.com/a.pdf",  # no scheme
+        "www.lcsc.com/a.pdf",
+        "https://evil.example/lcsc.com/a.pdf",
+        "https://evil.example/a.pdf?host=www.lcsc.com",
+        "https://lcsc.com.evil.example/a.pdf",
+        "https://evil-lcsc.com/a.pdf",
+        "https://notlcsc.com/a.pdf",
+        "https://lcsc.com.cn/a.pdf",
+        "https://www.lcsc.com@evil.example/a.pdf",  # the host is evil.example
+        "https://user:secret@www.lcsc.com/a.pdf",  # credentials
+        "https://www.lcsc.com:8443/a.pdf",  # unusual port
+        "https://l\u0455c.com/a.pdf",  # Cyrillic look alike, punycode host
+        "https://www.lcsc.com/" + "a" * 2100,  # absurdly long
+    ]
+    cases: list[tuple[str, list[object]]] = [("datasheetUrl", [value]) for value, _ in allowed]
+    cases += [("datasheetUrl", [value]) for value in refused]
+    results = run_link_checks(cases)
+    assert results[: len(allowed)] == [expected for _, expected in allowed]
+    assert results[len(allowed) :] == [""] * len(refused)
+
+
+def test_links_are_built_in_one_place_with_safe_attributes() -> None:
+    app = js_code("app.js")
+    assert "const LCSC_PRODUCT_PREFIX = 'https://www.lcsc.com/product-detail/';" in app
+    assert "const LCSC_PRODUCT_SUFFIX = '.html';" in app
+    assert "const LCSC_ID_PATTERN = /^C[0-9]{1,12}$/;" in app
+    assert app.count("function lcscProductUrl(") == 1  # the only builder of the product URL
+    start = app.index("function lcscProductUrl(")
+    body = app[start : app.index("\n  }\n", start)]
+    assert app.replace(body, "").count("LCSC_PRODUCT_PREFIX") == 1  # only the constant is outside
+    assert app.count("function externalLink(") == 1
+    assert len(re.findall(r"\.href = ", app)) == 1  # the only place that sets an href
+    assert "link.target = '_blank';" in app
+    assert "link.rel = 'noopener noreferrer';" in app
+    assert "setAttrs(link, labels, params)" in app  # aria-label and title, from dictionary keys
+    assert "'aria-label': 'link.lcscLabel'" in app
+    assert "title: 'link.lcscTitle'" in app
+    assert "if (!href) return null;" in app  # a link is only built from a checked, non empty URL
+    # nothing else navigates or opens windows
+    for forbidden in ("location.href", "location.assign", "location.replace", "window.open("):
+        assert forbidden not in app, forbidden
+    # result rows use the URL of the controller, cards and nothing else use the id
+    assert "lcscIdNode(item.lcsc_id, item.lcsc_url)" in app
+    assert "lcscIdNode(data.lcsc_id)" in app
+    assert "datasheetNode(item.lcsc_id, item.datasheet_url)" in app
+
+
+def test_the_page_reads_the_result_fields_the_controller_sends() -> None:
+    app = js_code("app.js")
+    for field in controller.RESULT_FIELDS:
+        if field == "image_url":
+            continue  # not shown: the window has no image
+        assert re.search(rf"\bitem\.{field}\b", app), f"app.js never reads item.{field}"
+    assert "image_url" not in app  # and it must stay unused, an image would be a network load
+
+
+MOCK_SEARCH_SCRIPT = """
+global.window = {};
+const realSetTimeout = setTimeout;
+global.setTimeout = (fn, ms) => realSetTimeout(fn, Math.floor(ms / 25));
+require(process.argv[1]);
+const sent = [];
+const bridge = window.LcscMock.install((action, data) => sent.push([action, data]));
+bridge.fusionSendData('search', JSON.stringify({ query: 'all' }));
+realSetTimeout(() => console.log(JSON.stringify(sent.filter(([a]) => a === 'results'))), 400);
+"""
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_mock_search_hits_have_the_shape_of_the_controller() -> None:
+    completed = subprocess.run(
+        [str(NODE), "-e", MOCK_SEARCH_SCRIPT, str(PALETTE_DIR / "mock-bridge.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    ((_, message),) = json.loads(completed.stdout)
+    items = message["items"]
+    assert len(items) >= 4
+    for item in items:
+        assert set(item) == set(controller.RESULT_FIELDS)
+        assert item["lcsc_url"] == f"{PRODUCT_PREFIX}{item['lcsc_id']}.html"
+        assert isinstance(item["stock"], int)
+    assert any(item["datasheet_url"] == "" for item in items)  # a hit without a datasheet link
+    assert any(item["stock"] == 0 for item in items)  # an out of stock hit
+    assert any(len(item["description"]) > 120 for item in items)  # the line clamp case
+
+
+def test_result_cells_follow_the_column_order_of_the_header() -> None:
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    headers = re.findall(r'<th role="columnheader" scope="col"[^>]*>([^<]+)</th>', html)
+    assert headers == [
+        "LCSC",
+        "MPN",
+        "Type",
+        "Manufacturer",
+        "Package",
+        "Stock",
+        "Description",
+        "Datasheet",
+        "Action",
+    ]
+    app = js_code("app.js")
+    cells = re.findall(r"cell\('(col-[a-z-]+)'", app[app.index("function buildResultRow(") :])
+    assert cells == [
+        "col-id",
+        "col-mpn",
+        "col-type",
+        "col-manufacturer",
+        "col-package",
+        "col-stock",
+        "col-desc",
+        "col-links",
+        "col-action",
+    ]
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    for name in cells:
+        assert f".{name}" in css, name
+
+
+def test_html_has_the_hooks_for_the_loading_empty_and_idle_states() -> None:
+    page = parse_html()
+    for element_id in ("results-skeleton", "results-count", "idle-hint", "results-empty"):
+        assert page.find(element_id) is not None, element_id
+    _, skeleton = page.find("results-skeleton") or ("", {})
+    assert skeleton.get("aria-hidden") == "true"  # the status line says what is going on
+    assert "hidden" in skeleton
+    assert "hidden" in (page.find("results-empty") or ("", {}))[1]
+    image = next(attrs for tag, attrs in page.tags if tag == "img")
+    assert image["src"] == "icon-192.png"  # the existing app icon, nothing drawn by hand
+    assert image["alt"] == ""  # decorative
+    app = js_code("app.js")
+    assert "buildSkeleton" in app
+    assert "beginSearch(" in app
+    assert "endSearch()" in app
+    assert "aria-busy" in app
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    for selector in (".skeleton-row", ".sk-id", ".empty-state", ".error-box", ".spinner"):
+        assert selector in css, selector
+
+
+# Colours: WCAG AA in both schemes ----------------------------------------------------------------
+
+
+def _color_tokens(scheme: str) -> dict[str, str]:
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    light, _, dark = css.partition("@media (prefers-color-scheme: dark)")
+    pattern = r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\b"
+    tokens = dict(re.findall(pattern, light))
+    if scheme == "dark":
+        tokens.update(re.findall(pattern, dark))
+    return tokens
+
+
+def _luminance(color: str) -> float:
+    channels = [int(color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _contrast(first: str, second: str) -> float:
+    high, low = sorted((_luminance(first), _luminance(second)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+# (foreground token, background token, minimum ratio): 4.5 for text, 3 for borders and focus rings
+CONTRAST_PAIRS = [
+    ("fg", "bg", 4.5),
+    ("fg", "surface", 4.5),
+    ("fg", "surface-2", 4.5),
+    ("fg", "accent-soft", 4.5),
+    ("fg", "error-bg", 4.5),
+    ("muted", "bg", 4.5),
+    ("muted", "surface", 4.5),
+    ("muted", "surface-2", 4.5),
+    ("muted", "accent-soft", 4.5),
+    ("placeholder", "surface", 4.5),
+    ("accent-text", "bg", 4.5),
+    ("accent-text", "surface", 4.5),
+    ("accent-text", "surface-2", 4.5),
+    ("accent-text", "accent-soft", 4.5),
+    ("accent-fg", "accent", 4.5),  # primary button
+    ("accent-fg", "accent-hover", 4.5),
+    ("accent-fg", "accent-active", 4.5),
+    ("ok", "ok-bg", 4.5),
+    ("ok", "surface", 4.5),
+    ("ok", "surface-2", 4.5),
+    ("warn", "warn-bg", 4.5),
+    ("warn", "surface", 4.5),
+    ("warn", "surface-2", 4.5),
+    ("error", "error-bg", 4.5),
+    ("error", "surface", 4.5),
+    ("error", "surface-2", 4.5),
+    ("border-strong", "bg", 3.0),  # input and button outlines
+    ("border-strong", "surface", 3.0),
+    ("accent-border", "bg", 3.0),  # outline of the primary button
+    ("accent-border", "surface", 3.0),
+    ("focus", "bg", 3.0),
+    ("focus", "surface", 3.0),
+]
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_palette_colours_meet_wcag_aa_in_both_schemes(scheme: str) -> None:
+    tokens = _color_tokens(scheme)
+    failures = []
+    for foreground, background, minimum in CONTRAST_PAIRS:
+        ratio = _contrast(tokens[foreground], tokens[background])
+        if ratio < minimum:
+            failures.append(f"{foreground} on {background}: {ratio:.2f} < {minimum}")
+    assert failures == []
+
+
+def _rgb(color: str) -> tuple[int, int, int]:
+    return int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+
+
+def test_blue_accent_family_and_cool_neutral_greys_only() -> None:
+    for scheme in ("light", "dark"):
+        tokens = _color_tokens(scheme)
+        for name in ("bg", "surface", "surface-2", "fg", "muted", "border", "border-strong"):
+            red, green, blue = _rgb(tokens[name])
+            assert red <= green <= blue and blue - red <= 32, (scheme, name)  # a cool grey
+        for name in ("accent", "accent-hover", "accent-active", "accent-text", "focus"):
+            red, green, blue = _rgb(tokens[name])
+            assert blue > green > red, (scheme, name)  # one blue accent, no purple
+
+
+def test_css_follows_the_design_rules() -> None:
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    assert "min-height: 100dvh" in css
+    assert "100vh" not in css
+    for forbidden in ("gradient(", "box-shadow", "text-shadow", "backdrop-filter", "filter:"):
+        assert forbidden not in css, forbidden  # flat panels with hairline borders
+    radii = set(re.findall(r"border-radius:\s*([^;]+);", css))
+    assert radii <= {"var(--r-sm)", "var(--r-md)", "var(--r-lg)", "50%"}
+    families = set(re.findall(r"font-family:\s*([^;]+);", css))
+    assert families <= {"var(--font)", "var(--mono)"}  # only the two font tokens
+    assert re.search(r"--r-sm: 4px;", css)
+    assert re.search(r"--r-md: 6px;", css)
+    assert re.search(r"--r-lg: 8px;", css)
+    assert re.search(r"\nbutton \{[^}]*min-height: var\(--ctl\);", css)  # 32 px touch target
+    for state in ("button:hover:not(:disabled)", "button:active:not(:disabled)", "a:hover"):
+        assert state in css, state
+    assert ":focus-visible {" in css
+    assert "font-variant-numeric: tabular-nums" in css
+    reduced = css[css.index("@media (prefers-reduced-motion: reduce)") :]
+    assert "animation: none !important" in reduced
+    assert "transition: none !important" in reduced
+
+
 # Build script --------------------------------------------------------------------------------
 
 
@@ -752,6 +1182,8 @@ def test_build_produces_folder_and_zip_with_expected_members(
         "LCSC2Fusion/controller.py",
         "LCSC2Fusion/core_service.py",
         "LCSC2Fusion/fusion_adapter.py",
+        "LCSC2Fusion/http_transport.py",
+        "LCSC2Fusion/local_api.py",
         "LCSC2Fusion/palette/index.html",
         "LCSC2Fusion/palette/app.js",
         "LCSC2Fusion/palette/style.css",
@@ -762,10 +1194,15 @@ def test_build_produces_folder_and_zip_with_expected_members(
         "LCSC2Fusion/lcsc2fusion/model.py",
         "LCSC2Fusion/lcsc2fusion/errors.py",
         "LCSC2Fusion/lcsc2fusion/service.py",
+        # the local API (MCP server) imports these two from the core package
+        "LCSC2Fusion/lcsc2fusion/discovery.py",
+        "LCSC2Fusion/lcsc2fusion/links.py",
     }
     assert expected <= set(names)
     assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".pyo"))]
     assert not [n for n in names if "/tests/" in n]
+    # the MCP server runs outside Fusion and the add-in never imports it
+    assert not [n for n in names if n.startswith("LCSC2Fusion/lcsc2fusion/mcp/")]
     assert set(result.files) == {n.removeprefix("LCSC2Fusion/") for n in names}
     extracted = tmp_path / "LCSC2Fusion"
     assert (extracted / "LCSC2Fusion.manifest").is_file()

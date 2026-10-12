@@ -26,6 +26,10 @@
  * retrying after some failures), together with a GET /api/ping probe. After GIVE_UP_MS without any
  * success the window tries to close itself and keeps the banner.
  *
+ * Texts come from i18n.js (loaded before this file): the banner shows a dictionary key and keeps
+ * it in data-i18n, so a language switch rewrites it. The `error` message for a failed request is
+ * sent to the page in English, like every message of Python, and the page translates it.
+ *
  * CSP of the server is default-src 'self': no inline code, no eval, no external hosts.
  */
 (function () {
@@ -58,10 +62,16 @@
   const ACTION_OVERFLOW = 'overflow';
   const REPLY_ERROR = 'ERROR';
 
-  const TEXT_LOST = 'Lost the connection to Fusion. If Fusion is closed, close this window.';
-  const TEXT_STOPPED = 'LCSC2Fusion was stopped in Fusion. You can close this window.';
-  const TEXT_REQUEST_FAILED =
-    'The request to Fusion failed. Check that Fusion is running, then try again.';
+  const KEY_LOST = 'bridge.lost';
+  const KEY_STOPPED = 'bridge.stopped';
+  const KEY_REQUEST_FAILED = 'bridge.requestFailed';
+  const WIRE_LANGUAGE = 'en'; // the language of the messages that travel to the page
+
+  // A text of i18n.js; without that script (never the case in the page) the key itself shows.
+  function t(key, language) {
+    const i18n = window.LcscI18n;
+    return i18n ? i18n.t(key, null, language) : key;
+  }
 
   // 'connecting' until the first successful open, then 'open' or 'broken', finally 'stopped'.
   let state = 'connecting';
@@ -78,10 +88,12 @@
 
   // Banner -----------------------------------------------------------------------------------
 
-  function showBanner(text) {
+  // `key` is a dictionary key; it stays on the node as data-i18n, so a language switch redraws it.
+  function showBanner(key) {
     const node = document.getElementById(BANNER_ID);
     if (!node) return;
-    node.textContent = text;
+    node.textContent = t(key);
+    if (typeof node.setAttribute === 'function') node.setAttribute('data-i18n', key);
     node.hidden = false;
   }
 
@@ -89,6 +101,7 @@
     const node = document.getElementById(BANNER_ID);
     if (!node) return;
     node.textContent = '';
+    if (typeof node.removeAttribute === 'function') node.removeAttribute('data-i18n');
     node.hidden = true;
   }
 
@@ -199,7 +212,7 @@
     timers.lost = null;
     if (state === 'open' || state === 'stopped') return;
     lostBannerShown = true;
-    showBanner(TEXT_LOST);
+    showBanner(KEY_LOST);
   }
 
   function onGiveUp() {
@@ -207,7 +220,7 @@
     if (state === 'open' || state === 'stopped') return;
     gaveUp = true;
     lostBannerShown = true;
-    showBanner(TEXT_LOST);
+    showBanner(KEY_LOST);
     closeWindow();
   }
 
@@ -353,7 +366,7 @@
   function shutDown() {
     stop();
     lostBannerShown = false;
-    showBanner(TEXT_STOPPED);
+    showBanner(KEY_STOPPED);
     closeWindow();
   }
 
@@ -366,7 +379,7 @@
     console.warn('LCSC2Fusion: request to Fusion failed (' + reason + ')');
     if (state === 'stopped') return REPLY_ERROR;
     if (broken) connectionLost();
-    enqueue(ACTION_ERROR, JSON.stringify({ message: TEXT_REQUEST_FAILED }));
+    enqueue(ACTION_ERROR, JSON.stringify({ message: t(KEY_REQUEST_FAILED, WIRE_LANGUAGE) }));
     return REPLY_ERROR;
   }
 

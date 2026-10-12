@@ -65,6 +65,16 @@ accumulating library, "LCSC2Fusion Library", in your active Fusion hub project, 
 Fusion until gate 5, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)). See [addin/README.md](addin/README.md) and
 [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
 
+## Use from another Claude (MCP)
+
+`python -m lcsc2fusion.mcp` starts an MCP server (stdio, standard library only) so that Claude Code
+or Claude Desktop can search LCSC, inspect a part, convert it to an `.lbr` and, through the running
+Fusion add-in, add it to the "LCSC2Fusion Library". The repository ships a project scope
+`.mcp.json`, so `claude` started in this folder offers the server `lcsc2fusion` right away. Tools:
+`lcsc_search`, `lcsc_part_info`, `lcsc_convert`, `fusion_status`, `fusion_add_part`, `fusion_job`.
+Install options, the local add-in API, security notes and an example conversation are in
+[docs/MCP.md](docs/MCP.md). The same terms of use as below apply; do not use it for bulk scraping.
+
 ## How it works
 
 ```
@@ -75,6 +85,7 @@ EasyEDA/LCSC JSON  ->  parser (clean room)  ->  internal model (mm, Y up)  ->  .
 - `lcsc2fusion/parser`: EasyEDA shape strings to the internal model (one place for units and axes)
 - `lcsc2fusion/lbr_writer`: model to Eagle XML, plus a linter for Fusion compatibility
 - `lcsc2fusion/render.py`: footprint/symbol rendering to PNG/SVG for visual checks
+- `lcsc2fusion/mcp`: MCP server for other Claudes (tools, JSON-RPC loop, client of the add-in API)
 - `addin/`: Fusion add-in (manifest, palette, thin adapter around the core)
 
 Research notes and decisions: [docs/RESEARCH.md](docs/RESEARCH.md), [DECISIONS.md](DECISIONS.md).

@@ -13,12 +13,32 @@
  *   - the same part again is "already present" (nothing merged);
  *   - with 3D the 3D package opens ("started"), except for C14663, where the 3D step fails;
  *   - C2913202 fails the first time (nothing reaches the library) and works on the retry.
+ *
+ * The status texts are the English sentences of controller.py (a query in Python repr quotes), so
+ * the page translates them like the real ones and the Polish interface can be inspected here too.
  */
 (function () {
   'use strict';
 
+  // Every field of a controller search hit (controller.RESULT_FIELDS), so the page sees the same
+  // shape as in Fusion. `lcsc_url` is built like links.lcsc_product_url does. C2913202 has no
+  // datasheet and C8734 is out of stock, to show both states.
+  const PRODUCT_URL_PREFIX = 'https://www.lcsc.com/product-detail/';
+  const DATASHEET_URL_PREFIX = 'https://www.lcsc.com/datasheet/lcsc_datasheet_';
+
+  function samplePart(fields) {
+    return Object.assign(
+      {
+        image_url: '',
+        lcsc_url: PRODUCT_URL_PREFIX + fields.lcsc_id + '.html',
+        datasheet_url: DATASHEET_URL_PREFIX + fields.lcsc_id + '.pdf',
+      },
+      fields
+    );
+  }
+
   const SAMPLE_PARTS = [
-    {
+    samplePart({
       lcsc_id: 'C2040',
       mpn: 'RP2040',
       manufacturer: 'Raspberry Pi',
@@ -26,8 +46,8 @@
       description: 'Dual ARM Cortex-M0+ microcontroller, 264KB SRAM, USB 1.1',
       library_type: 'Extended',
       stock: 120000,
-    },
-    {
+    }),
+    samplePart({
       lcsc_id: 'C25804',
       mpn: '0603WAF1002T5E',
       manufacturer: 'UNI-ROYAL',
@@ -35,8 +55,8 @@
       description: '10kOhms 100mW 0603 thick film resistor, +/-1%',
       library_type: 'Basic',
       stock: 9000000,
-    },
-    {
+    }),
+    samplePart({
       lcsc_id: 'C14663',
       mpn: 'CC0603KRX7R9BB104',
       manufacturer: 'YAGEO',
@@ -44,8 +64,8 @@
       description: '100nF 50V X7R +/-10% 0603 multilayer ceramic capacitor',
       library_type: 'Basic',
       stock: 7000000,
-    },
-    {
+    }),
+    samplePart({
       lcsc_id: 'C2913202',
       mpn: 'ESP32-S3-WROOM-1-N16R8',
       manufacturer: 'Espressif Systems',
@@ -54,7 +74,17 @@
         'Wi-Fi and Bluetooth LE module with dual core Xtensa LX7, 16MB flash and 8MB octal PSRAM, PCB antenna, a deliberately long description to test line clamping',
       library_type: 'Extended',
       stock: 5000,
-    },
+      datasheet_url: '',
+    }),
+    samplePart({
+      lcsc_id: 'C8734',
+      mpn: 'STM32F103C8T6',
+      manufacturer: 'STMicroelectronics',
+      package: 'LQFP-48',
+      description: 'ARM Cortex-M3 microcontroller, 72MHz, 64KB flash, 20KB SRAM',
+      library_type: 'Extended',
+      stock: 0,
+    }),
   ];
 
   const MOCK_MANUAL_STEPS =
@@ -71,7 +101,7 @@
 
     function search(query) {
       deliver('busy', { value: true });
-      deliver('status', { level: 'info', text: 'Searching for "' + query + '"...' });
+      deliver('status', { level: 'info', text: "Searching for '" + query + "'..." });
       later(600, () => {
         const q = query.toLowerCase();
         if (q === 'fail') {
@@ -93,8 +123,8 @@
         }
         deliver('results', { query: query, items: items });
         deliver('status', items.length
-          ? { level: 'ok', text: 'Found ' + items.length + ' part(s) for "' + query + '".' }
-          : { level: 'warn', text: 'No parts found for "' + query + '".' });
+          ? { level: 'ok', text: 'Found ' + items.length + " part(s) for '" + query + "'." }
+          : { level: 'warn', text: "No parts found for '" + query + "'. Try an LCSC number such as C2040 or fewer words." });
         deliver('busy', { value: false });
       });
     }
@@ -126,7 +156,7 @@
         result = {
           ok: false, created_library: false, merged: false, already_present: false,
           three_d: wantsModel ? 'skipped' : 'none',
-          message: 'Could not open the library: mock failure in Fusion. The library may be open with unsaved changes.',
+          message: 'Could not merge the part: mock failure in Fusion. The library may be open with unsaved changes: close it without saving before you try again.',
           warnings: [],
         };
       } else {
@@ -151,7 +181,7 @@
           steps.push(['info', 'Creating the 3D package for ' + name + '...']);
           if (lcscId === BROKEN_3D_ID) {
             threeD = 'failed';
-            warnings.push('3D: could not import ' + lcscId + '.placed.step: mock error from Fusion. You can import it by hand.');
+            warnings.push('3D: could not import ' + lcscId + '.placed.step: mock error from Fusion. You can import ' + MOCK_DIR + lcscId + '.placed.step by hand.');
             message += ' The 3D package could not be created, see the warnings.';
           } else {
             steps.push(['info', 'Importing the 3D model...']);
@@ -194,7 +224,7 @@
           lcscId + ': polygon pad approximated by its bounding box',
         ] : [];
         if (with3d && !hasModel) {
-          warnings.push(lcscId + ': no 3D model in the EasyEDA data for this part');
+          warnings.push(lcscId + ': no 3D model available');
         }
         deliver('added', {
           lcsc_id: lcscId,
@@ -207,13 +237,14 @@
           placed_step_path: hasModel ? MOCK_DIR + lcscId + '.placed.step' : null,
           with_3d: with3d,
         });
+        const label = part && part.mpn ? lcscId + ' (' + part.mpn + ')' : lcscId;
         let status;
         if (with3d && !hasModel) {
-          status = { level: 'warn', text: 'Saved ' + lcscId + ' without a 3D model: none was produced for this part. See the warnings on the result.' };
+          status = { level: 'warn', text: 'Saved ' + label + ' without a 3D model: none was produced for this part. See the warnings on the result.' };
         } else if (warnings.length) {
-          status = { level: 'warn', text: 'Saved ' + lcscId + ' with ' + warnings.length + ' warning(s).' };
+          status = { level: 'warn', text: 'Saved ' + label + ' with ' + warnings.length + ' warning(s).' };
         } else {
-          status = { level: 'ok', text: 'Saved ' + lcscId + (hasModel ? ' and its 3D model.' : '.') };
+          status = { level: 'ok', text: hasModel ? 'Saved ' + label + ' and its 3D model to ' + MOCK_DIR.slice(0, -1) : 'Saved ' + label + ' to ' + MOCK_DIR + lcscId + '.lbr' };
         }
         deliver('status', status);
         addedParts.set(lcscId, {
@@ -253,7 +284,7 @@
         switch (action) {
           case 'ready':
             deliver('busy', { value: false });
-            deliver('status', { level: 'info', text: 'Ready (mock). Libraries are saved to C:\\Users\\mock\\LCSC2Fusion\\libraries' });
+            deliver('status', { level: 'info', text: 'Ready. Libraries are saved to C:\\Users\\mock\\LCSC2Fusion\\libraries' });
             break;
           case 'search':
             search(data.query);

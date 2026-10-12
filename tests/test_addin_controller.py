@@ -39,6 +39,7 @@ from controller import (
     FUSION_UNAVAILABLE_TEXT,
     GENERIC_ERROR_TEXT,
     MANUAL_STEPS,
+    RESULT_FIELDS,
     AddedPart,
     Controller,
     ImportOutcome,
@@ -390,6 +391,7 @@ def test_search_normalises_lcsc_ids_and_whitespace(h: Harness) -> None:
 
 def test_search_result_dict_is_json_safe_and_complete() -> None:
     data = search_result_to_dict(RP2040)
+    assert set(data) == set(RESULT_FIELDS)
     assert set(data) == {
         "lcsc_id",
         "mpn",
@@ -400,11 +402,47 @@ def test_search_result_dict_is_json_safe_and_complete() -> None:
         "image_url",
         "library_type",
         "stock",
+        "lcsc_url",
     }
     assert data["stock"] == 1200
     assert data["image_url"] == ""
     assert json.loads(json.dumps(data)) == data
     assert search_result_to_dict(RESISTOR)["stock"] is None
+
+
+def test_search_result_dict_carries_the_lcsc_product_url() -> None:
+    assert (
+        search_result_to_dict(RP2040)["lcsc_url"]
+        == "https://www.lcsc.com/product-detail/C2040.html"
+    )
+    assert (
+        search_result_to_dict(RESISTOR)["lcsc_url"]
+        == "https://www.lcsc.com/product-detail/C25804.html"
+    )
+
+
+@pytest.mark.parametrize(
+    "lcsc_id", ["", "c2040", "C", "X1", "C2040/../x", "C2040 ", "C1234567890123"]
+)
+def test_search_result_dict_has_no_lcsc_url_for_an_id_that_is_not_canonical(lcsc_id: str) -> None:
+    data = search_result_to_dict(dataclasses.replace(RP2040, lcsc_id=lcsc_id))
+    assert data["lcsc_url"] == ""  # the page then shows the id as plain text
+    assert data["lcsc_id"] == lcsc_id
+
+
+def test_protocol_docstring_documents_the_lcsc_url() -> None:
+    assert controller.__doc__ is not None
+    assert "lcsc_url" in controller.__doc__
+
+
+def test_search_results_message_carries_the_lcsc_url(h: Harness) -> None:
+    call(h, ACTION_SEARCH, {"query": "C2040"})
+    items = h.sink.last(ACTION_RESULTS)["items"]
+    assert [item["lcsc_url"] for item in items] == [
+        "https://www.lcsc.com/product-detail/C2040.html",
+        "https://www.lcsc.com/product-detail/C25804.html",
+    ]
+    assert all(set(item) == set(RESULT_FIELDS) for item in items)
 
 
 def test_unicode_is_sent_as_ascii_json(h: Harness) -> None:

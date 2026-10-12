@@ -290,6 +290,8 @@ STATIC_CONTENT_TYPES = {
     "style.css": "text/css; charset=utf-8",
     "http-bridge.js": "text/javascript; charset=utf-8",
     "mock-bridge.js": "text/javascript; charset=utf-8",
+    "theme-init.js": "text/javascript; charset=utf-8",
+    "i18n.js": "text/javascript; charset=utf-8",
     "favicon.ico": "image/x-icon",
     "icon-192.png": "image/png",
     "icon-512.png": "image/png",

@@ -20,7 +20,9 @@ Palette to Python actions (`INCOMING_ACTIONS`), payload is a JSON object:
 
 Python to palette actions (`OUTGOING_ACTIONS`):
     status   {level: info|ok|warn|error, text}
-    results  {query, items: [SearchResult as dict]}
+    results  {query, items: [SearchResult as dict plus lcsc_url]}
+                                   `lcsc_url` is the product page on lcsc.com ("" when the id
+                                   is not a canonical C number); the page links to it
     added    {lcsc_id, path, mpn, warnings: [str], opened: false, instructions: str,
               step_path: str|null, placed_step_path: str|null, with_3d: bool}
     busy     {value: bool}
@@ -63,6 +65,7 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 from fusion_library_flow import LIBRARY_NAME, FlowRequest, FlowResult
 
 from lcsc2fusion.errors import LcscError
+from lcsc2fusion.links import lcsc_product_url
 from lcsc2fusion.model import SearchResult
 
 ACTION_READY = "ready"
@@ -83,6 +86,18 @@ ACTION_ERROR = "error"
 ACTION_FUSION_DONE = "fusion_done"
 
 # Payload fields, checked against app.js and mock-bridge.js by the tests.
+RESULT_FIELDS = (
+    "lcsc_id",
+    "mpn",
+    "manufacturer",
+    "package",
+    "description",
+    "datasheet_url",
+    "image_url",
+    "library_type",
+    "stock",
+    "lcsc_url",
+)
 ADD_REQUEST_FIELDS = ("lcsc_id", "with_3d", "fusion")
 ADD_TO_FUSION_REQUEST_FIELDS = ("lcsc_id",)
 ADDED_FIELDS = (
@@ -248,8 +263,17 @@ def default_out_dir() -> Path:
 
 
 def search_result_to_dict(result: SearchResult) -> dict[str, Any]:
-    """JSON friendly form of a search hit (same field names as the dataclass)."""
-    return dataclasses.asdict(result)
+    """JSON friendly form of a search hit: the dataclass fields plus `lcsc_url`.
+
+    `lcsc_url` is the product page on lcsc.com, or "" when the id is not a canonical C number
+    (the page then shows the id as plain text). The page validates it again before linking.
+    """
+    data = dataclasses.asdict(result)
+    try:
+        data["lcsc_url"] = lcsc_product_url(result.lcsc_id)
+    except ValueError:
+        data["lcsc_url"] = ""
+    return data
 
 
 def build_instructions(fusion_library: bool = True) -> str:

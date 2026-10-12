@@ -109,6 +109,8 @@ STATIC_FILES = {
     "/app.js": "text/javascript; charset=utf-8",
     "/mock-bridge.js": "text/javascript; charset=utf-8",
     "/http-bridge.js": "text/javascript; charset=utf-8",
+    "/theme-init.js": "text/javascript; charset=utf-8",
+    "/i18n.js": "text/javascript; charset=utf-8",
 }
 SESSION_COOKIE = "lcsc_session=fixture"
 CSP = "default-src 'self'"
@@ -172,8 +174,11 @@ class _FixtureServer:
                 "manufacturer": "Raspberry Pi",
                 "package": "LQFN-56",
                 "description": "Dual ARM Cortex-M0+ microcontroller",
+                "datasheet_url": "https://datasheet.lcsc.com/lcsc/rp2040.pdf",
+                "image_url": "",
                 "library_type": "Extended",
                 "stock": 1,
+                "lcsc_url": "https://www.lcsc.com/product-detail/C2040.html",
             }
             self.publish("busy", json.dumps({"value": True}))
             self.publish("results", json.dumps({"query": payload["query"], "items": [item]}))
@@ -412,6 +417,45 @@ def test_browser_search_and_add_round_trip(browser_run: BrowserRun) -> None:
     assert json.loads(posts[2]["data"]) == {"lcsc_id": "C2040", "with_3d": False, "fusion": True}
 
 
+def test_browser_lcsc_links_are_plain_anchors_that_open_a_new_tab(
+    browser_run: BrowserRun,
+) -> None:
+    links = browser_run.report["links"]
+    product = "https://www.lcsc.com/product-detail/C2040.html"
+    for where in ("row_id", "card_id"):  # the result row and the saved card
+        link = links[where]
+        assert link["tag"] == "A"
+        assert link["href"] == product
+        assert link["target"] == "_blank"
+        assert link["rel"] == "noopener noreferrer"
+        assert link["text"] == "C2040"
+        assert link["label"] == "Open C2040 on LCSC"
+        assert "Open C2040 on LCSC" in link["title"]
+    sheet = links["row_sheet"]
+    assert sheet["href"] == "https://datasheet.lcsc.com/lcsc/rp2040.pdf"
+    assert (sheet["target"], sheet["rel"], sheet["text"]) == (
+        "_blank",
+        "noopener noreferrer",
+        "Datasheet",
+    )
+    # the card knows the datasheet of the hit it was added from
+    assert links["card_sheet"]["href"] == "https://datasheet.lcsc.com/lcsc/rp2040.pdf"
+    assert not [e for e in browser_run.report["console_errors"] if "Content Security" in e]
+
+
+def test_browser_hostile_link_data_never_becomes_an_href(browser_run: BrowserRun) -> None:
+    rows = browser_run.report["hostile_rows"]
+    assert [row["id"] for row in rows] == ["C1", "C2", "C3", "X1; DROP", "C5"]
+    assert rows[0]["hrefs"] == [
+        "https://www.lcsc.com/product-detail/C1.html",
+        "https://www.lcsc.com/datasheet/C1.pdf",
+    ]
+    for row in rows[1:]:
+        assert row["hrefs"] == [], row  # javascript:, other hosts, ids that are not canonical
+    assert rows[4]["id"] == "C5"
+    assert browser_run.report["hostile_dialogs"] == []  # nothing ran
+
+
 def test_browser_first_request_waits_for_a_slow_stream(browser_run: BrowserRun) -> None:
     # The fixture subscribes 0.5 s late and, like the add-in, does not replay to a fresh
     # connection: the status that answers `ready` is only seen because the request waited.
@@ -443,7 +487,9 @@ def test_browser_lost_connection_banner_and_recovery(browser_run: BrowserRun) ->
     # status of the second `ready` is on screen and exactly one more `ready` was posted
     assert report["status_after_recovery"] == "Ready (fixture)"
     actions = [post["action"] for post in browser_run.server.posts]
-    assert actions == ["ready", "search", "add", "ready"]
+    assert actions[:4] == ["ready", "search", "add", "ready"]
+    # the settings checks open more pages later on, each of which only says `ready`
+    assert set(actions[4:]) <= {"ready"}
 
 
 def test_browser_shutdown_message_stops_the_bridge(browser_run: BrowserRun) -> None:
@@ -461,6 +507,158 @@ def test_browser_screenshots_were_taken(browser_run: BrowserRun) -> None:
         "lost_dark.png",
         "stopped_light.png",
         "stopped_dark.png",
+        "settings_en_light.png",
+        "settings_pl_light.png",
+        "settings_pl_forced_dark.png",
+        "settings_pl_forced_light.png",
     }
     for path in browser_run.report["shots"]:
         assert Path(path).stat().st_size > 2000
+
+
+# Settings in a real browser: theme and language ---------------------------------------------------
+
+LIGHT_BG = "rgb(242, 244, 248)"
+DARK_BG = "rgb(30, 34, 39)"
+LIGHT_META = "#f2f4f8"
+DARK_META = "#1e2227"
+
+
+def test_browser_settings_panel_opens_closes_and_manages_the_focus(
+    browser_run: BrowserRun,
+) -> None:
+    found = browser_run.report["settings"]
+    assert found["panel_hidden_at_start"] is True
+    assert found["expanded_at_start"] == "false"
+    assert found["expanded_after_click"] == "true"
+    assert found["panel_visible_after_click"] is True
+    assert found["focus_after_open"] == "theme-system"  # the chosen theme gets the focus
+    assert found["after_escape"] == {
+        "hidden": True,
+        "expanded": "false",
+        "focus": "settings-toggle",
+    }
+    assert found["reopened_by_keyboard"] is True  # Enter on the focused button
+    assert found["closed_by_second_click"] is True
+    assert found["escape_in_search_field_keeps_it_open"] is True
+
+
+def test_browser_settings_start_as_system_and_english_with_both_languages_offered(
+    browser_run: BrowserRun,
+) -> None:
+    found = browser_run.report["settings"]
+    assert found["checked_at_start"] == {
+        "theme": "system",
+        "language": "en",
+        "language_options": ["en", "pl"],
+    }
+    assert found["theme_at_start"]["attr"] is None
+    assert found["english"]["lang"] == "en"
+    assert found["english"]["toggle"] == "Settings"
+    assert found["english"]["search"] == "Search"
+
+
+def test_browser_language_switch_rewrites_every_text_and_keeps_the_state(
+    browser_run: BrowserRun,
+) -> None:
+    found = browser_run.report["settings"]
+    english, polish = found["english"], found["polish"]
+    assert polish["lang"] == "pl"
+    assert polish["toggle"] == "Ustawienia"
+    assert polish["search"] == "Szukaj"
+    assert polish["placeholder"] == "C2040 lub RP2040"
+    assert polish["idle"] == "Brak wyszukiwania"
+    assert polish["heading"] == 'Wyniki dla "C2040"'
+    assert polish["count"] == "1 część"
+    assert polish["stock"] == "1 w magazynie"
+    assert polish["addButton"] == "Dodano"
+    assert polish["badge"] == "Zapisano"
+    assert polish["linkLabel"] == "Otwórz C2040 w LCSC"
+    assert polish["sheetText"] == "Karta katalogowa"
+    assert polish["howTo"] == "Jak użyć biblioteki we Fusion"
+    assert polish["banner"] == "LCSC2Fusion został zatrzymany we Fusion. Możesz zamknąć to okno."
+    # a status line that has no pattern (the fixture's own text) stays as it came
+    assert polish["status"] == english["status"]
+    for name in ("toggle", "search", "heading", "stock", "badge", "linkLabel", "banner"):
+        assert polish[name] != english[name], name
+    # nothing but text was rewritten: rows, cards, the typed query, the ticked box, the open card
+    assert found["state_after"] == found["state_before"]
+    assert found["state_before"]["rows"] == 1
+    assert found["state_before"]["cards"] == 1
+    assert found["state_before"]["query"] == "typed text"
+    assert found["state_before"]["toFusion"] is False
+    # the failed hand-off of the fixture opened the card by itself; the user closed it again
+    assert found["details_at_start"] == [True]
+    assert found["state_before"]["details"] == [False]  # and the switch kept it closed (above)
+    assert found["details_reopened"] == [True] == found["details_after_two_switches"]
+    assert found["theme_after_language"]["attr"] is None  # the theme did not change
+    assert found["english_again"] == english  # and back: every text returns
+
+
+def test_browser_theme_choices_force_the_scheme_and_system_follows_the_os(
+    browser_run: BrowserRun,
+) -> None:
+    by_step = {
+        (step["choice"], step["system"]): step for step in browser_run.report["settings"]["themes"]
+    }
+    forced_dark = by_step[("dark", "light")]  # a light OS, forced dark
+    assert (forced_dark["attr"], forced_dark["bg"], forced_dark["scheme"]) == (
+        "dark",
+        DARK_BG,
+        "dark",
+    )
+    assert forced_dark["metas"] == [DARK_META, DARK_META]
+    forced_light = by_step[("light", "dark")]  # a dark OS, forced light
+    assert (forced_light["attr"], forced_light["bg"], forced_light["scheme"]) == (
+        "light",
+        LIGHT_BG,
+        "light",
+    )
+    assert forced_light["metas"] == [LIGHT_META, LIGHT_META]
+    for system, background in (("dark", DARK_BG), ("light", LIGHT_BG)):
+        step = by_step[("system", system)]
+        assert step["attr"] is None
+        assert step["bg"] == background  # System follows the OS
+        assert step["scheme"] == "light dark"
+        assert step["metas"] == [LIGHT_META, DARK_META]  # the original, per scheme
+    assert forced_dark["stored"][0] == "dark"
+    assert by_step[("system", "light")]["stored"][0] == "system"
+
+
+def test_browser_choices_survive_a_new_page_and_are_applied_before_the_first_paint(
+    browser_run: BrowserRun,
+) -> None:
+    fresh = browser_run.report["settings"]["fresh_page"]
+    assert fresh["lang"] == "pl"
+    assert fresh["search"] == "Szukaj"
+    assert fresh["attr"] == "dark"
+    assert fresh["bg"] == DARK_BG  # the OS is light: this is the saved Dark
+    assert fresh["stored"] == ["dark", "pl"]
+    assert fresh["checked"] == ["dark", "pl"]
+    # theme-init.js changed <html> while the parser was still in <head>: no body, no stylesheet
+    log = {name: (body, sheets) for name, body, sheets in fresh["attribute_log"]}
+    assert log["data-theme"] == (False, 0)
+    assert log["lang"] == (False, 0)
+
+
+def test_browser_first_run_takes_language_from_the_browser_and_theme_from_the_os(
+    browser_run: BrowserRun,
+) -> None:
+    found = browser_run.report["settings"]
+    polish = found["first_run_pl-PL"]
+    assert (polish["lang"], polish["search"], polish["attr"]) == ("pl", "Szukaj", None)
+    assert polish["bg"] == DARK_BG
+    assert polish["stored"] == [None, None]  # nothing is written until the user chooses
+    other = found["first_run_de-DE"]
+    assert (other["lang"], other["search"], other["attr"]) == ("en", "Search", None)
+    assert other["bg"] == LIGHT_BG
+
+
+def test_browser_blocked_storage_does_not_break_the_page_or_the_choices(
+    browser_run: BrowserRun,
+) -> None:
+    blocked = browser_run.report["settings"]["blocked_storage"]
+    assert blocked["errors"] == []
+    assert blocked["search"] == "Szukaj"
+    assert blocked["lang"] == "pl"
+    assert blocked["theme"] == "dark"

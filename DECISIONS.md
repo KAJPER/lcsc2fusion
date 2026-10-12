@@ -165,3 +165,38 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Użytkownik potwierdził po poprawce obrotu (D-026), że przepływ działa: zbiorcza "LCSC2Fusion Library" w Hubie, dodawanie kolejnych części do tej samej biblioteki i pakiet 3D otwierany z modelem do zatwierdzenia. Decyzje D-022, D-024 i D-025 są więc zweryfikowane we Fusionie (D-024 i D-025 poza dwiema obserwacjami niżej).
 - Nie sprawdzone osobno i zostają do obserwacji: czy ikona okna pojawia się też na pasku zadań Windows (plan awaryjny: skrót `.lnk` z własną ikoną), czy sporadyczny błąd "Can't rename ... Error code: 5" z D-026 wraca przy kolejnych częściach.
 - Tryb `LCSC2FUSION_UI=palette` (D-022) jest już zbędny i można go usunąć przy najbliższym porządkowaniu.
+
+## D-028 Nowy wygląd okna i link do LCSC (ACCEPTED, 2026-10-13)
+
+- Kontekst: okno dostało pierwszą wersję stylu bez spójnego systemu, a użytkownik chciał od razu przejść z wyniku do strony części.
+- Wybór: styl "spokojny panel narzędzia" (jeden akcent w odcieniu ikony #1f5ea8, chłodne szarości, systemowa czcionka, jedna skala promieni 4/6/8 px i odstępów co 4 px, bez gradientów i cieni, ciemny i jasny motyw sprawdzone pod WCAG AA testem). Stany: szkielet wierszy podczas szukania, pusty wynik, błąd w ramce, stan zajętości. Ikon nie rysujemy ręcznie.
+- Link: kontroler dodaje do wyniku `lcsc_url` z `lcsc2fusion.links.lcsc_product_url` (jedno miejsce, wyjątek dla niekanonicznego id). Strona i tak sprawdza adres (dokładny prefiks, `.html`, id zgodne z wierszem), buduje `<a>` samym DOM-em z `target=_blank` i `rel="noopener noreferrer"`. Link do karty danych tylko dla https i hostów lcsc.com, jlcpcb.com, easyeda.com (z poddomenami).
+- Powód: dane pochodzą z sieci, więc każdy adres jest walidowany po stronie strony, mimo że kontroler już go zbudował.
+
+## D-029 Ustawienia: motyw i język (ACCEPTED, 2026-10-13)
+
+- Wybór: panel Ustawienia w oknie. Motyw: System, Jasny, Ciemny (`data-theme` na `<html>`, brak atrybutu to System). Język: English i Polski, domyślnie z `navigator.language`, zapisany wybór wygrywa.
+- Zapis w `localStorage` okna (własny profil przeglądarki add-inu), klucze `lcsc2fusion.theme` i `lcsc2fusion.lang`, każdy dostęp w try/catch. Dotyka ich tylko `theme-init.js`, ładowany synchronicznie w `<head>` (CSP zabrania skryptów inline), dzięki czemu nie ma mignięcia złego motywu.
+- Ciemne tokeny stoją w `style.css` dwa razy (media query i `data-theme=dark`) z testem zgodności, a nie w `light-dark()`, bo ta funkcja wymaga Chrome 123, a przeglądarka osadzona we Fuzionie bywa starsza.
+- Protokół Pythona zostaje po angielsku. Teksty z kontrolera tłumaczy strona tabelą wzorców regex (141 wzorców w `i18n.js`), nieznany tekst przechodzi po angielsku. Test dryfu zbiera komunikaty z kodu i uruchomionego kontrolera i wymaga, żeby każdy miał wzorzec.
+- Nowy język: słownik plus wzorce plus wpis na liście języków (opis w addin/README.md).
+
+## D-030 Lokalne API add-inu dla MCP (ACCEPTED, 2026-10-13)
+
+- Kontekst: inny Claude ma móc dodać część do Fusiona przez działający add-in.
+- Wybór: trasy `/api/local/` na tym samym serwerze co okno: `GET ping`, `POST add`, `GET job/<n>`. Uwierzytelnienie tokenem Bearer (256 bit, nowy przy każdym starcie), ciasteczko okna tu nie działa, a token nie działa na trasach okna. Kolejność kontroli: Host, brak nagłówka Origin (przeglądarka zawsze go wysyła przy żądaniach między originami), token, metoda, wymagania POST. Nieznana trasa lokalna daje 404 dopiero po uwierzytelnieniu. Nieudane logowania logowane z limitem 20 na minutę, bez blokady, token nigdy w logu.
+- Odkrywanie: add-in zapisuje `api.json` (url, token, pid) obok `state.json` po starcie serwera, a usuwa przy zatrzymaniu tylko wtedy, gdy plik nadal ma jego token. Wspólny moduł `lcsc2fusion/discovery.py`.
+- Zadania: `JobTracker` obserwuje komunikaty kontrolera przez `TeeSink` (okno działa jak dotąd), jedno zadanie naraz, zajęty kontroler daje 409. Straż osieroconego zadania: dopiero gdy kontroler jest wolny i minęło 60 s.
+- Ograniczenie: kliknięcie w oknie podczas zadania z API może je oznaczyć jako nieudane, bo oba kanały dzielą jeden strumień komunikatów. Zadanie rozpoczęte w oknie nie jest śledzone, ale liczy się do zajętości.
+
+## D-031 Serwer MCP w samym stdlib (ACCEPTED, 2026-10-13)
+
+- Wybór: własna implementacja MCP (JSON-RPC po stdio, linie), bez oficjalnego SDK. Powód: rdzeń nie ma zależności, protokół dla samych narzędzi jest mały, a SDK ciągnie pydantic i httpx. Obsługiwane wersje protokołu 2025-06-18, 2025-03-26, 2024-11-05.
+- Narzędzia: `lcsc_search`, `lcsc_part_info`, `lcsc_convert`, `fusion_status`, `fusion_add_part`, `fusion_job`. Błędy oczekiwane (brak części, sieć, add-in nie działa) to wyniki z `isError`, błędy argumentów to -32602. Postęp przez `notifications/progress`.
+- Bezpieczeństwo: klient add-inu używa `http.client` (bez przekierowań i proxy), adres musi być dokładnie `http://127.0.0.1:<port>`, token nigdy do logów ani do odpowiedzi, `out_dir` tylko absolutna ścieżka lokalna lub `~`, teksty z LCSC bez znaków sterujących.
+- Rejestracja: `.mcp.json` w repozytorium (zakres projektu), opis rejestracji globalnej i dla Claude Desktop w docs/MCP.md.
+
+## D-032 Nazwa pliku .lbr nigdy z dokumentu z sieci (ACCEPTED, 2026-10-13)
+
+- Kontekst: przy przeglądzie MCP wyszło, że `convert_parts` brało nazwę pliku z pola `lcsc.number` pobranego dokumentu. Wartość typu `../../x` zapisałaby plik poza katalogiem wyjściowym (dotyczyło też CLI i add-inu).
+- Wybór: pojedyncza część dostaje nazwę ze znormalizowanego, poproszonego id, a `library_name` musi być zwykłą nazwą pliku (bez separatorów, znaków zarezerwowanych Windows, kropki na końcu), inaczej `ConversionError`. Pakiet `mcp` nie trafia do paczki add-inu.

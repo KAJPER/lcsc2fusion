@@ -3,7 +3,8 @@
  *
  * The bridge is evaluated in a vm context whose globals are hand written fakes: window/location,
  * a one element document, fetch, EventSource, AbortController and a fake clock, so that the 15 s,
- * 35 s and 90 s paths run instantly and deterministically.
+ * 35 s and 90 s paths run instantly and deterministically. The real i18n.js is loaded into the same
+ * context first (as index.html does), because the banner texts come from its dictionary.
  *
  * Usage:
  *   node http_bridge_harness.js <path to http-bridge.js> --list   names of the scenarios (JSON)
@@ -12,6 +13,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const vm = require('vm');
 
 const TEXT_LOST = 'Lost the connection to Fusion. If Fusion is closed, close this window.';
@@ -80,7 +82,23 @@ function createEnv(options = {}) {
   const delivered = [];
   const logs = { error: [], warn: [] };
   const listeners = {};
-  const banner = options.banner === false ? null : { hidden: true, textContent: '' };
+  // The banner node of the page: text, hidden and the data-i18n attribute that lets the page
+  // translate it again. `options.banner` may be false (no element) or a bare {hidden, textContent}.
+  const bannerAttributes = {};
+  const banner =
+    options.banner === false
+      ? null
+      : options.banner || {
+          hidden: true,
+          textContent: '',
+          attributes: bannerAttributes,
+          setAttribute(name, value) {
+            bannerAttributes[name] = String(value);
+          },
+          removeAttribute(name) {
+            delete bannerAttributes[name];
+          },
+        };
   const env = {
     clock,
     sources,
@@ -175,6 +193,10 @@ function createEnv(options = {}) {
   env.window = sandbox;
   env.listeners = listeners;
   env.load = () => {
+    if (options.i18n !== false) {
+      const i18nPath = path.join(path.dirname(env.bridgePath), 'i18n.js');
+      vm.runInContext(fs.readFileSync(i18nPath, 'utf8'), sandbox, { filename: 'i18n.js' });
+    }
     vm.runInContext(fs.readFileSync(env.bridgePath, 'utf8'), sandbox, { filename: 'http-bridge.js' });
     return env;
   };
@@ -884,6 +906,52 @@ scenarios.pagehide_drops_late_events = async () => {
   source.message(status('late'), 1); // detached handlers: nothing happens
   assert.deepStrictEqual(env.delivered, []);
   assert.strictEqual(env.state(), 'stopped');
+};
+
+// Texts and language -----------------------------------------------------------------------------
+
+scenarios.the_banner_text_follows_the_language_and_keeps_its_key = async () => {
+  const env = bootOpen();
+  env.window.LcscI18n.setLanguage('pl');
+  env.sources[0].fail(true);
+  await env.clock.advance(16000);
+  assert.strictEqual(env.banner.hidden, false);
+  assert.strictEqual(env.banner.textContent, env.window.LcscI18n.t('bridge.lost', null, 'pl'));
+  assert.notStrictEqual(env.banner.textContent, TEXT_LOST);
+  assert.strictEqual(env.banner.attributes['data-i18n'], 'bridge.lost');
+  env.sources[env.sources.length - 1].open();
+  assert.strictEqual(env.banner.hidden, true);
+  assert.strictEqual(env.banner.textContent, '');
+  assert.strictEqual(env.banner.attributes['data-i18n'], undefined);
+};
+
+scenarios.the_message_for_a_failed_request_stays_english_whatever_the_language = async () => {
+  const env = bootOpen();
+  env.installHandler();
+  env.window.LcscI18n.setLanguage('pl');
+  env.fetchHandler = () => jsonResponse(500, { reply: 'ERROR' });
+  await env.send('search', '{}');
+  assert.deepStrictEqual(JSON.parse(env.delivered[0][1]), { message: ERROR_MESSAGE });
+};
+
+scenarios.a_banner_node_without_attribute_methods_is_fine = async () => {
+  const env = bootOpen({ banner: { hidden: true, textContent: '' } });
+  env.sources[0].fail(true);
+  await env.clock.advance(16000);
+  assert.strictEqual(env.banner.textContent, TEXT_LOST);
+  env.sources[env.sources.length - 1].open();
+  assertBannerHidden(env);
+};
+
+scenarios.without_the_dictionary_the_bridge_still_runs_and_shows_the_key = async () => {
+  const env = bootOpen({ i18n: false });
+  env.installHandler();
+  env.sources[0].fail(true);
+  await env.clock.advance(16000);
+  assert.strictEqual(env.banner.textContent, 'bridge.lost');
+  env.fetchHandler = () => jsonResponse(500, { reply: 'ERROR' });
+  assert.strictEqual(await env.send('search', '{}'), 'ERROR');
+  assert.strictEqual(env.delivered.length, 1);
 };
 
 // Runner -----------------------------------------------------------------------------------------

@@ -17,12 +17,14 @@ addin/LCSC2Fusion/            folder name == .py name == .manifest name (Fusion 
   controller.py               UI logic and message protocol, no adsk (unit tested)
   core_service.py             PartService on top of lcsc2fusion.service (lazy import)
   http_transport.py           local HTTP server: page, POST /api/act, SSE /api/events, no adsk
+  local_api.py                job tracker and bearer token API for the MCP server, no adsk
   browser_window.py           finds Edge/Chrome, opens the app mode window, tracks and closes it
   library_registry.py         state file (library id, added parts, package fingerprints), no adsk
   fusion_library_flow.py      accumulating library + 3D package sequence on a fake-able API, no adsk
   fusion_adapter.py           the ONLY module importing adsk: main thread dispatcher, buttons,
                               command, worker thread, show/stop of the window
-  palette/                    index.html, app.js, style.css, mock-bridge.js, http-bridge.js
+  palette/                    index.html, app.js, style.css, theme-init.js, i18n.js,
+                              mock-bridge.js, http-bridge.js, window icon files
   resources/                  command button icons
 ```
 
@@ -54,6 +56,64 @@ Edge or Chrome --app (own profile)  <--HTTP-->  HttpTransport (thread in the add
   at once. Stop closes the window.
 - `LCSC2FUSION_UI=palette` (environment variable) starts the old docked palette instead. Temporary,
   to compare until gate 4 passed (D-022).
+- Look and links of the page: one blue accent, cool greys, light and dark (System by default, or
+  forced in the settings, see "Settings" below);
+  the scales (spacing, radius, type) and the contrast rules are documented at the top of
+  `palette/style.css` and checked by `tests/test_addin_files.py`. A result row and a saved card show
+  the LCSC id as a link to its product page (`lcsc_url` of the `results` message, built by
+  `lcsc2fusion.links.lcsc_product_url`), plus a "Datasheet" link when the datasheet is https on
+  lcsc.com, jlcpcb.com or easyeda.com. They are plain anchors with `target="_blank"` and
+  `rel="noopener noreferrer"`: Edge or Chrome opens a new tab and the window stays. `app.js`
+  checks every URL again before it sets an `href`. Whether links open from the old docked
+  palette is not verified.
+
+## Settings: theme and language
+
+The "Settings" button in the header opens a small panel (a disclosure: `aria-expanded`, Escape
+closes it and returns the focus to the button) with two radio groups.
+
+- Theme: System, Light, Dark. System follows the operating system (`prefers-color-scheme`). A forced
+  choice puts `data-theme="light"` or `"dark"` on `<html>`; no attribute means System. `style.css`
+  keeps the dark tokens twice, under `@media (prefers-color-scheme: dark)` for System and under
+  `:root[data-theme="dark"]` for Dark (CSS cannot share one list between a media query and an
+  attribute selector, and `light-dark()` would need Chrome 123); `tests/test_addin_i18n.py` fails
+  when the two lists differ. `color-scheme` and the two `theme-color` metas follow the choice.
+- Language: English or Polski. The first run takes the browser language (`navigator.language`
+  starting with `pl` gives Polish, anything else English); a saved choice wins.
+
+Both choices are kept in `localStorage` of the window's own browser profile
+(`%LOCALAPPDATA%\LCSC2Fusion\browser-profile`), under `lcsc2fusion.theme` (`system`, `light`,
+`dark`) and `lcsc2fusion.lang` (`en`, `pl`). Nothing else is stored. Every access is wrapped in
+try/catch (blocked storage means a choice lasts until the window closes), and a stored value that
+is not in the allowed set is ignored. `palette/theme-init.js` owns the keys and is a classic script
+in `<head>` (the CSP forbids inline scripts), so the saved theme and language are on `<html>`
+before the first paint. `app.js` and the other scripts never touch the storage.
+
+How the texts work (`palette/i18n.js`, loaded before `http-bridge.js` and `app.js`):
+
+- Interface texts are `DICTIONARIES[language][key]`. `index.html` marks them with `data-i18n="key"`
+  (text) and `data-i18n-attr="aria-label:key;title:key2"` (attributes), the English text in the
+  HTML is the default and equals the English dictionary (a test compares them). `app.js` uses
+  `t(key, params)`; `{name}` placeholders and plural forms (`{one, few, many, other}` with
+  `params.n`) are supported. Whatever a node shows keeps its key (or the raw message) in a
+  `data-*` attribute or in `state`, so a language switch rewrites every text without losing state:
+  the results, the saved cards, open `<details>`, the typed query and the status line stay.
+- Texts that Python sends (status lines, errors, warnings, the saved card "instructions") are
+  English and the protocol is unchanged. The page translates them with `MESSAGES` in `i18n.js`:
+  an ordered list of `{ re, pl }` entries (anchored regex with named groups, template per
+  language). A message without an entry is shown as it came, so nothing breaks, and warnings that
+  quote EasyEDA data (pad names and the like) have no entry on purpose.
+  `tests/test_addin_i18n_messages.py` collects the messages from the Python sources and from runs of
+  the controller and the flow, and fails when one has no entry, so a changed or new Python text
+  needs a new pattern.
+- The captions that Python texts quote ("Add to Fusion library", "Open as a separate library") are
+  `button.addToFusion` and `button.openSeparate`; the Polish texts quote the Polish captions.
+
+To add a language (say German, `de`): add `{ code: 'de', name: 'Deutsch' }` to `LANGUAGES` in
+`palette/theme-init.js`; add `de: { ... }` with every key of `en` to `DICTIONARIES` in `i18n.js`;
+add a `de:` template to every entry of `MESSAGES`. `tests/test_addin_i18n.py` checks that the key
+sets, the placeholders and the message entries are complete for every registered language and that
+no text contains a dash character (the project rule: use a comma, colon or a word).
 
 ## Install
 
@@ -165,6 +225,9 @@ The placed model lined up with the footprint in Fusion for C25804, C2040 and C16
 python -m pytest tests/test_addin_*.py
 ```
 
+`test_addin_i18n.py` (settings, dictionaries, theme tokens) and `tests/js/i18n_harness.js` need Node;
+`test_addin_http_bridge.py` also drives a real Chromium through Playwright when some Python on the
+machine has it (the browser runs with the locale `en-US`, so the machine language does not matter).
 The controller, file and build tests need nothing from Fusion. `test_addin_adapter.py` uses the
 official `adsk` API stubs, which are licensed CC BY-NC-SA and therefore not in this repository. Set
 `ADSK_DEFS` to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\Python\defs` (the default location is
@@ -187,6 +250,86 @@ to Fusion on the main thread, in the background (about 45 s, progress shown in t
 
 Everything in step 1 and 2 is unverified inside Fusion until gate 5 of `docs/MANUAL_TEST.md`. "Open as a separate
 library" keeps the old behaviour (one `.lbr` opened as its own document) as a fallback.
+
+## Local API for the MCP server
+
+The MCP server (`lcsc2fusion/mcp`, another process) asks the running add-in to add a part to the
+Fusion library and follows the progress. It uses the same local HTTP server as the window, under
+`/api/local/`, with a secret instead of the window's cookie. Nothing needs to be configured: the
+add-in creates a new random token (256 bit) at every start.
+
+Discovery: while the add-in runs it writes `%LOCALAPPDATA%\LCSC2Fusion\api.json` (next to
+`state.json`; `LCSC2FUSION_API` overrides the path, other systems use the usual per-user place, see
+`lcsc2fusion/discovery.py`) with `{"version": 1, "url": "http://127.0.0.1:<port>", "token": "...",
+"pid": <int>}`. The file is replaced atomically, readable by the user only where the file system
+supports it, and removed again when the add-in stops (only when it still holds this add-in's token).
+When the file cannot be written the add-in logs `MCP discovery file not written: ...` and works
+without the MCP side. The token is never logged. The API exists only in the window mode, not with
+`LCSC2FUSION_UI=palette`.
+
+| Route | Purpose | Answer |
+| --- | --- | --- |
+| `GET /api/local/ping` | is the add-in there | `200 {"ok": true, "version": 1, "busy": bool}` |
+| `POST /api/local/add` | start a job | `202 {"job": n}` |
+| `GET /api/local/job/<n>` | follow a job | `200` job document, `404 {"error": "unknown_job"}` |
+
+`POST /api/local/add` takes `{"lcsc_id": "C2040", "with_3d": false, "fusion": true}`. Only `lcsc_id` is
+required (trimmed, upper-cased, `C` and 1 to 12 digits); `with_3d` defaults to false and `fusion` (hand
+the part to the accumulating "LCSC2Fusion Library") to true; both must be real JSON booleans; unknown
+keys are ignored. Errors are JSON `{"error": kind, "message": text}`:
+
+- `400 bad_request`: invalid fields, or the controller refused the request (its message).
+- `409 busy`: the window or an earlier API job is still working; nothing was started.
+- `503 unavailable`: Fusion's main thread did not take the request in 30 s (for example a modal
+  dialog is open) or the add-in is stopping. No job exists after it.
+- `500 internal`: a bug; details are in the Text Commands window.
+
+Job document (the exact fields; `ok` is null while running):
+
+```
+{"job": 1, "lcsc_id": "C2040", "state": "running" | "done" | "failed", "ok": null | true | false,
+ "status": "latest status line", "message": "final outcome text", "steps": ["status lines, newest 50"],
+ "added": null | {"path", "mpn", "warnings", "step_path", "placed_step_path", "with_3d"},
+ "fusion": null | {"created_library", "merged", "already_present", "three_d", "library_name",
+                   "message", "warnings"}}
+```
+
+A job is `done` when the `fusion_done` message says ok (or, with `fusion` false, as soon as the part is
+saved), and `failed` when `fusion_done` says not ok or an error is reported. `added` is set once the
+`.lbr` is written, so a failed job can still carry a usable file. Polling: the add takes 10 to 60 s
+(about 45 s with the Fusion hand-off), so poll every 1 to 2 s. The last 20 jobs are kept; the add-in
+does not time a job out. Only one job runs at a time, in line with the window; if the add-in's
+controller is idle while a job still says running for more than 60 s, that job is marked failed
+("Lost track of the job") so that it cannot block the API for good.
+
+Security (checked in this order for every `/api/local/` request, see `http_transport.py`):
+
+1. Host must be exactly `127.0.0.1:<port>` (DNS rebinding).
+2. Any `Origin` header means 403. Browsers send it on cross-origin requests; the MCP client never does.
+   So a web page cannot call the API even if it guessed the port.
+3. `Authorization: Bearer <token>` compared in constant time, else 401 (plain text, `WWW-Authenticate:
+   Bearer`). At most 20 failed attempts per minute are written to the log; there is no lockout.
+4. The method must match the route (405 with `Allow`). POST also needs `X-LCSC: 1`,
+   `Content-Type: application/json` and a JSON object body of at most 64 KiB.
+
+The local routes ignore the session cookie, and the window's routes ignore the bearer token, so a page
+in the window cannot use the API and the MCP client cannot read the window's page or event stream. There
+are no CORS headers. Quick check from a shell, with the values from `api.json`:
+
+```
+curl -s -H "Authorization: Bearer TOKEN" http://127.0.0.1:PORT/api/local/ping
+curl -s -X POST -H "Authorization: Bearer TOKEN" -H "X-LCSC: 1" -H "Content-Type: application/json" \
+  -d '{"lcsc_id": "C2040"}' http://127.0.0.1:PORT/api/local/add
+curl -s -H "Authorization: Bearer TOKEN" http://127.0.0.1:PORT/api/local/job/1
+```
+
+How it is wired (`fusion_adapter.AddinApp._start_window_stack`): the controller gets a `TeeSink`, which
+forwards every message to the window's sink first and then to the `JobTracker`, so the window behaves
+exactly as before. `LocalApi.submit` calls the same `MainThreadDispatcher.dispatch("add", ...)` as the
+window, from the HTTP request thread. A part added in the window is not tracked (the tracker only
+follows jobs started through the API), but it makes `busy` true.
+Limitation: while an API job runs, an error message caused by a click in the window would also fail the
+API job, because both share the controller's one message stream. Leave the window alone meanwhile.
 
 ## Window icon
 

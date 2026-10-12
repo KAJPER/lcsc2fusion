@@ -27,6 +27,121 @@ INIT_SCRIPT = (
 )
 BRIDGE_STATE = "window.__lcscHttpBridge.state()"
 
+# Describes the LCSC links of the first result row and of the first saved card.
+LINKS_PROBE = """() => {
+  const info = (a) => a && ({
+    tag: a.tagName, href: a.getAttribute('href'), target: a.target, rel: a.rel,
+    text: a.textContent, label: a.getAttribute('aria-label'), title: a.title,
+  });
+  const row = document.querySelector('.result-row');
+  const card = document.querySelector('.added-item');
+  return {
+    row_id: info(row.querySelector('a.lcsc-link')),
+    row_sheet: info(row.querySelector('a.datasheet-link')),
+    card_id: info(card.querySelector('a.lcsc-link')),
+    card_sheet: info(card.querySelector('a.datasheet-link')),
+  };
+}"""
+
+# Feeds results with hostile link data straight to the page handler (the same call the bridge
+# makes for a message of the controller) and lists the hrefs that came out.
+HOSTILE_RESULTS = {
+    "query": "hostile",
+    "items": [
+        {
+            "lcsc_id": "C1",
+            "mpn": "OK",
+            "lcsc_url": "https://www.lcsc.com/product-detail/C1.html",
+            "datasheet_url": "https://www.lcsc.com/datasheet/C1.pdf",
+            "stock": 1,
+        },
+        {
+            "lcsc_id": "C2",
+            "mpn": "JS",
+            "lcsc_url": "javascript:alert(1)",
+            "datasheet_url": "javascript:alert(2)",
+            "stock": 1,
+        },
+        {
+            "lcsc_id": "C3",
+            "mpn": "HOST",
+            "lcsc_url": "https://evil.example/product-detail/C3.html",
+            "datasheet_url": "https://evil.example/ds.pdf",
+            "stock": 1,
+        },
+        {
+            "lcsc_id": "X1; DROP",
+            "mpn": "ID",
+            "lcsc_url": "",
+            "datasheet_url": "http://www.lcsc.com/ds.pdf",
+            "stock": 1,
+        },
+        {
+            "lcsc_id": "C5",
+            "mpn": "OTHER",
+            "lcsc_url": "https://www.lcsc.com/product-detail/C6.html",
+            "datasheet_url": "https://user:pw@www.lcsc.com/ds.pdf",
+            "stock": 1,
+        },
+    ],
+}
+HOSTILE_PROBE = """(payload) => {
+  window.fusionJavaScriptHandler.handle('results', payload);
+  return Array.from(document.querySelectorAll('.result-row')).map((row) => ({
+    id: row.querySelector('.col-id').textContent,
+    hrefs: Array.from(row.querySelectorAll('a')).map((a) => a.getAttribute('href')),
+  }));
+}"""
+
+
+# What the settings tests read from the page: texts in the current language, the theme.
+TEXTS_PROBE = """() => ({
+  lang: document.documentElement.lang,
+  toggle: document.getElementById('settings-toggle').textContent,
+  search: document.getElementById('search-button').textContent,
+  placeholder: document.getElementById('query').getAttribute('placeholder'),
+  banner: document.getElementById('conn-banner').textContent,
+  heading: document.getElementById('results-heading').textContent,
+  count: document.getElementById('results-count').textContent,
+  stock: document.querySelector('.col-stock').textContent,
+  addButton: document.querySelector('button[data-add]').textContent,
+  status: document.getElementById('status-text').textContent,
+  badge: document.querySelector('.added-badges .badge').textContent,
+  linkLabel: document.querySelector('.result-row a.lcsc-link').getAttribute('aria-label'),
+  sheetText: document.querySelector('.result-row a.datasheet-link').textContent,
+  howTo: document.querySelector('.added-item summary').textContent,
+  idle: document.querySelector('#idle-hint .empty-title').textContent,
+})"""
+THEME_PROBE = """() => ({
+  attr: document.documentElement.getAttribute('data-theme'),
+  bg: getComputedStyle(document.body).backgroundColor,
+  scheme: getComputedStyle(document.documentElement).colorScheme,
+  metas: Array.from(document.querySelectorAll('meta[name=theme-color]')).map((m) => m.content),
+  stored: [localStorage.getItem('lcsc2fusion.theme'), localStorage.getItem('lcsc2fusion.lang')],
+})"""
+STATE_PROBE = """() => ({
+  rows: document.querySelectorAll('.result-row').length,
+  cards: document.querySelectorAll('.added-item').length,
+  query: document.getElementById('query').value,
+  with3d: document.getElementById('with-3d').checked,
+  toFusion: document.getElementById('to-fusion').checked,
+  details: Array.from(document.querySelectorAll('.added-item details')).map((d) => d.open),
+  addDisabled: Array.from(document.querySelectorAll('button[data-add]')).map((b) => b.disabled),
+})"""
+# Records, for every attribute change of <html>, whether the body and any stylesheet existed yet:
+# the saved theme and language must be there before the first paint.
+ATTRIBUTE_LOG_SCRIPT = (
+    "window.__attrLog = [];"
+    "new MutationObserver((records) => records.forEach((r) => {"
+    "if (r.target === document.documentElement) window.__attrLog.push("
+    "[r.attributeName, !!document.body, document.styleSheets.length]);"
+    "})).observe(document, {attributes: true, subtree: true});"
+)
+BLOCKED_STORAGE_SCRIPT = (
+    "Object.defineProperty(window, 'localStorage', {"
+    "get() { throw new Error('SecurityError: storage is blocked'); }});"
+)
+
 
 def control(base: str, path: str, payload: dict[str, Any] | None = None) -> None:
     body = json.dumps(payload or {}).encode("utf-8")
@@ -47,6 +162,139 @@ def poll(check: Callable[[], bool], what: str, timeout: float = 15.0) -> None:
         time.sleep(0.05)
 
 
+def check_settings(
+    page: Any, context: Any, base: str, shot: Callable[[str], None]
+) -> dict[str, Any]:
+    """Drives the settings panel of an open page and of fresh pages; returns what it saw."""
+    found: dict[str, Any] = {}
+    found["english"] = page.evaluate(TEXTS_PROBE)
+    found["theme_at_start"] = page.evaluate(THEME_PROBE)
+    found["panel_hidden_at_start"] = page.locator("#settings-panel").is_hidden()
+    found["expanded_at_start"] = page.get_attribute("#settings-toggle", "aria-expanded")
+
+    page.click("#settings-toggle")
+    found["expanded_after_click"] = page.get_attribute("#settings-toggle", "aria-expanded")
+    found["panel_visible_after_click"] = page.locator("#settings-panel").is_visible()
+    found["focus_after_open"] = page.evaluate("document.activeElement.id")
+    found["checked_at_start"] = {
+        "theme": page.evaluate("document.querySelector('input[name=theme]:checked').value"),
+        "language": page.evaluate("document.querySelector('input[name=language]:checked').value"),
+        "language_options": page.evaluate(
+            "Array.from(document.querySelectorAll('input[name=language]')).map((i) => i.value)"
+        ),
+    }
+    shot("settings_en_light")
+
+    # state that a language switch must keep: an open <details>, a typed query, a ticked box
+    page.fill("#query", "typed text")
+    page.uncheck("#to-fusion")
+    found["details_at_start"] = page.evaluate(STATE_PROBE)["details"]
+    page.click(".added-item summary")  # the user toggles it
+    found["state_before"] = page.evaluate(STATE_PROBE)
+
+    page.check("#language-pl")
+    found["polish"] = page.evaluate(TEXTS_PROBE)
+    found["state_after"] = page.evaluate(STATE_PROBE)
+    found["theme_after_language"] = page.evaluate(THEME_PROBE)
+    shot("settings_pl_light")
+    page.check("#language-en")
+    found["english_again"] = page.evaluate(TEXTS_PROBE)
+    page.check("#language-pl")
+    # an open card stays open too (a failed hand-off opens it by itself; a switch must not)
+    page.click(".added-item summary")
+    found["details_reopened"] = page.evaluate(STATE_PROBE)["details"]
+    page.check("#language-en")
+    page.check("#language-pl")
+    found["details_after_two_switches"] = page.evaluate(STATE_PROBE)["details"]
+
+    # theme: forced against the OS, then System follows the OS again
+    found["themes"] = []
+    steps = [("dark", "light"), ("light", "dark"), ("system", "dark"), ("system", "light")]
+    for choice, system in steps:
+        page.emulate_media(color_scheme=system)
+        page.check(f"#theme-{choice}")
+        found["themes"].append({"choice": choice, "system": system, **page.evaluate(THEME_PROBE)})
+        if (choice, system) == ("dark", "light"):
+            shot("settings_pl_forced_dark")
+        if (choice, system) == ("light", "dark"):
+            shot("settings_pl_forced_light")
+    page.emulate_media(color_scheme="light")
+    page.check("#theme-dark")
+    page.check("#to-fusion")
+
+    # Escape closes the panel and gives the focus back to the button
+    page.focus("#language-pl")
+    page.keyboard.press("Escape")
+    found["after_escape"] = {
+        "hidden": page.locator("#settings-panel").is_hidden(),
+        "expanded": page.get_attribute("#settings-toggle", "aria-expanded"),
+        "focus": page.evaluate("document.activeElement.id"),
+    }
+    page.keyboard.press("Enter")  # the button, from the keyboard
+    found["reopened_by_keyboard"] = page.locator("#settings-panel").is_visible()
+    page.click("#settings-toggle")
+    found["closed_by_second_click"] = page.locator("#settings-panel").is_hidden()
+    page.click("#settings-toggle")
+    page.focus("#query")
+    page.keyboard.press("Escape")  # Escape elsewhere does not close it
+    found["escape_in_search_field_keeps_it_open"] = page.locator("#settings-panel").is_visible()
+    page.click("#settings-toggle")
+
+    # a fresh page of the same browser profile: the choices are there before the first paint
+    fresh = context.new_page()
+    try:
+        fresh.add_init_script(ATTRIBUTE_LOG_SCRIPT)
+        fresh.goto(base + "/")
+        found["fresh_page"] = {
+            "lang": fresh.evaluate("document.documentElement.lang"),
+            "search": fresh.inner_text("#search-button"),
+            **fresh.evaluate(THEME_PROBE),
+            "attribute_log": fresh.evaluate("window.__attrLog"),
+            "checked": fresh.evaluate(
+                "[document.querySelector('input[name=theme]:checked').value,"
+                " document.querySelector('input[name=language]:checked').value]"
+            ),
+        }
+    finally:
+        fresh.close()
+
+    browser = context.browser
+    # a browser that knows nothing yet: language from the browser, theme from the OS
+    for locale, scheme in (("pl-PL", "dark"), ("de-DE", "light")):
+        other = browser.new_context(locale=locale, color_scheme=scheme)
+        try:
+            tab = other.new_page()
+            tab.goto(base + "/")
+            found[f"first_run_{locale}"] = {
+                "lang": tab.evaluate("document.documentElement.lang"),
+                "search": tab.inner_text("#search-button"),
+                **tab.evaluate(THEME_PROBE),
+            }
+        finally:
+            other.close()
+
+    # storage that throws: the page still works and a choice lasts until it is closed
+    blocked_context = browser.new_context(locale="en-US", color_scheme="light")
+    try:
+        blocked = blocked_context.new_page()
+        errors: list[str] = []
+        blocked.on("pageerror", lambda e: errors.append(str(e)))
+        blocked.add_init_script(BLOCKED_STORAGE_SCRIPT)
+        blocked.goto(base + "/")
+        blocked.click("#settings-toggle")
+        blocked.check("#language-pl")
+        blocked.check("#theme-dark")
+        found["blocked_storage"] = {
+            "search": blocked.inner_text("#search-button"),
+            "lang": blocked.evaluate("document.documentElement.lang"),
+            "theme": blocked.evaluate("document.documentElement.getAttribute('data-theme')"),
+            "errors": errors,
+        }
+    finally:
+        blocked_context.close()
+    return found
+
+
 def main(base: str, shot_dir: Path) -> dict[str, Any]:
     from playwright.sync_api import sync_playwright
 
@@ -58,8 +306,10 @@ def main(base: str, shot_dir: Path) -> dict[str, Any]:
         except Exception as exc:
             return {"skipped": f"cannot start chromium: {str(exc)[:300]}"}
         try:
+            # en-US: without a locale Chromium takes the one of the machine, and the page picks
+            # its language from it (Polish on a Polish PC), which the English assertions miss.
             context = browser.new_context(
-                viewport={"width": WIDTH, "height": HEIGHT}, color_scheme="light"
+                viewport={"width": WIDTH, "height": HEIGHT}, color_scheme="light", locale="en-US"
             )
             page = context.new_page()
             page.set_default_timeout(15000)
@@ -112,6 +362,7 @@ def main(base: str, shot_dir: Path) -> dict[str, Any]:
             page.wait_for_selector(".added-item")
             report["added_items_before"] = page.locator(".added-item").count()
             shot("session_light")
+            report["links"] = page.evaluate(LINKS_PROBE)
 
             # 2) the connection is lost: the server drops the streams and refuses new ones
             control(base, "/__test/drop")
@@ -151,6 +402,21 @@ def main(base: str, shot_dir: Path) -> dict[str, Any]:
             shot("stopped_light")
             page.emulate_media(color_scheme="dark")
             shot("stopped_dark")
+
+            # 5) settings: panel, language, theme, Escape, persistence (the bridge is stopped,
+            # the page and its state are still there)
+            report["settings"] = check_settings(page, context, base, shot)
+
+            # 6) hostile link data in a results message (the bridge is stopped, the page is not)
+            dialogs: list[str] = []
+
+            def on_dialog(dialog: Any) -> None:
+                dialogs.append(dialog.message)
+                dialog.dismiss()
+
+            page.on("dialog", on_dialog)
+            report["hostile_rows"] = page.evaluate(HOSTILE_PROBE, json.dumps(HOSTILE_RESULTS))
+            report["hostile_dialogs"] = dialogs
 
             report["console_errors"] = console_errors
             report["page_errors"] = page_errors
