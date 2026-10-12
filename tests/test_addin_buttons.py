@@ -19,6 +19,16 @@ pytestmark = pytest.mark.usefixtures("adsk_stubs")
 Layout = dict[tuple[str, str, str], "FakePanel"]
 
 
+@pytest.fixture(autouse=True)
+def isolated_api_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> Path:
+    """The MCP discovery file of a started add-in goes here, never to the real LOCALAPPDATA."""
+    path = tmp_path_factory.mktemp("api") / "api.json"
+    monkeypatch.setenv("LCSC2FUSION_API", str(path))
+    return path
+
+
 @pytest.fixture(scope="module")
 def fa(adsk_stubs: Path) -> ModuleType:
     return importlib.import_module("fusion_adapter")
@@ -453,6 +463,8 @@ class FakeHub:
 
 
 class FakeTransport:
+    url = "http://127.0.0.1:1"
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 

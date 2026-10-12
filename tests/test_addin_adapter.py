@@ -11,6 +11,7 @@ from __future__ import annotations
 import http.client
 import importlib
 import json
+import os
 import sys
 import threading
 import time
@@ -34,6 +35,16 @@ DESIGN_KEY = ("FusionSolidEnvironment", "ToolsTab", "SolidScriptsAddinsPanel")
 @pytest.fixture(scope="module")
 def fa(adsk_stubs: Path) -> ModuleType:
     return importlib.import_module("fusion_adapter")
+
+
+@pytest.fixture(autouse=True)
+def isolated_api_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> Path:
+    """The MCP discovery file of every started add-in goes here, never to the real LOCALAPPDATA."""
+    path = tmp_path_factory.mktemp("api") / "api.json"
+    monkeypatch.setenv("LCSC2FUSION_API", str(path))
+    return path
 
 
 def wait_until(condition: Callable[[], bool], timeout_s: float = 5.0) -> None:
@@ -273,14 +284,23 @@ class FakeHub:
 
 
 class FakeTransport:
+    url = "http://127.0.0.1:5000"
+
     def __init__(
-        self, calls: list[str], hub: Any, dispatch: Any, log: Any, static_dir: Path
+        self,
+        calls: list[str],
+        hub: Any,
+        dispatch: Any,
+        log: Any,
+        static_dir: Path,
+        local_api: Any = None,
     ) -> None:
         self._calls = calls
         self.hub = hub
         self.dispatch = dispatch
         self.log = log
         self.static_dir = static_dir
+        self.local_api = local_api
         self.started = False
         self.stopped = False
         self.start_error: Exception | None = None
@@ -359,8 +379,10 @@ def stack(fa: ModuleType, monkeypatch: pytest.MonkeyPatch) -> Stack:
         created.hub = FakeHub(created.calls)
         return created.hub
 
-    def make_transport(hub: Any, dispatch: Any, log: Any, static_dir: Path) -> FakeTransport:
-        created.transport = FakeTransport(created.calls, hub, dispatch, log, static_dir)
+    def make_transport(
+        hub: Any, dispatch: Any, log: Any, static_dir: Path, local_api: Any = None
+    ) -> FakeTransport:
+        created.transport = FakeTransport(created.calls, hub, dispatch, log, static_dir, local_api)
         return created.transport
 
     def make_window(*, log: Any) -> FakeWindow:
@@ -892,8 +914,8 @@ def test_a_failing_start_can_be_cleaned_up_with_stop(
     addin, fake = make_app(fa, monkeypatch, ui, tmp_path)
     original = fa.HttpTransport
 
-    def failing_transport(*args: Any) -> FakeTransport:
-        transport = original(*args)
+    def failing_transport(*args: Any, **kwargs: Any) -> FakeTransport:
+        transport = original(*args, **kwargs)
         transport.start_error = OSError("port in use")
         return transport
 
@@ -958,6 +980,199 @@ def test_add_through_the_dispatcher_reports_the_result_to_the_window(
     assert len(added) == 1
     assert added[0]["path"] == str(libs / "C2040.lbr")
     assert fake.commands == []  # nothing is opened without the user's click
+    addin.stop()
+
+
+# AddinApp wiring: the local API for the MCP server ------------------------------------------------
+
+
+def test_start_publishes_the_local_api_in_the_discovery_file(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+    isolated_api_file: Path,
+) -> None:
+    discovery = importlib.import_module("lcsc2fusion.discovery")
+    local_api = importlib.import_module("local_api")
+    addin, fake, _ = started_window_app(fa, monkeypatch, tmp_path, stack)
+    assert stack.transport is not None
+    api = stack.transport.local_api
+    assert isinstance(api, local_api.LocalApi)
+    assert len(api.token) >= 32
+
+    endpoint = discovery.read_api_file(isolated_api_file)
+
+    assert endpoint == discovery.ApiEndpoint(
+        url=stack.transport.url, token=api.token, pid=os.getpid()
+    )
+    logged = "\n".join(fake.logged)
+    assert "MCP discovery file written" in logged
+    assert api.token not in logged  # the secret never reaches the log
+    addin.stop()
+    assert not isolated_api_file.exists()
+
+
+def test_every_start_gets_a_new_token(
+    fa: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stack: Stack
+) -> None:
+    tokens = []
+    for _ in range(2):
+        addin, _, _ = started_window_app(fa, monkeypatch, tmp_path, stack, show_window=False)
+        assert stack.transport is not None
+        assert stack.transport.local_api is not None
+        tokens.append(stack.transport.local_api.token)
+        addin.stop()
+    assert tokens[0] != tokens[1]
+
+
+def test_stop_withdraws_the_discovery_file_before_the_server_goes_down(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+    isolated_api_file: Path,
+) -> None:
+    addin, _, _ = started_window_app(fa, monkeypatch, tmp_path, stack)
+    assert stack.hub is not None
+    assert stack.transport is not None
+    assert isolated_api_file.exists()
+    seen: list[bool] = []
+    publish = stack.hub.publish
+
+    def watching_publish(action: str, data: str) -> int:
+        seen.append(isolated_api_file.exists())
+        return publish(action, data)
+
+    stack.hub.publish = watching_publish  # type: ignore[method-assign]
+
+    addin.stop()
+
+    assert seen == [False]  # gone when `shutdown` is announced, so no new client connects
+    addin.stop()  # idempotent
+
+
+def test_a_newer_add_in_keeps_its_discovery_file_when_an_older_one_stops(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+    isolated_api_file: Path,
+) -> None:
+    discovery = importlib.import_module("lcsc2fusion.discovery")
+    addin, _, _ = started_window_app(fa, monkeypatch, tmp_path, stack, show_window=False)
+    newer = discovery.ApiEndpoint("http://127.0.0.1:6000", "newer-" + "n" * 30, 1)
+    discovery.write_api_file(isolated_api_file, newer)
+
+    addin.stop()
+
+    assert discovery.read_api_file(isolated_api_file) == newer
+
+
+def test_a_discovery_file_that_cannot_be_written_does_not_stop_the_add_in(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+) -> None:
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file where a directory is needed", encoding="utf-8")
+    monkeypatch.setenv("LCSC2FUSION_API", str(blocker / "api.json"))
+
+    addin, fake, ui = started_window_app(fa, monkeypatch, tmp_path, stack)
+
+    assert stack.transport is not None
+    assert stack.transport.started is True
+    assert stack.window is not None
+    assert len(stack.window.launched) == 1  # the window opened as usual
+    assert fa.COMMAND_ID in ui.design_panel.controls.items
+    assert any("MCP discovery file not written" in line for line in fake.logged)
+    addin.stop()
+
+
+def test_no_discovery_file_is_written_when_the_server_does_not_start(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+    isolated_api_file: Path,
+) -> None:
+    addin, _ = make_app(fa, monkeypatch, FakeUi(), tmp_path)
+    original = fa.HttpTransport
+
+    def failing_transport(*args: Any, **kwargs: Any) -> FakeTransport:
+        transport = original(*args, **kwargs)
+        transport.start_error = OSError("port in use")
+        return transport
+
+    monkeypatch.setattr(fa, "HttpTransport", failing_transport)
+
+    with pytest.raises(OSError, match="port in use"):
+        addin.start()
+    addin.stop()
+
+    assert not isolated_api_file.exists()
+
+
+def test_the_palette_mode_has_no_local_api(
+    fa: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stack: Stack,
+    isolated_api_file: Path,
+) -> None:
+    monkeypatch.setenv(fa.UI_ENV_VAR, "palette")
+    addin, _ = make_app(fa, monkeypatch, FakeUi(), tmp_path)
+    addin.start(False)
+    assert stack.transport is None
+    assert not isolated_api_file.exists()
+    addin.stop()
+
+
+def test_an_mcp_request_runs_through_the_dispatcher_and_the_window_sees_it_too(
+    fa: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stack: Stack
+) -> None:
+    core_service = importlib.import_module("core_service")
+    controller = importlib.import_module("controller")
+    libs = tmp_path / "libs"
+    libs.mkdir()
+    monkeypatch.setattr(controller, "default_out_dir", lambda: libs)
+
+    def fake_add_part(self: Any, lcsc_id: str, out_dir: Path, with_3d: bool = False) -> Any:
+        path = out_dir / f"{lcsc_id}.lbr"
+        path.write_text("<eagle/>", encoding="utf-8")
+        return controller.AddedPart(path=path, mpn="RP2040")
+
+    monkeypatch.setattr(core_service.CorePartService, "add_part", fake_add_part)
+    addin, fake, _ = started_window_app(fa, monkeypatch, tmp_path, stack, show_window=False)
+    assert stack.transport is not None
+    assert stack.hub is not None
+    api = stack.transport.local_api
+    assert api is not None
+    replies: list[Any] = []
+    worker = threading.Thread(
+        target=lambda: replies.append(api.submit({"lcsc_id": "c2040", "fusion": False})),
+        daemon=True,
+    )
+    worker.start()
+    wait_until(lambda: fired(fake, fa.DISPATCH_EVENT_ID))
+
+    fake.registered[fa.DISPATCH_EVENT_ID].handlers[0].notify(None)  # the main thread takes it
+    worker.join(5)
+
+    assert replies == [(202, {"job": 1})]
+    assert api.ping()[1]["busy"] is True
+    assert api.job(1)[1]["state"] == "running"
+    wait_until(lambda: fired(fake, fa.CUSTOM_EVENT_ID))  # the add job finished on its worker
+    fake.registered[fa.CUSTOM_EVENT_ID].handlers[0].notify(None)
+
+    status, job = api.job(1)
+    assert status == 200
+    assert (job["state"], job["ok"]) == ("done", True)
+    assert job["added"]["path"] == str(libs / "C2040.lbr")
+    assert job["added"]["mpn"] == "RP2040"
+    assert api.ping()[1]["busy"] is False
+    assert "added" in [action for action, _ in stack.hub.published]  # the window got it too
     addin.stop()
 
 
@@ -1327,8 +1542,8 @@ def test_entry_point_reports_a_failing_start_with_a_message_box(
     monkeypatch.setattr(fa.adsk.core.Application, "get", staticmethod(lambda: fake))
     original = fa.HttpTransport
 
-    def failing_transport(*args: Any) -> FakeTransport:
-        transport = original(*args)
+    def failing_transport(*args: Any, **kwargs: Any) -> FakeTransport:
+        transport = original(*args, **kwargs)
         transport.start_error = OSError("address already in use")
         return transport
 

@@ -23,6 +23,17 @@ Security model (every request is checked in this order, any failure is a plain 4
 Only an allow list of static files is served, never a directory listing or a path derived from
 the request. All server logging goes to the injected `log`, nothing is written to stderr.
 
+Local API for the MCP server (a second process, optional `local_api` hook), paths below
+`/api/local/`. They are handled right after the Host check and never accept the session cookie:
+    1. no hook means 404; any Origin header means 403 (browsers send it on cross origin requests,
+       a legitimate client never does);
+    2. `Authorization: Bearer <token>`, compared in constant time, else 401 (failed attempts are
+       logged at most 20 per minute);
+    3. the method must match the route (GET ping, POST add, GET job/<n>), else 405; POST needs
+       `X-LCSC: 1`, `Content-Type: application/json` and a JSON object of at most 64 KiB.
+The old routes above ignore the bearer token, so a page in the window cannot use the local API
+and the local API client cannot use the window's routes.
+
 Every response closes its connection (no keep-alive): there are no idle connections to manage,
 no pipelining and no leftover request bytes, and stop() can end everything promptly. Loopback
 connections are cheap. The event stream is the only long lived connection.
@@ -48,7 +59,7 @@ import urllib.parse
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 __all__ = [
     "Dispatch",
@@ -58,6 +69,7 @@ __all__ = [
     "HubEvent",
     "HubFull",
     "HubSink",
+    "LocalApiHook",
     "Subscription",
     "format_sse_event",
 ]
@@ -77,6 +89,9 @@ MAX_DATA_CHARS = 60000
 OVERFLOW_ACTION = "overflow"
 
 # Static file allow list: file name -> Content-Type. Nothing else is ever read from `static_dir`.
+# `theme-init.js` (saved theme and language, loaded in <head> before the first paint) and `i18n.js`
+# (the English and Polish texts) are text, so they are sent as UTF-8 like the other scripts: the
+# Polish dictionary has non ASCII letters.
 # The icon files and the web app manifest give the browser window its own icon (tab, title bar,
 # taskbar) instead of the default globe. They are binary: `_static` reads and sends bytes.
 # They are NOT exempt from the session cookie, Host and Origin checks. Checked with real Chrome
@@ -87,6 +102,8 @@ STATIC_FILES: dict[str, str] = {
     "index.html": "text/html; charset=utf-8",
     "app.js": "text/javascript; charset=utf-8",
     "style.css": "text/css; charset=utf-8",
+    "theme-init.js": "text/javascript; charset=utf-8",
+    "i18n.js": "text/javascript; charset=utf-8",
     "http-bridge.js": "text/javascript; charset=utf-8",
     "mock-bridge.js": "text/javascript; charset=utf-8",
     "favicon.ico": "image/x-icon",
@@ -126,6 +143,17 @@ _ROUTES: dict[str, str] = {
     **{f"/{name}": _ROUTE_GET for name in STATIC_FILES},
 }
 
+# Local API (MCP server). Paths, the longest job number and the failed login log budget.
+_LOCAL_PREFIX = "/api/local/"
+_LOCAL_PING = "/api/local/ping"
+_LOCAL_ADD = "/api/local/add"
+_LOCAL_JOB_PREFIX = "/api/local/job/"
+_MAX_JOB_ID_DIGITS = 9
+_MAX_BEARER_CHARS = 512
+_AUTH_FAILURES_LOGGED_PER_MINUTE = 20
+_AUTH_WINDOW_S = 60.0
+_MIN_LOCAL_TOKEN_CHARS = 16
+
 _SSE_POLL_S = 0.2  # how often an idle stream checks whether the browser went away
 _IDLE_POLL_S = 0.2  # how often a connection that has sent nothing yet checks for shutdown
 _SERVER_POLL_S = 0.05  # serve_forever poll interval: bounds the time stop() needs
@@ -139,6 +167,23 @@ _MAX_LAST_EVENT_ID_DIGITS = 18
 
 Dispatch = Callable[[str, str], str]
 Log = Callable[[str], None]
+
+
+class LocalApiHook(Protocol):
+    """What the transport needs from the local API (`local_api.LocalApi`), nothing more.
+
+    Each operation returns (HTTP status, JSON object). `submit` receives the parsed request body
+    and may block while the add-in's main thread works, like `Dispatch` does.
+    """
+
+    @property
+    def token(self) -> str: ...
+
+    def ping(self) -> tuple[int, dict[str, Any]]: ...
+
+    def submit(self, body: dict[str, Any]) -> tuple[int, dict[str, Any]]: ...
+
+    def job(self, job_id: int) -> tuple[int, dict[str, Any]]: ...
 
 
 # Hub ----------------------------------------------------------------------------------------
@@ -508,6 +553,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if len(hosts) != 1 or hosts[0] != owner.host_header:
             self._reject(403, "unexpected Host header")
             return
+        if path.startswith(_LOCAL_PREFIX):
+            self._local(path)  # bearer token instead of the cookie, see the module docstring
+            return
         origins = self.headers.get_all("Origin", [])
         origin_ok = not origins or (len(origins) == 1 and origins[0] == owner.origin)
 
@@ -628,6 +676,77 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 budget -= len(chunk)
 
     # Routes ------------------------------------------------------------------------------------
+
+    def _local(self, path: str) -> None:
+        """A request below `/api/local/`. The Host header was checked already."""
+        owner = self._owner
+        api = owner.local_api
+        if api is None:
+            self._reply(404, b"404 Not Found\n", _TEXT_TYPE)
+            return
+        if self.headers.get_all("Origin", []):
+            self._reject(403, "Origin header on a local API request")
+            return
+        if not self._bearer_matches(api.token):
+            owner._log_auth_failure()
+            self._reply(
+                401,
+                b"401 Unauthorized\n",
+                _TEXT_TYPE,
+                headers=[("WWW-Authenticate", "Bearer")],
+            )
+            return
+        route = _local_route(path)
+        if route is None:
+            self._reply(404, b"404 Not Found\n", _TEXT_TYPE)
+            return
+        allowed, job_id = route
+        if self.command != allowed:
+            self._method_not_allowed(allowed)
+            return
+        if path == _LOCAL_PING:
+            self._local_call(api.ping)
+        elif path == _LOCAL_ADD:
+            self._local_add(api)
+        else:
+            self._local_call(lambda: api.job(job_id))
+
+    def _bearer_matches(self, token: str) -> bool:
+        headers = self.headers.get_all("Authorization", [])
+        if len(headers) != 1:
+            return False
+        scheme, _, credentials = headers[0].strip().partition(" ")
+        candidate = credentials.strip()
+        if scheme.lower() != "bearer" or not candidate or len(candidate) > _MAX_BEARER_CHARS:
+            return False
+        return _constant_time_match(_to_bytes(candidate), [_to_bytes(token)]) is not None
+
+    def _local_add(self, api: LocalApiHook) -> None:
+        if self.headers.get("X-LCSC") != "1":
+            self._reject(403, "missing X-LCSC header")
+            return
+        if self.headers.get_content_type() != "application/json":
+            self._reject(415, "content type is not application/json")
+            return
+        body = self._read_body()
+        if body is None:
+            return
+        request = _parse_json_object(body)
+        if request is None:
+            self._reply_json(
+                400, {"error": "bad_request", "message": "The body must be a JSON object."}
+            )
+            return
+        self._local_call(lambda: api.submit(request))
+
+    def _local_call(self, operation: Callable[[], tuple[int, dict[str, Any]]]) -> None:
+        owner = self._owner
+        try:
+            status, payload = operation()
+        except Exception as exc:  # boundary: whatever the API raises must not leak to the client
+            owner._emit(f"local API operation failed: {type(exc).__name__}: {exc}")
+            status, payload = 500, {"error": "internal", "message": "Unexpected error."}
+        self._reply_json(status, payload)
 
     def _launch(self, tokens: list[str], origin_ok: bool) -> None:
         """Exchange a single use launch token for a session cookie."""
@@ -798,6 +917,28 @@ def _parse_act_body(body: bytes) -> tuple[str, str] | None:
     return action, data
 
 
+def _parse_json_object(body: bytes) -> dict[str, Any] | None:
+    """The request body as a JSON object, or None when it is anything else."""
+    try:
+        value = json.loads(body.decode("utf-8"))
+    except (ValueError, RecursionError):  # UnicodeDecodeError is a ValueError
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _local_route(path: str) -> tuple[str, int] | None:
+    """(allowed method, job number) of a local API path; None for an unknown path."""
+    if path == _LOCAL_PING:
+        return _ROUTE_GET, 0
+    if path == _LOCAL_ADD:
+        return _ROUTE_POST, 0
+    if path.startswith(_LOCAL_JOB_PREFIX):
+        number = path[len(_LOCAL_JOB_PREFIX) :]
+        if number.isascii() and number.isdigit() and len(number) <= _MAX_JOB_ID_DIGITS:
+            return _ROUTE_GET, int(number)
+    return None
+
+
 # Transport ----------------------------------------------------------------------------------
 
 
@@ -823,6 +964,7 @@ class HttpTransport:
         heartbeat_s: float = 15.0,
         connection_timeout_s: float = 10.0,
         clock: Callable[[], float] = time.monotonic,
+        local_api: LocalApiHook | None = None,
     ) -> None:
         if host != LOOPBACK_HOST:
             raise ValueError(f"only {LOOPBACK_HOST} is allowed as host, got {host!r}")
@@ -835,8 +977,11 @@ class HttpTransport:
         ):
             if value <= 0:
                 raise ValueError(f"{name} must be positive")
+        if local_api is not None and len(local_api.token) < _MIN_LOCAL_TOKEN_CHARS:
+            raise ValueError("the local API token is too short")
         self.hub = hub
         self.dispatch = dispatch
+        self.local_api = local_api
         self.static_dir = Path(static_dir)
         # `dispatch` runs in the request thread and cannot be interrupted from here, so it is
         # expected to honour this value itself (raise TimeoutError). Kept for the caller's use.
@@ -856,6 +1001,7 @@ class HttpTransport:
         self._sessions: list[bytes] = []
         self._log_lock = threading.Lock()
         self._limited_lines = 0
+        self._auth_failures: collections.deque[float] = collections.deque()
 
     # Public API --------------------------------------------------------------------------------
 
@@ -981,6 +1127,18 @@ class HttpTransport:
         """Send a line to the add-in log. Never called with one of our locks held."""
         with contextlib.suppress(Exception):  # a failing logger must not break the server
             self._log(message if multiline else _one_line(message))
+
+    def _log_auth_failure(self) -> None:
+        """A rejected bearer token: logged at most 20 times a minute (no lockout, just no flood)."""
+        now = self._clock()
+        with self._log_lock:
+            recent = self._auth_failures
+            while recent and now - recent[0] >= _AUTH_WINDOW_S:
+                recent.popleft()
+            if len(recent) >= _AUTH_FAILURES_LOGGED_PER_MINUTE:
+                return
+            recent.append(now)
+        self._log_limited("refused 401: missing or wrong bearer token on the local API")
 
     def _log_limited(self, message: str) -> None:
         """Refusals and connection errors: capped, a hostile client must not flood the log."""

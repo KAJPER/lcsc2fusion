@@ -24,6 +24,7 @@ ADDIN_MODULES = (
     "core_service",
     "controller",
     "http_transport",
+    "local_api",
     "browser_window",
 )
 

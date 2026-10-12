@@ -6,6 +6,9 @@ Keep it thin: decisions live in `controller.py`. Threading rules (RESEARCH 3.1, 
 * The UI is a separate browser window served by `http_transport.HttpTransport`. Its request
   threads never touch `adsk`: they hand `(action, data)` to `MainThreadDispatcher`, which wakes the
   main thread with `app.fireCustomEvent` (safe from any thread) and waits for the answer.
+* The same server also offers a bearer token API for the MCP server (`local_api.py`); the
+  controller's messages go through a `TeeSink` so that a `JobTracker` can follow a job. The
+  endpoint and the token are written to `api.json` (`lcsc2fusion.discovery`) while the add-in runs.
 * Log lines written from other threads go through `ThreadSafeLog`, which queues them and flushes
   them from the same custom event.
 * Long Fusion work (the accumulating library flow, tens of seconds) is queued with
@@ -30,6 +33,7 @@ import math
 import os
 import queue
 import re
+import secrets
 import threading
 import time
 import traceback
@@ -55,6 +59,7 @@ from fusion_library_flow import (
 )
 from http_transport import HttpTransport, Hub, HubSink
 from library_registry import StateStore
+from local_api import DiscoveryPublisher, JobTracker, LocalApi, TeeSink
 
 T = TypeVar("T")
 
@@ -80,6 +85,7 @@ THREE_D_PACKAGE_DESCRIPTION = "LCSC2Fusion 3D package"
 SNAPEDA_TURN_RAD = math.pi / 2
 STEP_IMPORT_TURN_RAD = 0.0
 
+LOCAL_API_TOKEN_BYTES = 32  # secret of the MCP server API, 256 bit, new at every add-in start
 DISPATCH_TIMEOUT_S = 30.0  # how long an HTTP request may wait for the main thread
 MAX_PENDING_REQUESTS = 64  # queued requests while the main thread is busy (modal dialog)
 MAX_PENDING_TASKS = 16  # queued deferred tasks (library flows) while the main thread is busy
@@ -1227,6 +1233,7 @@ class AddinApp:
         self._dispatcher.set_fallback_fire(self._runner.fire)
         self._hub: Hub | None = None
         self._transport: HttpTransport | None = None
+        self._discovery: DiscoveryPublisher | None = None  # api.json for the MCP server
         self._window: BrowserWindow | None = None
         self._window_mode: str | None = None  # mode of the last launch
         self._launched_at: float | None = None
@@ -1257,6 +1264,9 @@ class AddinApp:
 
     def stop(self) -> None:
         hub, transport, window = self._hub, self._transport, self._window
+        discovery, self._discovery = self._discovery, None
+        if discovery is not None:
+            _guarded("Withdraw MCP discovery file", discovery.withdraw)  # no new clients
         if hub is not None:
             _guarded("Announce shutdown", lambda: hub.publish(ACTION_SHUTDOWN, ""))
         _guarded("Stop dispatching", self._dispatcher.close)  # waiting requests fail at once
@@ -1286,20 +1296,34 @@ class AddinApp:
         library = FlowLibraryAdder(
             AdskLibraryApi(self._app, self._ui, self._log), service.state_store, self._log
         )
+        # The MCP server (another process) uses the same controller through a bearer token API.
+        # Its job tracker watches the messages the window gets: `TeeSink` forwards to the window
+        # first, so the window behaves exactly as without it.
+        tracker = JobTracker(self._log)
         controller = Controller(
             service,
             FusionImporter(self._app, self._log),
-            HubSink(hub),
+            TeeSink(HubSink(hub), tracker),
             self._runner,
             self._log,
             library=library,
             defer=self._dispatcher.post,
         )
         self._dispatcher.set_handler(controller.handle)
+        token = secrets.token_urlsafe(LOCAL_API_TOKEN_BYTES)  # before the transport: it checks it
+        local_api = LocalApi(
+            self._dispatcher.dispatch, tracker, token, lambda: controller.busy, self._log
+        )
         transport = self._transport = HttpTransport(
-            hub, self._dispatcher.dispatch, self._log, self._addin_dir / "palette"
+            hub,
+            self._dispatcher.dispatch,
+            self._log,
+            self._addin_dir / "palette",
+            local_api=local_api,
         )
         transport.start()
+        discovery = self._discovery = DiscoveryPublisher(token, self._log)
+        discovery.publish(transport.url)  # a failure is logged, the add-in works without it
         self._window = BrowserWindow(log=self._log)
 
     def _start_palette_controller(self) -> None:

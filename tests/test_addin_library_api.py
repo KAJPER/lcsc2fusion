@@ -38,6 +38,7 @@ from test_addin_adapter import (
     FakeWindow,
     FakeWindowApi,
     LoopFakeApp,
+    isolated_api_file,  # noqa: F401  (autouse: keeps api.json out of the real LOCALAPPDATA)
     wait_until,
 )
 from test_addin_dispatcher import MainLoop
@@ -1624,7 +1625,9 @@ def window_stack(fa: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         fa,
         "HttpTransport",
-        lambda hub, dispatch, log, static_dir: FakeTransport([], hub, dispatch, log, static_dir),
+        lambda hub, dispatch, log, static_dir, local_api=None: FakeTransport(
+            [], hub, dispatch, log, static_dir, local_api
+        ),
     )
     monkeypatch.setattr(fa, "BrowserWindow", lambda *, log: FakeWindow([], log))
 
