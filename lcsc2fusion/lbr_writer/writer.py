@@ -17,6 +17,7 @@ from lcsc2fusion.constants import (
     ATTRIBUTION,
     EAGLE_LAYERS,
     EAGLE_VERSION,
+    EAGLE_VERSION_SLOTS,
     MIN_POLYGON_WIDTH_MM,
     Layer,
 )
@@ -288,7 +289,13 @@ def _add_smd(parent: ET.Element, pad: Pad, name: str, ctx: str) -> None:
     ET.SubElement(parent, "smd", attrs)
 
 
-def _add_through_pad(parent: ET.Element, pad: Pad, name: str, ctx: str) -> None:
+def _is_slot(pad: Pad) -> bool:
+    return pad.slot_length - pad.drill > SLOT_MIN_EXTRA_LENGTH_MM
+
+
+def _add_through_pad(
+    parent: ET.Element, pad: Pad, name: str, ctx: str, *, native_slot: bool = False
+) -> None:
     width, height, rotation = pad.width, pad.height, pad.rotation
     if pad.shape is PadShape.POLYGON and pad.outline:
         x1, y1, x2, y2 = _bbox(pad.outline)
@@ -311,6 +318,13 @@ def _add_through_pad(parent: ET.Element, pad: Pad, name: str, ctx: str) -> None:
         "diameter": _n(diameter),
         "shape": shape,
     }
+    if native_slot and _is_slot(pad):
+        # Fusion's own format: drill is the slot width, slotLength the total length, rot the
+        # direction of the long axis (R0 = along X).
+        attrs["shape"] = "slot"
+        attrs["slotLength"] = _n(pad.slot_length)
+        attrs["diameter"] = _n(max(min(width, height), pad.drill))
+        rotation = pad.slot_angle
     rot = _rot(rotation)
     if rot is not None:
         attrs["rot"] = rot
@@ -347,7 +361,9 @@ def _add_hole(parent: ET.Element, hole: Hole, ctx: str) -> None:
     ET.SubElement(parent, "hole", {"x": _n(hole.x), "y": _n(hole.y), "drill": _n(hole.drill)})
 
 
-def _build_package(package: Package, name: str, ctx: str) -> ET.Element:
+def _build_package(
+    package: Package, name: str, ctx: str, *, native_slots: bool = True
+) -> ET.Element:
     element = ET.Element("package", {"name": name})
     if package.description.strip():
         ET.SubElement(element, "description").text = _html_text(package.description)
@@ -357,8 +373,8 @@ def _build_package(package: Package, name: str, ctx: str) -> ET.Element:
         if pad.is_smd:
             _add_smd(element, pad, pad_name, ctx)
             continue
-        _add_through_pad(element, pad, pad_name, ctx)
-        if pad.slot_length - pad.drill > SLOT_MIN_EXTRA_LENGTH_MM:
+        _add_through_pad(element, pad, pad_name, ctx, native_slot=native_slots)
+        if not native_slots and _is_slot(pad):
             slots.extend(_slot_outline(pad))
     for wire in slots:
         _add_graphic(element, wire, ctx)
@@ -545,8 +561,13 @@ def _part_context(part: Part) -> str:
     return f"part {part.lcsc_id or part.mpn or '?'}"
 
 
-def build_library(parts: Sequence[Part], *, description: str = "") -> str:
+def build_library(
+    parts: Sequence[Part], *, description: str = "", native_slots: bool = True
+) -> str:
     """Build the complete .lbr text for `parts`.
+
+    Slotted holes are written as Fusion style slot pads (`shape="slot"`, format version 9.7.0)
+    unless `native_slots` is False, which draws the slot outline on the Milling layer instead.
 
     Raises ConversionError when a part cannot be represented and LintError when the generated
     library has error-severity lint issues.
@@ -571,7 +592,7 @@ def build_library(parts: Sequence[Part], *, description: str = "") -> str:
 
         # Identical packages (same name and content) are written once and shared.
         base = sanitize_name(part.package.name, "PACKAGE")
-        draft = _build_package(part.package, "", ctx)
+        draft = _build_package(part.package, "", ctx, native_slots=native_slots)
         key = (base, ET.tostring(draft, encoding="unicode"))
         package_name = package_by_content.get(key)
         if package_name is None:
@@ -592,7 +613,11 @@ def build_library(parts: Sequence[Part], *, description: str = "") -> str:
     ET.SubElement(library, "description").text = _library_description(parts, description)
     library.extend([packages, symbols, devicesets])
 
-    eagle = ET.Element("eagle", {"version": EAGLE_VERSION})
+    uses_slots = native_slots and any(
+        _is_slot(pad) and not pad.is_smd for part in parts for pad in part.package.pads
+    )
+    version = EAGLE_VERSION_SLOTS if uses_slots else EAGLE_VERSION
+    eagle = ET.Element("eagle", {"version": version})
     drawing = ET.SubElement(eagle, "drawing")
     settings = ET.SubElement(drawing, "settings")
     ET.SubElement(settings, "setting", {"alwaysvectorfont": "no"})
@@ -620,9 +645,15 @@ def _library_description(parts: Sequence[Part], description: str) -> str:
     return _description_html("lcsc2fusion library", *paragraphs)
 
 
-def write_library(path: str | Path, parts: Sequence[Part], description: str = "") -> Path:
+def write_library(
+    path: str | Path,
+    parts: Sequence[Part],
+    description: str = "",
+    *,
+    native_slots: bool = True,
+) -> Path:
     """Write the library as UTF-8 with LF newlines. Creates parent directories."""
-    text = build_library(parts, description=description)
+    text = build_library(parts, description=description, native_slots=native_slots)
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8", newline="\n")

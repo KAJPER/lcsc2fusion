@@ -97,3 +97,15 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Kontekst: pozycje pinów w EasyEDA leżą na siatce 1,27 mm (5 jednostek), a Eagle domyślnie pracuje na 2,54 mm. Tylko część symboli ma wszystkie piny na siatce 2,54 mm. Przyciągnięcie pojedynczych pinów groziłoby kolizjami (rozstaw 2,54 mm) i zniekształceniem symbolu.
 - Wybór: pozycje pinów zachowujemy dokładnie ze źródła, początek symbolu to środek BBox przyciągnięty do siatki 5 jednostek.
 - Powód: wierność geometrii. Konsekwencja: we Fusionie mogą pojawić się ostrzeżenia ERC "off grid" dla części symboli, a podłączanie przewodów wymaga mniejszej siatki. Do zmierzenia w MANUAL_TEST i ewentualnej optymalizacji fazy początku układu.
+
+## D-017 Brama 0 przeszła, format zgodny z eksportem Fusiona (ACCEPTED, 2026-10-12)
+
+- Kontekst: użytkownik zaimportował `docs/gate0_resistor.lbr` do Fusiona (zrzuty: Content Manager z device, footprint z padami, maską i pastą, symbol z pinami) i dostarczył eksport z Fusiona `Connector_USB.lbr` (nagłówek 9.7.0, 62 warstwy w nowym stylu `blackcolor`, `whitecolor`, `coloredcolor`, sekcje `atts` i `packages3d`).
+- Wniosek: Fusion akceptuje nasz nagłówek 9.6.2 i starszy zapis warstw (`color`, `fill`), więc zostajemy przy nim jako zweryfikowanym. Na eksporcie Fusiona potwierdzono też znak `curve` (24 z 24 łuków spójne z konwencją "dodatni = przeciwnie do zegara") i listy padów w `connect` (`pad="SH1 SH2"`).
+- Linter został poprawiony tak, żeby przepuszczał ten plik bez uwag (nowy styl warstw, `atts`, `shape="slot"`). Plik jest cudzą treścią, więc leży lokalnie w `docs/test_library/` (gitignore).
+
+## D-018 Sloty jako natywne pady `shape="slot"` (ACCEPTED, do potwierdzenia w Bramie 1)
+
+- Kontekst: Fusion 9.7 zapisuje sloty natywnie (`<pad drill="0.7" slotLength="1.2" shape="slot" rot="R90">`), zamiast frezowania na warstwie 46, które było naszym obejściem.
+- Wybór: domyślnie `native_slots=True`. Biblioteka ze slotami dostaje nagłówek 9.7.0, bez slotów zostaje 9.6.2. `native_slots=False` daje stare frezowanie. `drill` to szerokość slotu, `slotLength` długość całkowita (zgodnie z EasyEDA `hole_length`), `rot` to kierunek osi długiej.
+- Powód: to dokładnie forma zapisywana przez Fusiona. Ryzyko: semantyka `slotLength` (całkowita czy między środkami) nie jest udokumentowana. Brama 1 importuje obie wersje osobno.

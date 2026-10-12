@@ -14,6 +14,10 @@ python scripts/build_addin.py                 # dist/LCSC2Fusion i dist/LCSC2Fus
 
 ## Brama 0: czy Fusion przyjmuje nasz .lbr (5 minut)
 
+Status: PRZESZŁA (2026-10-12). Fusion otworzył `gate0_resistor.lbr`, w Content Managerze są device
+`0603WAF1002T5E` (2 piny), pakiet `0603` (2 pady z automatyczną maską i pastą) oraz symbol z dwoma
+pinami. Nasz starszy format warstw (`color`, `fill`) i nagłówek 9.6.2 są akceptowane.
+
 Plik: `docs/gate0_resistor.lbr` (jeden rezystor 0603 zbudowany przez nasz writer).
 
 - [ ] File > Open > Open from my computer, wskaż plik. Alternatywa: Data Panel > Upload.
@@ -34,8 +38,11 @@ Plik: `docs/manual_test/synthetic_all.lbr` (15 części syntetycznych). Rendery 
 - [ ] `C9000002` (kondensator): cztery łuki silkscreen w rogach wygięte w tę samą stronę co w renderze.
 - [ ] `C9000015` (padstress): pady obrócone o 30, 45 i 15 stopni leżą tak samo jak w renderze
   (kierunek obrotu, nie tylko położenie środka).
-- [ ] `C9000009` (USB-C): cztery sloty przelotowe (otwór plus kontur frezowania na warstwie 46
-  Milling), pady wielokątne jako prostokąty, dwa otwory niemetalizowane.
+- [ ] `C9000009` (USB-C): cztery sloty przelotowe, pady wielokątne jako prostokąty, dwa otwory
+  niemetalizowane. W `synthetic_all.lbr` sloty są natywne (`shape="slot"`, nagłówek 9.7.0, tak jak
+  zapisuje je sam Fusion). Zaimportuj osobno `slots_native.lbr` i `slots_milling.lbr` (ta sama
+  część, sloty jako otwór plus frezowanie na warstwie 46) i napisz, które się otwierają oraz czy
+  długość slotu zgadza się z renderem (`slotLength` to długość całkowita).
 - [ ] `C9000010` (moduł): cztery pady dla pinu 25 (`25`, `25_2`, `25_3`, `25_4`). W edytorze device
   w oknie Connect pin 25 ma przypisane wszystkie cztery.
 - [ ] `C9000014` (wzmacniacz): trzy gate'y (dwa wzmacniacze i zasilanie), każdy z własnym symbolem.
@@ -77,8 +84,8 @@ Add-Ins, uruchom `LCSC2Fusion` (opcjonalnie zaznacz "Run on Startup").
 
 ## Znane ryzyka, które ta lista ma rozstrzygnąć
 
-Wszystkie poniższe reguły są wywnioskowane z danych i dokumentacji, nie potwierdzone we Fusionie
-(RESEARCH.md 2.4): znak `curve` łuków, kierunek obrotu padów, `roundness="100"` dla owali,
-obrót pionowych owali przelotowych, prostokąt zastępujący pad wielokątny, slot jako otwór plus
-frezowanie, lista padów w `connect`, atrybuty technologii. Komenda `Document.newDesignFromLocal`
+Poniższe reguły są wywnioskowane z danych i dokumentacji, nie potwierdzone we Fusionie
+(RESEARCH.md 2.4): kierunek obrotu padów (znak `curve` łuków jest już potwierdzony na danych z
+Fusiona), `roundness="100"` dla owali,
+obrót pionowych owali przelotowych, prostokąt zastępujący pad wielokątny, semantyka `slotLength`, lista padów w `connect`, atrybuty technologii. Komenda `Document.newDesignFromLocal`
 jest nieudokumentowana i może nie działać na Twoim buildzie.

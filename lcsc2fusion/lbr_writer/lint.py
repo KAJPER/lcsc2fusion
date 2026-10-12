@@ -34,14 +34,15 @@ def format_issues(issues: Sequence[LintIssue]) -> str:
 
 
 # Order of the direct children of <library> in the DTD.
-_LIBRARY_ORDER = ("description", "packages", "packages3d", "symbols", "devicesets")
+# Fusion 9.7 also writes an <atts> section between symbols and devicesets.
+_LIBRARY_ORDER = ("description", "packages", "packages3d", "symbols", "atts", "devicesets")
 
 _PIN_VISIBLE = frozenset({"off", "pad", "pin", "both"})
 _PIN_LENGTH = frozenset({"point", "short", "middle", "long"})
 _PIN_DIRECTION = frozenset({"nc", "in", "out", "io", "oc", "pwr", "pas", "hiz", "sup"})
 # "none" is valid per DTD but the Fusion loader rejects it, so it gets its own error.
 _PIN_FUNCTION = frozenset({"none", "dot", "clk", "dotclk"})
-_PAD_SHAPE = frozenset({"square", "round", "octagon", "long", "offset"})
+_PAD_SHAPE = frozenset({"square", "round", "octagon", "long", "offset", "slot"})
 _TEXT_ALIGN = frozenset(
     {
         "bottom-left",
@@ -79,7 +80,7 @@ _NUMERIC_ATTRS: dict[str, tuple[str, ...]] = {
 }
 
 _REQUIRED_ATTRS: dict[str, tuple[str, ...]] = {
-    "layer": ("number", "name", "color", "fill"),
+    "layer": ("number", "name"),
     "package": ("name",),
     "symbol": ("name",),
     "deviceset": ("name",),
@@ -107,6 +108,16 @@ def _sort_key(issue: LintIssue) -> tuple[int, str, str]:
     return (0 if issue.severity == "error" else 1, issue.code, issue.message)
 
 
+_SLOT_MIN_VERSION = (9, 7, 0)
+
+
+def _parse_version(text: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in text.split("."))
+    except ValueError:
+        return ()
+
+
 def lint_library(xml_text: str) -> list[LintIssue]:
     """Lint .lbr text. Issues are sorted deterministically: errors first, then code, message."""
     try:
@@ -120,6 +131,7 @@ def lint_library(xml_text: str) -> list[LintIssue]:
 
 class _Linter:
     def __init__(self) -> None:
+        self._version: tuple[int, ...] = ()
         self.issues: list[LintIssue] = []
         self._declared_layers: set[int] = set()
         self._package_pads: dict[str, set[str]] = {}
@@ -168,6 +180,7 @@ class _Linter:
         if root.tag != "eagle":
             self._error("STRUCT_ROOT", f"Root element is <{root.tag}>, expected <eagle>")
             return
+        self._version = _parse_version(root.get("version", ""))
         drawing = root.find("drawing")
         if drawing is None:
             self._error("STRUCT_NO_DRAWING", "<eagle> has no <drawing> element")
@@ -187,6 +200,13 @@ class _Linter:
         numbers: list[str] = []
         for layer in layers.findall("layer"):
             self._check_required(layer, "layers")
+            # Legacy files carry color and fill, Fusion 9.7 writes blackcolor, whitecolor, ...
+            if "blackcolor" not in layer.attrib:
+                for attr in ("color", "fill"):
+                    if attr not in layer.attrib:
+                        self._error(
+                            "MISSING_ATTR", f"layers: <layer> is missing attribute '{attr}'"
+                        )
             number = layer.get("number")
             if number is None:
                 continue
@@ -277,6 +297,15 @@ class _Linter:
             self._enum(el, "align", _TEXT_ALIGN, "ENUM_TEXT_ALIGN", ctx)
         elif el.tag == "pad":
             self._enum(el, "shape", _PAD_SHAPE, "ENUM_PAD_SHAPE", ctx)
+            if el.get("shape") == "slot":
+                if self._version < _SLOT_MIN_VERSION:
+                    self._warn(
+                        "SLOT_VERSION",
+                        f"{ctx}: slot pads need format version 9.7.0 or newer "
+                        f"(file declares {'.'.join(map(str, self._version)) or 'none'})",
+                    )
+                if "slotLength" not in el.attrib:
+                    self._error("MISSING_ATTR", f"{ctx}: slot <pad> is missing 'slotLength'")
 
     def _check_polygon(self, polygon: ET.Element, ctx: str) -> None:
         vertices = polygon.findall("vertex")

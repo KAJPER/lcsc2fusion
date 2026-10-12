@@ -513,3 +513,9 @@ Co implementacja potwierdziła lub skorygowała względem sekcji 1 do 8:
   zapisywane jako zwykłe pady metalizowane.
 - Open library: otwarcie .lbr uruchamiamy tylko z handlera `incomingFromHTML` palety (przycisk),
   nigdy automatycznie ze zdarzenia niestandardowego.
+- Brama 0 przeszła (D-017). Eksport z Fusiona ma nagłówek 9.7.0 i warstwy w nowym stylu
+  (`blackcolor`, `whitecolor`, `coloredcolor`, `*highlight`), ale starszy zapis (`color`, `fill`)
+  też jest przyjmowany.
+- Natywne sloty (D-018): `<pad shape="slot" drill slotLength rot>`, opcjonalnie `diameter` i
+  `solderMask`. To poprawka do sekcji 2.4 (slot jako wiercenie plus frezowanie).
+- Znak `curve` potwierdzony na realnych danych Fusiona (24 z 24 łuków).

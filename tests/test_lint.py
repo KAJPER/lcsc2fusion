@@ -171,6 +171,53 @@ def test_unknown_library_child_is_only_a_warning() -> None:
     assert_warning(mutate("</library>", "<extras/></library>"), "STRUCT_UNKNOWN")
 
 
+def test_fusion_style_layer_attributes_are_valid() -> None:
+    fusion_layer = (
+        '<layer number="1" name="Top" blackcolor="0xccc90d0c" whitecolor="0xccc90d0c" '
+        'coloredcolor="0xccc90d0c" blackhighlight="0xccc90000" whitehighlight="0xccc90000" '
+        'coloredhighlight="0xccc90000" fill="1" visible="yes" active="yes"/>'
+    )
+    text = mutate(
+        '<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>',
+        fusion_layer,
+    )
+    assert lint_library(text) == []
+
+
+def test_legacy_layer_without_color_is_an_error() -> None:
+    text = mutate('<layer number="1" name="Top" color="4" fill="1"', '<layer number="1" name="Top"')
+    assert_error(text, "MISSING_ATTR")
+
+
+def test_fusion_atts_section_between_symbols_and_devicesets_is_valid() -> None:
+    assert lint_library(mutate("<devicesets>", "<atts/><devicesets>")) == []
+
+
+def test_slot_pad_is_valid_in_format_9_7() -> None:
+    text = mutate(
+        'shape="long" rot="R90"',
+        'shape="slot" slotLength="2.5" rot="R90"',
+    ).replace('<eagle version="9.6.2">', '<eagle version="9.7.0">')
+    assert issues_with(text, "ENUM_PAD_SHAPE") == []
+    assert issues_with(text, "SLOT_VERSION") == []
+
+
+def test_slot_pad_in_an_older_format_is_a_warning() -> None:
+    text = mutate(
+        'shape="long" rot="R90"',
+        'shape="slot" slotLength="2.5" rot="R90"',
+    )
+    assert_warning(text, "SLOT_VERSION")
+
+
+def test_slot_pad_without_slot_length_is_an_error() -> None:
+    text = mutate(
+        'shape="long" rot="R90"',
+        'shape="slot" rot="R90"',
+    ).replace('<eagle version="9.6.2">', '<eagle version="9.7.0">')
+    assert_error(text, "MISSING_ATTR")
+
+
 # ----- duplicates -----
 
 

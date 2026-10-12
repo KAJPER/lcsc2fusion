@@ -12,3 +12,4 @@ out/
 .lcsc_cache/
 tests/fixtures/real/
 graphify-out/
+docs/test_library/

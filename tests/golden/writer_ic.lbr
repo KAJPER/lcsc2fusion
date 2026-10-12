@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.6.2">
+<eagle version="9.7.0">
   <drawing>
     <settings>
       <setting alwaysvectorfont="no"/>
@@ -73,11 +73,7 @@
           <smd name="8" x="1.5" y="0.75" dx="0.8" dy="0.3" layer="1" roundness="0"/>
           <smd name="9" x="0" y="0.6" dx="1.7" dy="1" layer="1" roundness="0"/>
           <smd name="9_2" x="0" y="-0.6" dx="1.7" dy="1" layer="1" roundness="0"/>
-          <pad name="10" x="0" y="-3" drill="0.6" diameter="1.2" shape="long"/>
-          <wire x1="-0.6" y1="-3.3" x2="0.6" y2="-3.3" width="0.02" layer="46"/>
-          <wire x1="0.6" y1="-3.3" x2="0.6" y2="-2.7" width="0.02" layer="46" curve="180"/>
-          <wire x1="0.6" y1="-2.7" x2="-0.6" y2="-2.7" width="0.02" layer="46"/>
-          <wire x1="-0.6" y1="-2.7" x2="-0.6" y2="-3.3" width="0.02" layer="46" curve="180"/>
+          <pad name="10" x="0" y="-3" drill="0.6" diameter="1.2" shape="slot" slotLength="1.8"/>
           <hole x="3" y="3" drill="1"/>
           <wire x1="-1.6" y1="1.6" x2="1.6" y2="1.6" width="0.15" layer="21"/>
           <wire x1="1.6" y1="-1.6" x2="-1.6" y2="-1.6" width="0.15" layer="21" curve="-90"/>

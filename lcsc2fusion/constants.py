@@ -11,6 +11,8 @@ EE_UNIT_MM = 0.254
 EE_SYMBOL_GRID = 5.0
 
 EAGLE_VERSION = "9.6.2"
+# Fusion writes native slot pads (shape="slot", slotLength) from format version 9.7.0 on.
+EAGLE_VERSION_SLOTS = "9.7.0"
 GRID_MM = 2.54
 
 SOURCE_NAME = "JLCEDA/EasyEDA Official Library"

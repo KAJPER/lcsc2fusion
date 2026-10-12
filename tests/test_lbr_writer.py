@@ -517,7 +517,7 @@ def test_through_hole_without_slot_has_no_milling_wires() -> None:
     assert root.findall(".//package/wire") == []
 
 
-def test_slot_pad_generates_milling_outline() -> None:
+def test_slot_pad_generates_milling_outline_when_native_slots_are_off() -> None:
     pad = make_pad(
         "1",
         10.0,
@@ -531,8 +531,10 @@ def test_slot_pad_generates_milling_outline() -> None:
     )
     package = Package("T", "", (pad,))
     part = replace(make_resistor(), symbols=(Symbol("S", (make_pin("1"),)),), package=package)
-    root = parse(build_library([part]))
+    root = parse(build_library([part], native_slots=False))
+    assert root.get("version") == constants.EAGLE_VERSION
     assert find_one(root, ".//package/pad").get("drill") == "1"
+    assert find_one(root, ".//package/pad").get("shape") != "slot"
     wires = root.findall(".//package/wire")
     assert [w.get("layer") for w in wires] == ["46"] * 4
     assert {w.get("width") for w in wires} == {"0.02"}
@@ -560,7 +562,7 @@ def test_slot_pad_outline_follows_the_slot_angle() -> None:
     )
     package = Package("T", "", (pad,))
     part = replace(make_resistor(), symbols=(Symbol("S", (make_pin("1"),)),), package=package)
-    wires = parse(build_library([part])).findall(".//package/wire")
+    wires = parse(build_library([part], native_slots=False)).findall(".//package/wire")
     assert len(wires) == 4
     endpoints = {(w.get("x1"), w.get("y1")) for w in wires} | {
         (w.get("x2"), w.get("y2")) for w in wires
@@ -1015,3 +1017,44 @@ def test_golden_resistor() -> None:
 
 def test_golden_ic_with_thermal_and_slot_pad() -> None:
     check_golden("writer_ic.lbr", build_library([make_ic()], description="Golden: IC"))
+
+
+def test_golden_ic_with_milled_slot() -> None:
+    text = build_library([make_ic()], description="Golden: IC", native_slots=False)
+    check_golden("writer_ic_milling.lbr", text)
+
+
+def _slot_part() -> Part:
+    pad = make_pad(
+        "1",
+        10.0,
+        5.0,
+        shape=PadShape.OVAL,
+        width=2.0,
+        height=1.5,
+        drill=0.7,
+        slot_length=1.2,
+        slot_angle=90.0,
+    )
+    package = Package("T", "", (pad,))
+    return replace(make_resistor(), symbols=(Symbol("S", (make_pin("1"),)),), package=package)
+
+
+def test_native_slot_pad_uses_fusion_slot_syntax_and_version_9_7() -> None:
+    root = parse(build_library([_slot_part()]))
+    assert root.get("version") == constants.EAGLE_VERSION_SLOTS
+    pad = find_one(root, ".//package/pad")
+    assert pad.get("shape") == "slot"
+    assert pad.get("drill") == "0.7"
+    assert pad.get("slotLength") == "1.2"
+    assert pad.get("rot") == "R90"
+    assert root.findall(".//package/wire") == []
+
+
+def test_native_slot_output_lints_clean() -> None:
+    issues = lint_library(build_library([_slot_part()]))
+    assert [i for i in issues if i.severity != "info"] == []
+
+
+def test_library_without_slots_keeps_the_verified_version() -> None:
+    assert parse(build_library([make_resistor()])).get("version") == constants.EAGLE_VERSION
