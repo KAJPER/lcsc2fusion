@@ -202,6 +202,7 @@ class FootprintBuilder:
         self._n = 0
         self._ee_pts: list[tuple[float, float]] = []
         self._pad_ext: list[tuple[float, float, float, float]] = []
+        self.model3d: dict[str, Any] | None = None  # expected 3D placement, see add_svgnode
 
     # -- internals ---------------------------------------------------------
 
@@ -508,21 +509,62 @@ class FootprintBuilder:
             }
         )
 
-    def add_svgnode(self, title: str) -> None:
-        """Minimal 3D outline node. Contains no `~`, so it survives a plain split."""
-        ox, oy = fmt(self.frame.ox), fmt(self.frame.oy)
+    def add_svgnode(
+        self,
+        title: str,
+        *,
+        native_mm: tuple[float, float] = (1.6, 0.8),
+        centre_mm: tuple[float, float] = (0.0, 0.0),
+        z_mm: float = 0.0,
+        rotation_deg: tuple[float, float, float] = (0.0, 0.0, 0.0),
+        stale_shift_ee: tuple[float, float] | None = None,
+    ) -> None:
+        """3D model node (SVGNODE). Contains no `~`, so it survives a plain split.
+
+        The model is described in mm (Y up, relative to the footprint origin): `native_mm` is the
+        unrotated X/Y size (c_width, c_height), `centre_mm` the true centre of the placed model,
+        `z_mm` the height of its lowest point (sign kept) and `rotation_deg` the (rx, ry, rz)
+        triple. The outline is the placed bounding rectangle, so rz must be a multiple of 90 and
+        the X/Y sizes swap for 90 and 270. `stale_shift_ee` moves `c_origin` away from the true
+        centre by that many EasyEDA units (x, y in the Y down frame), like the outdated c_origin
+        of 4 of the 23 real samples. The outline stays correct.
+
+        The expected placement (self.model3d) is computed from the emitted numbers with the
+        documented rules only: offset = (x - head.x) * 0.254, -(y - head.y) * 0.254; the outline
+        bounding box centre replaces c_origin when it is more than 0.1 mm away.
+        """
+        if self.model3d is not None:
+            raise ValueError("only one SVGNODE per footprint")
+        fr = self.frame
+        rz = rotation_deg[2] % 360
+        if rz not in (0, 90, 180, 270):
+            raise ValueError("the placed outline is a rectangle, rz must be a multiple of 90")
+        w_ee, h_ee = r4(native_mm[0] / UNIT), r4(native_mm[1] / UNIT)
+        placed_w, placed_h = (h_ee, w_ee) if rz in (90, 270) else (w_ee, h_ee)
+        cx, cy = fr.ee(*centre_mm)
+        outline = [
+            (r4(cx - placed_w / 2), r4(cy - placed_h / 2)),
+            (r4(cx + placed_w / 2), r4(cy - placed_h / 2)),
+            (r4(cx + placed_w / 2), r4(cy + placed_h / 2)),
+            (r4(cx - placed_w / 2), r4(cy + placed_h / 2)),
+        ]
+        origin = (cx, cy)
+        if stale_shift_ee is not None:
+            origin = (r4(cx + stale_shift_ee[0]), r4(cy + stale_shift_ee[1]))
+        z_ee = r4(z_mm / UNIT)
+        uuid = md5hex("syn", "3d", title)
         node = {
             "gId": "g1_outline",
             "nodeName": "g",
             "nodeType": 1,
             "layerid": "19",
             "attrs": {
-                "c_width": "3.1496",
-                "c_height": "1.5748",
-                "c_rotation": "0,0,0",
-                "z": "0",
-                "c_origin": f"{ox},{oy}",
-                "uuid": md5hex("syn", "3d", title),
+                "c_width": fmt(w_ee),
+                "c_height": fmt(h_ee),
+                "c_rotation": ",".join(fmt(v) for v in rotation_deg),
+                "z": fmt(z_ee),
+                "c_origin": f"{fmt(origin[0])},{fmt(origin[1])}",
+                "uuid": uuid,
                 "c_etype": "outline3D",
                 "id": "g1_outline",
                 "title": title,
@@ -538,12 +580,33 @@ class FootprintBuilder:
                         "fill": "none",
                         "id": "g1_outline_line0",
                         "c_shapetype": "line",
-                        "points": "0 0 1 0 1 1 0 1",
+                        "points": pts_str(outline),
                     },
                 }
             ],
         }
         self._emit("SVGNODE", "SVGNODE~" + json.dumps(node, separators=(",", ":")))
+        # Expected values, from the emitted numbers (the emitted strings are 4 decimal rounded).
+        xs, ys = [p[0] for p in outline], [p[1] for p in outline]
+        outline_centre = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2)
+        distance_mm = math.hypot(origin[0] - outline_centre[0], origin[1] - outline_centre[1]) * UNIT
+        stale = distance_mm > 0.1
+        if stale != (stale_shift_ee is not None):
+            raise ValueError("stale_shift_ee must move c_origin by more than 0.1 mm, or be None")
+        placed = outline_centre if stale else origin
+        self.model3d = {
+            "uuid": uuid,
+            "name": title,
+            "offset_mm": list(fr.mm(*placed)),
+            "bottom_z_mm": r6(z_ee * UNIT),
+            "rotation_deg": [float(fmt(v)) for v in rotation_deg],
+            "native_size_mm": [r6(w_ee * UNIT), r6(h_ee * UNIT)],
+            "placement_source": "outline_centre" if stale else "c_origin",
+            "stale_origin": stale,
+            "c_origin_mm": list(fr.mm(*origin)),
+            "outline_centre_mm": list(fr.mm(*outline_centre)),
+            "outline_size_mm": [r6(placed_w * UNIT), r6(placed_h * UNIT)],
+        }
 
     # -- results -----------------------------------------------------------------
 
@@ -1221,6 +1284,8 @@ def render(part: Part) -> tuple[dict[str, Any], dict[str, Any]]:
         "arc_tolerance_mm": 0.001,
         "notes": part.notes,
     }
+    if fp.model3d is not None:
+        expected["model3d"] = fp.model3d
     return document, expected
 
 
@@ -1238,7 +1303,7 @@ def part_r0603() -> Part:
     fp.add_track([(-1.0, 0.85), (-1.55, 0.85), (-1.55, -0.85), (-1.0, -0.85)])
     fp.add_track([(1.0, 0.85), (1.55, 0.85), (1.55, -0.85), (1.0, -0.85)])
     fp.add_region([(-0.8, 0.4), (-0.8, -0.4), (0.8, -0.4), (0.8, 0.4)], 99)
-    fp.add_svgnode("SYN-R0603-3D")
+    fp.add_svgnode("SYN-R0603-3D", native_mm=(1.6, 0.8))
     sb = SymbolBuilder((20, 0))
     sb.rect(-10, -4, 20, 8, "a")
     sb.pin("1", "1", -20, 0, 180, "0", show_name=False)
@@ -1958,6 +2023,87 @@ def part_padstress() -> Part:
     )
 
 
+def _box3d_part(
+    name: str,
+    index: int,
+    origin: tuple[float, float],
+    description: str,
+    notes: list[str],
+    **model: Any,
+) -> Part:
+    """Two pad part on the Y axis with a 3D model node. `model` goes to add_svgnode."""
+    mpn = f"SYN-{name.upper().replace('_', '-')}"
+    fp = FootprintBuilder(origin, tail=("0", "0.2000"), zero_len="0.0000")
+    fp.add_pad(Pad("1", 0.0, -1.0, 1.4, 0.9))
+    fp.add_pad(Pad("2", 0.0, 1.0, 1.4, 0.9))
+    fp.add_track([(-1.0, -0.3), (-1.0, 0.3)])
+    fp.add_track([(1.0, -0.3), (1.0, 0.3)])
+    fp.add_region([(-0.8, 1.6), (0.8, 1.6), (0.8, -1.6), (-0.8, -1.6)], 99)
+    fp.add_svgnode(f"{mpn}-3D", **model)
+    sb = SymbolBuilder((20, 0))
+    sb.rect(-10, -4, 20, 8, "a")
+    sb.pin("1", "1", -20, 0, 180, "0", show_name=False)
+    sb.pin("2", "2", 20, 0, 0, "", show_name=False)
+    return Part(
+        name,
+        index,
+        mpn,
+        "J",
+        "SYN-BOX3D-1X2",
+        description,
+        ["Test Parts"],
+        "SYN-Maker",
+        fp,
+        [sb],
+        fp_pre="J?",
+        notes=notes,
+    )
+
+
+def part_box3d_rot90() -> Part:
+    return _box3d_part(
+        "box3d_rot90",
+        16,
+        (4000, 3000),
+        "Synthetic 3D model rotated by 90 degrees, off centre",
+        ["3D model: rz 90 swaps the outline sizes, centre (0.508, -0.762) mm, z 0"],
+        native_mm=(3.2, 1.6),
+        centre_mm=(0.508, -0.762),
+        rotation_deg=(0.0, 0.0, 90.0),
+    )
+
+
+def part_box3d_z() -> Part:
+    return _box3d_part(
+        "box3d_z",
+        17,
+        (3987.5, 3012.25),
+        "Synthetic 3D model sunk into the board",
+        ["3D model: z is -3.6 units (-0.9144 mm), sign kept, no Y flip; origin in another corner"],
+        native_mm=(4.0, 2.0),
+        centre_mm=(-0.254, 1.016),
+        z_mm=-0.9144,
+    )
+
+
+def part_box3d_stale() -> Part:
+    return _box3d_part(
+        "box3d_stale",
+        18,
+        (4012.125, 2994.5),
+        "Synthetic 3D model with an outdated c_origin",
+        [
+            "3D model: c_origin is 6.5 and -2 units away from the real centre, outline is right",
+            "rz 180 and z +2 units (0.508 mm) on purpose",
+        ],
+        native_mm=(3.2, 2.5),
+        centre_mm=(-0.508, 0.254),
+        z_mm=0.508,
+        rotation_deg=(0.0, 0.0, 180.0),
+        stale_shift_ee=(6.5, -2.0),
+    )
+
+
 PARTS: list[Callable[[], Part]] = [
     part_r0603,
     part_cap0603_arc,
@@ -1974,6 +2120,9 @@ PARTS: list[Callable[[], Part]] = [
     part_tact4,
     part_opamp2,
     part_padstress,
+    part_box3d_rot90,
+    part_box3d_z,
+    part_box3d_stale,
 ]
 
 

@@ -8,6 +8,7 @@ from typing import Any
 from lcsc2fusion.errors import ParseError, PartNotFoundError
 from lcsc2fusion.model import Part
 from lcsc2fusion.parser.footprint import parse_footprint
+from lcsc2fusion.parser.model3d import parse_model3d
 from lcsc2fusion.parser.symbol import parse_symbol_units, symbol_prefix
 from lcsc2fusion.parser.symbol_fit import fit_symbol
 
@@ -62,6 +63,7 @@ def parse_part(doc: Mapping[str, Any], *, fit_symbols: bool = True) -> Part:
         symbols = [symbol for symbol, _ in fitted]
         symbol_warnings = symbol_warnings + [note for _, notes in fitted for note in notes]
     package, package_warnings = parse_footprint(package_detail)
+    model3d, model_warnings = parse_model3d(package_detail)
 
     attributes: list[tuple[str, str]] = []
     for key, name in (
@@ -84,5 +86,6 @@ def parse_part(doc: Mapping[str, Any], *, fit_symbols: bool = True) -> Part:
         datasheet=_text(c_para.get("link")),
         source_uuid=_text(result.get("uuid")),
         attributes=tuple(attributes),
-        warnings=tuple(symbol_warnings + package_warnings),
+        warnings=tuple(symbol_warnings + package_warnings + model_warnings),
+        model3d=model3d,
     )

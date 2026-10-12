@@ -1,0 +1,251 @@
+{
+  "name": "box3d_z",
+  "synthetic": true,
+  "lcsc_id": "C9000017",
+  "mpn": "SYN-BOX3D-Z",
+  "prefix": "J",
+  "package_name": "SYN-BOX3D-1X2",
+  "description": "Synthetic 3D model sunk into the board",
+  "manufacturer": "SYN-Maker",
+  "value": null,
+  "unit_count": 1,
+  "footprint_origin_ee": [
+    3987.5,
+    3012.25
+  ],
+  "pins": [
+    {
+      "number": "1",
+      "name": "1",
+      "x_mm": -5.08,
+      "y_mm": 0.0,
+      "angle_deg": 0,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    },
+    {
+      "number": "2",
+      "name": "2",
+      "x_mm": 5.08,
+      "y_mm": 0.0,
+      "angle_deg": 180,
+      "direction": "pas",
+      "length_mm": 2.54,
+      "inverted": false,
+      "clock": false,
+      "unit": 1
+    }
+  ],
+  "symbol_units": [
+    {
+      "unit": 1,
+      "title": "SYN-BOX3D-Z",
+      "origin_ee": [
+        20,
+        0
+      ],
+      "pin_count": 2,
+      "arcs": [],
+      "shape_counts": {
+        "R": 1,
+        "P": 2
+      }
+    }
+  ],
+  "pad_count": 2,
+  "unique_pad_numbers": 2,
+  "pad_numbers": [
+    "1",
+    "2"
+  ],
+  "pads": [
+    {
+      "number": "1",
+      "x_mm": 0.0,
+      "y_mm": -0.999998,
+      "width_mm": 1.399997,
+      "height_mm": 0.899998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.699999,
+          -0.549986
+        ],
+        [
+          0.699999,
+          -0.549986
+        ],
+        [
+          0.699999,
+          -1.45001
+        ],
+        [
+          -0.699999,
+          -1.45001
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.699999,
+        -1.45001,
+        0.699999,
+        -0.549986
+      ]
+    },
+    {
+      "number": "2",
+      "x_mm": 0.0,
+      "y_mm": 0.999998,
+      "width_mm": 1.399997,
+      "height_mm": 0.899998,
+      "shape": "RECT",
+      "drill_mm": 0.0,
+      "rotation_deg": 0.0,
+      "layer": "top",
+      "slot_length_mm": 0.0,
+      "plated": true,
+      "points_mm": [
+        [
+          -0.699999,
+          1.45001
+        ],
+        [
+          0.699999,
+          1.45001
+        ],
+        [
+          0.699999,
+          0.549986
+        ],
+        [
+          -0.699999,
+          0.549986
+        ]
+      ],
+      "slot_axis_mm": [],
+      "extent_mm": [
+        -0.699999,
+        0.549986,
+        0.699999,
+        1.45001
+      ]
+    }
+  ],
+  "holes": [],
+  "bbox_mm": {
+    "min_x": -0.699999,
+    "min_y": -1.45001,
+    "max_x": 0.699999,
+    "max_y": 1.45001
+  },
+  "footprint_shapes": {
+    "counts": {
+      "PAD": 2,
+      "TRACK": 2,
+      "SOLIDREGION": 1,
+      "SVGNODE": 1
+    },
+    "tracks": [
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            -0.999998,
+            -0.299999
+          ],
+          [
+            -0.999998,
+            0.299999
+          ]
+        ]
+      },
+      {
+        "layer": 3,
+        "width_mm": 0.1524,
+        "points_mm": [
+          [
+            0.999998,
+            -0.299999
+          ],
+          [
+            0.999998,
+            0.299999
+          ]
+        ]
+      }
+    ],
+    "circles": [],
+    "arcs": [],
+    "rects": [],
+    "solid_regions": [
+      {
+        "layer": 99,
+        "kind": "solid",
+        "points_mm": [
+          [
+            -0.799998,
+            1.599997
+          ],
+          [
+            0.799998,
+            1.599997
+          ],
+          [
+            0.799998,
+            -1.599997
+          ],
+          [
+            -0.799998,
+            -1.599997
+          ]
+        ]
+      }
+    ],
+    "texts": []
+  },
+  "arc_tolerance_mm": 0.001,
+  "notes": [
+    "3D model: z is -3.6 units (-0.9144 mm), sign kept, no Y flip; origin in another corner"
+  ],
+  "model3d": {
+    "uuid": "86bcd63db8c66b1af2659db97a969b57",
+    "name": "SYN-BOX3D-Z-3D",
+    "offset_mm": [
+      -0.254,
+      1.016
+    ],
+    "bottom_z_mm": -0.9144,
+    "rotation_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "native_size_mm": [
+      3.999992,
+      1.999996
+    ],
+    "placement_source": "c_origin",
+    "stale_origin": false,
+    "c_origin_mm": [
+      -0.254,
+      1.016
+    ],
+    "outline_centre_mm": [
+      -0.254,
+      1.016
+    ],
+    "outline_size_mm": [
+      3.999992,
+      1.999996
+    ]
+  }
+}

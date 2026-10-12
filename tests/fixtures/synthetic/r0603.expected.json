@@ -259,5 +259,37 @@
   "arc_tolerance_mm": 0.001,
   "notes": [
     "pad vertex order variant: older editor (vertex_shift 0)"
-  ]
+  ],
+  "model3d": {
+    "uuid": "8ce2a36307c68382e5e789edc6b90caf",
+    "name": "SYN-R0603-3D",
+    "offset_mm": [
+      0.0,
+      0.0
+    ],
+    "bottom_z_mm": 0.0,
+    "rotation_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "native_size_mm": [
+      1.599997,
+      0.799998
+    ],
+    "placement_source": "c_origin",
+    "stale_origin": false,
+    "c_origin_mm": [
+      0.0,
+      0.0
+    ],
+    "outline_centre_mm": [
+      0.0,
+      0.0
+    ],
+    "outline_size_mm": [
+      1.599997,
+      0.799998
+    ]
+  }
 }

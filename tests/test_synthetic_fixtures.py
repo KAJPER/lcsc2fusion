@@ -41,6 +41,9 @@ REQUIRED = {
     "inductor",
     "tact4",
     "opamp2",
+    "box3d_rot90",
+    "box3d_z",
+    "box3d_stale",
 }
 LAYER_BY_ID = {"1": "top", "2": "bottom", "11": "thru"}
 DIRECTION_BY_TYPE = {"1": "in", "2": "out", "3": "io", "4": "pwr", "0": "pas", "": "pas"}
@@ -94,6 +97,9 @@ def load(name: str) -> tuple[dict[str, Any], dict[str, Any]]:
     doc = json.loads((FIXTURE_DIR / f"{name}.json").read_text(encoding="utf-8"))
     exp = json.loads((FIXTURE_DIR / f"{name}.expected.json").read_text(encoding="utf-8"))
     return doc, exp
+
+
+MODEL3D_NAMES = [n for n in NAMES if "model3d" in load(n)[1]]
 
 
 def symbol_units(doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -560,6 +566,80 @@ def test_exposed_pad_shares_number_with_symbol_pin() -> None:
     assert ep[0]["shape"] == "RECT"
     assert max(ep[0]["width_mm"], ep[0]["height_mm"]) > 1.5
     assert any(p["number"] == "17" for p in exp["pins"])
+
+
+# ---------------------------------------------------------------------------
+# 3D model nodes (SVGNODE) and the `model3d` expectation
+# ---------------------------------------------------------------------------
+
+
+def svgnodes(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    nodes = [
+        json.loads(s.split("~", 1)[1]) for s in footprint(doc)["shape"] if s.startswith("SVGNODE~")
+    ]
+    assert all(isinstance(n, dict) for n in nodes)
+    return nodes
+
+
+def test_model3d_fixture_coverage() -> None:
+    models = {n: load(n)[1]["model3d"] for n in MODEL3D_NAMES}
+    assert {"r0603", "box3d_rot90", "box3d_z", "box3d_stale"} <= set(models)
+    assert any(m["rotation_deg"][2] == 90.0 for m in models.values())
+    assert any(m["rotation_deg"][2] == 180.0 for m in models.values())
+    assert any(m["bottom_z_mm"] < 0 for m in models.values())
+    assert any(m["bottom_z_mm"] > 0 for m in models.values())
+    assert any(m["placement_source"] == "outline_centre" for m in models.values())
+    assert any(m["placement_source"] == "c_origin" for m in models.values())
+    assert any(m["offset_mm"][0] != 0 and m["offset_mm"][1] != 0 for m in models.values())
+    assert len({m["uuid"] for m in models.values()}) == len(models)
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_svgnode_present_exactly_when_model3d_is_expected(name: str) -> None:
+    doc, exp = load(name)
+    assert len(svgnodes(doc)) == (1 if "model3d" in exp else 0)
+
+
+@pytest.mark.parametrize("name", MODEL3D_NAMES)
+def test_model3d_expectation_matches_the_svgnode(name: str) -> None:
+    """Re-read the node with the documented formulas only (no parser) and compare."""
+    doc, exp = load(name)
+    want = exp["model3d"]
+    (node,) = svgnodes(doc)
+    attrs = node["attrs"]
+    head = footprint(doc)["head"]
+    ox, oy = head["x"], head["y"]
+    assert re.fullmatch(r"[0-9a-f]{32}", attrs["uuid"])
+    assert attrs["uuid"] == want["uuid"]
+    assert attrs["title"] == want["name"]
+    assert attrs["uuid"] != head["uuid_3d"], "head.uuid_3d is a different id than the node uuid"
+    rotation = [float(v) for v in attrs["c_rotation"].split(",")]
+    assert rotation == want["rotation_deg"]
+    assert close(float(attrs["z"]) * UNIT, want["bottom_z_mm"])  # no Y flip, sign kept
+    native = [float(attrs["c_width"]) * UNIT, float(attrs["c_height"]) * UNIT]
+    assert all(close(a, b) for a, b in zip(native, want["native_size_mm"], strict=True))
+    c_x, c_y = (float(v) for v in attrs["c_origin"].split(","))
+    c_origin = ((c_x - ox) * UNIT, -(c_y - oy) * UNIT)
+    assert all(close(a, b) for a, b in zip(c_origin, want["c_origin_mm"], strict=True))
+    (child,) = node["childNodes"]
+    values = [float(v) for v in child["attrs"]["points"].split()]
+    xs, ys = values[0::2], values[1::2]
+    centre = (
+        ((min(xs) + max(xs)) / 2 - ox) * UNIT,
+        -((min(ys) + max(ys)) / 2 - oy) * UNIT,
+    )
+    assert all(close(a, b, 1e-4) for a, b in zip(centre, want["outline_centre_mm"], strict=True))
+    size = ((max(xs) - min(xs)) * UNIT, (max(ys) - min(ys)) * UNIT)
+    assert all(close(a, b, 1e-4) for a, b in zip(size, want["outline_size_mm"], strict=True))
+    # The outline is the native rectangle turned by rz: sizes swap for 90 and 270.
+    swapped = rotation[2] % 180 == 90
+    assert close(size[0], native[1 if swapped else 0], 1e-4)
+    assert close(size[1], native[0 if swapped else 1], 1e-4)
+    distance = math.hypot(c_origin[0] - centre[0], c_origin[1] - centre[1])
+    assert (distance > 0.1) == want["stale_origin"]
+    assert want["placement_source"] == ("outline_centre" if want["stale_origin"] else "c_origin")
+    placed = centre if want["stale_origin"] else c_origin
+    assert all(close(a, b, 1e-4) for a, b in zip(placed, want["offset_mm"], strict=True))
 
 
 # ---------------------------------------------------------------------------

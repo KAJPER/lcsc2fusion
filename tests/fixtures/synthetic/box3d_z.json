@@ -1,0 +1,213 @@
+{
+  "success": true,
+  "code": 0,
+  "result": {
+    "uuid": "7e2b65603d162418787dc683669b2a61",
+    "title": "SYN-BOX3D-Z",
+    "description": "Synthetic 3D model sunk into the board",
+    "docType": 2,
+    "type": 3,
+    "thumb": "//example.invalid/synthetic/7e2b65603d162418787dc683669b2a61.png",
+    "szlcsc": {
+      "id": 9000017,
+      "number": "C9000017",
+      "step": 1,
+      "min": 1,
+      "price": 0.01,
+      "stock": 0,
+      "url": "https://example.invalid/synthetic/szlcsc/C9000017",
+      "image": ""
+    },
+    "lcsc": {
+      "id": 9000017,
+      "number": "C9000017",
+      "step": 1,
+      "min": 1,
+      "price": 0.01,
+      "stock": 1000,
+      "url": "https://example.invalid/synthetic/lcsc/C9000017"
+    },
+    "owner": {
+      "uuid": "9dedf518610e4c08eb676bd3c5f74645",
+      "username": "synthetic",
+      "nickname": "Synthetic",
+      "avatar": ""
+    },
+    "tags": [
+      "Test Parts"
+    ],
+    "updateTime": 1700000000,
+    "updated_at": "2026-01-01 00:00:00",
+    "dataStr": {
+      "head": {
+        "docType": "2",
+        "editorVersion": "6.5.51",
+        "c_para": {
+          "pre": "J?",
+          "name": "SYN-BOX3D-Z",
+          "package": "SYN-BOX3D-1X2",
+          "Supplier": "LCSC",
+          "Manufacturer": "SYN-Maker",
+          "Manufacturer Part": "SYN-BOX3D-Z",
+          "Supplier Part": "C9000017",
+          "JLCPCB Part Class": "Basic Part"
+        },
+        "x": 20,
+        "y": 0,
+        "puuid": "3c8526ee1478ab5963a8c868faf6691a",
+        "uuid": "7e2b65603d162418787dc683669b2a61",
+        "utime": 1700000000,
+        "importFlag": 0,
+        "c_spiceCmd": null,
+        "hasIdFlag": true,
+        "license": "Synthetic test fixture, not EasyEDA data"
+      },
+      "canvas": "CA~1000~1000~#FFFFFF~yes~#CCCCCC~5~1000~1000~line~5~pixel~5~20~0",
+      "shape": [
+        "R~10~-4~~~20~8~#880000~1~0~none~gge2~0",
+        "P~show~0~1~0~0~180~gge5~0^^0~0^^M 0 0 h 10~#880000^^0~15~3~0~1~start~~~#0000FF^^1~5~-1~0~1~end~~~#0000FF^^0~7~0^^0~M 10 3 L 13 0 L 10 -3",
+        "P~show~~2~40~0~0~gge8~0^^40~0^^M 40 0 h -10~#880000^^0~25~3~0~2~end~~~#0000FF^^1~35~-1~0~2~start~~~#0000FF^^0~33~0^^0~M 30 -3 L 27 0 L 30 3"
+      ],
+      "BBox": {
+        "x": -1,
+        "y": -5,
+        "width": 42,
+        "height": 10
+      },
+      "colors": []
+    },
+    "verify": true,
+    "SMT": true,
+    "datastrid": "2881cdba9f10226cd154324dbf418bcd",
+    "jlcOnSale": 1,
+    "writable": false,
+    "isFavorite": false,
+    "packageDetail": {
+      "uuid": "3c8526ee1478ab5963a8c868faf6691a",
+      "title": "SYN-BOX3D-1X2",
+      "docType": 4,
+      "updateTime": 1700000000,
+      "owner": {
+        "uuid": "9dedf518610e4c08eb676bd3c5f74645",
+        "username": "synthetic",
+        "nickname": "Synthetic",
+        "avatar": ""
+      },
+      "datastrid": "30352d0ae85ddb111b62f29cef61eb63",
+      "writable": false,
+      "dataStr": {
+        "head": {
+          "docType": "4",
+          "editorVersion": "6.5.51",
+          "c_para": {
+            "package": "SYN-BOX3D-1X2",
+            "pre": "J?",
+            "Contributor": "synthetic",
+            "3DModel": "SYN-box3d_z-3D",
+            "link": "https://example.invalid/synthetic/box3d_z"
+          },
+          "hasIdFlag": true,
+          "x": 3987.5,
+          "y": 3012.25,
+          "utime": 1700000000,
+          "uuid": "3c8526ee1478ab5963a8c868faf6691a",
+          "importFlag": 0,
+          "transformList": "",
+          "newgId": true,
+          "uuid_3d": "45a6366b5d08ae6ed7349535b0177f55",
+          "license": "Synthetic test fixture, not EasyEDA data"
+        },
+        "canvas": "CA~1000~1000~#000000~yes~#FFFFFF~10~1000~1000~line~0.03937~mm~1~45~visible~0.5~3987.5~3012.25~0~none",
+        "shape": [
+          "PAD~RECT~3987.5~3016.187~5.5118~3.5433~1~~1~0~3984.7441 3014.4153 3990.2559 3014.4153 3990.2559 3017.9587 3984.7441 3017.9587~0~gge1001~0.0000~~Y~0~0~0.2000~3987.5,3016.187",
+          "PAD~RECT~3987.5~3008.313~5.5118~3.5433~1~~2~0~3984.7441 3006.5413 3990.2559 3006.5413 3990.2559 3010.0847 3984.7441 3010.0847~0~gge1002~0.0000~~Y~0~0~0.2000~3987.5,3008.313",
+          "TRACK~0.6~3~~3983.563 3013.4311 3983.563 3011.0689~gge1003~0",
+          "TRACK~0.6~3~~3991.437 3013.4311 3991.437 3011.0689~gge1004~0",
+          "SOLIDREGION~99~~M 3984.3504 3005.9508 L 3990.6496 3005.9508 L 3990.6496 3018.5492 L 3984.3504 3018.5492 Z ~solid~gge1005~~~~0",
+          "SVGNODE~{\"gId\":\"g1_outline\",\"nodeName\":\"g\",\"nodeType\":1,\"layerid\":\"19\",\"attrs\":{\"c_width\":\"15.748\",\"c_height\":\"7.874\",\"c_rotation\":\"0,0,0\",\"z\":\"-3.6\",\"c_origin\":\"3986.5,3008.25\",\"uuid\":\"86bcd63db8c66b1af2659db97a969b57\",\"c_etype\":\"outline3D\",\"id\":\"g1_outline\",\"title\":\"SYN-BOX3D-Z-3D\",\"layerid\":\"19\",\"transform\":\"scale(1) translate(0, 0)\"},\"childNodes\":[{\"gId\":\"g1_outline_line0\",\"nodeName\":\"polyline\",\"nodeType\":1,\"attrs\":{\"fill\":\"none\",\"id\":\"g1_outline_line0\",\"c_shapetype\":\"line\",\"points\":\"3978.626 3004.313 3994.374 3004.313 3994.374 3012.187 3978.626 3012.187\"}}]}"
+        ],
+        "layers": [
+          "1~TopLayer~#FF0000~true~true~true~",
+          "2~BottomLayer~#0000FF~true~false~true~",
+          "3~TopSilkLayer~#FFCC00~true~false~true~",
+          "4~BottomSilkLayer~#66CC33~true~false~true~",
+          "5~TopPasteMaskLayer~#808080~true~false~true~",
+          "6~BottomPasteMaskLayer~#800000~true~false~true~",
+          "7~TopSolderMaskLayer~#800080~true~false~true~0.3",
+          "8~BottomSolderMaskLayer~#AA00FF~true~false~true~0.3",
+          "9~Ratlines~#6464FF~true~false~true~",
+          "10~BoardOutLine~#FF00FF~true~false~true~",
+          "11~Multi-Layer~#FFFFFF~true~false~true~0.5",
+          "12~Document~#FFFFFF~true~false~true~",
+          "13~TopAssembly~#33CC99~true~false~true~",
+          "14~BottomAssembly~#5555FF~true~false~true~",
+          "15~Mechanical~#F022F0~true~false~true~",
+          "19~3DModel~#66CCFF~true~false~true~",
+          "21~Inner1~#4D835D~false~false~false~~",
+          "22~Inner2~#72DE92~false~false~false~~",
+          "23~Inner3~#9771C7~false~false~false~~",
+          "24~Inner4~#BCCC34~false~false~false~~",
+          "25~Inner5~#E15F69~false~false~false~~",
+          "26~Inner6~#3EBA9E~false~false~false~~",
+          "27~Inner7~#634DD3~false~false~false~~",
+          "28~Inner8~#88A840~false~false~false~~",
+          "29~Inner9~#AD3B75~false~false~false~~",
+          "30~Inner10~#D296AA~false~false~false~~",
+          "31~Inner11~#2F29DF~false~false~false~~",
+          "32~Inner12~#54844C~false~false~false~~",
+          "33~Inner13~#79DF81~false~false~false~~",
+          "34~Inner14~#9E72B6~false~false~false~~",
+          "35~Inner15~#C3CDEB~false~false~false~~",
+          "36~Inner16~#E86058~false~false~false~~",
+          "37~Inner17~#45BB8D~false~false~false~~",
+          "38~Inner18~#6A4EC2~false~false~false~~",
+          "39~Inner19~#8FA92F~false~false~false~~",
+          "40~Inner20~#B43C64~false~false~false~~",
+          "41~Inner21~#D99799~false~false~false~~",
+          "42~Inner22~#362ACE~false~false~false~~",
+          "43~Inner23~#5B853B~false~false~false~~",
+          "44~Inner24~#80E070~false~false~false~~",
+          "45~Inner25~#A573A5~false~false~false~~",
+          "46~Inner26~#CACEDA~false~false~false~~",
+          "47~Inner27~#EF6147~false~false~false~~",
+          "48~Inner28~#4CBC7C~false~false~false~~",
+          "49~Inner29~#714FB1~false~false~false~~",
+          "50~Inner30~#96AAE6~false~false~false~~",
+          "51~Inner31~#BB3D53~false~false~false~~",
+          "52~Inner32~#E09888~false~false~false~~",
+          "99~ComponentShapeLayer~#00CCCC~true~false~true~",
+          "100~LeadShapeLayer~#CC9999~true~false~true~",
+          "101~ComponentMarkingLayer~#66FFCC~true~false~true~",
+          "Hole~Hole~#222222~false~false~true~",
+          "DRCError~DRCError~#FAD609~false~false~true~"
+        ],
+        "objects": [
+          "All~true~false",
+          "Component~true~true",
+          "Prefix~true~true",
+          "Name~true~false",
+          "Track~true~true",
+          "Pad~true~true",
+          "Via~true~true",
+          "Hole~true~true",
+          "Copper_Area~true~true",
+          "Circle~true~true",
+          "Arc~true~true",
+          "Solid_Region~true~true",
+          "Text~true~true",
+          "Image~true~true",
+          "Rect~true~true",
+          "Dimension~true~true",
+          "Protractor~true~true"
+        ],
+        "BBox": {
+          "x": 3983.5,
+          "y": 3005.9,
+          "width": 8.0,
+          "height": 12.7
+        },
+        "netColors": []
+      }
+    }
+  }
+}

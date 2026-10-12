@@ -128,7 +128,7 @@
           "TRACK~0.6~3~~3996.063 2996.6535 3993.8976 2996.6535 3993.8976 3003.3465 3996.063 3003.3465~gge1005~0",
           "TRACK~0.6~3~~4003.937 2996.6535 4006.1024 2996.6535 4006.1024 3003.3465 4003.937 3003.3465~gge1006~0",
           "SOLIDREGION~99~~M 3996.8504 2998.4252 L 3996.8504 3001.5748 L 4003.1496 3001.5748 L 4003.1496 2998.4252 Z ~solid~gge1007~~~~0",
-          "SVGNODE~{\"gId\":\"g1_outline\",\"nodeName\":\"g\",\"nodeType\":1,\"layerid\":\"19\",\"attrs\":{\"c_width\":\"3.1496\",\"c_height\":\"1.5748\",\"c_rotation\":\"0,0,0\",\"z\":\"0\",\"c_origin\":\"4000,3000\",\"uuid\":\"8ce2a36307c68382e5e789edc6b90caf\",\"c_etype\":\"outline3D\",\"id\":\"g1_outline\",\"title\":\"SYN-R0603-3D\",\"layerid\":\"19\",\"transform\":\"scale(1) translate(0, 0)\"},\"childNodes\":[{\"gId\":\"g1_outline_line0\",\"nodeName\":\"polyline\",\"nodeType\":1,\"attrs\":{\"fill\":\"none\",\"id\":\"g1_outline_line0\",\"c_shapetype\":\"line\",\"points\":\"0 0 1 0 1 1 0 1\"}}]}"
+          "SVGNODE~{\"gId\":\"g1_outline\",\"nodeName\":\"g\",\"nodeType\":1,\"layerid\":\"19\",\"attrs\":{\"c_width\":\"6.2992\",\"c_height\":\"3.1496\",\"c_rotation\":\"0,0,0\",\"z\":\"0\",\"c_origin\":\"4000,3000\",\"uuid\":\"8ce2a36307c68382e5e789edc6b90caf\",\"c_etype\":\"outline3D\",\"id\":\"g1_outline\",\"title\":\"SYN-R0603-3D\",\"layerid\":\"19\",\"transform\":\"scale(1) translate(0, 0)\"},\"childNodes\":[{\"gId\":\"g1_outline_line0\",\"nodeName\":\"polyline\",\"nodeType\":1,\"attrs\":{\"fill\":\"none\",\"id\":\"g1_outline_line0\",\"c_shapetype\":\"line\",\"points\":\"3996.8504 2998.4252 4003.1496 2998.4252 4003.1496 3001.5748 3996.8504 3001.5748\"}}]}"
         ],
         "layers": [
           "1~TopLayer~#FF0000~true~true~true~",
