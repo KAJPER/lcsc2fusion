@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lcsc2fusion": {
+      "command": "python",
+      "args": ["-m", "lcsc2fusion.mcp"]
+    }
+  }
+}

@@ -16,6 +16,7 @@ dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "matplotlib>=3.8"]
 
 [project.scripts]
 lcsc2fusion = "lcsc2fusion.cli:main"
+lcsc2fusion-mcp = "lcsc2fusion.mcp:main"
 
 [tool.setuptools.packages.find]
 include = ["lcsc2fusion*"]
