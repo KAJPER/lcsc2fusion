@@ -109,3 +109,9 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Kontekst: Fusion 9.7 zapisuje sloty natywnie (`<pad drill="0.7" slotLength="1.2" shape="slot" rot="R90">`), zamiast frezowania na warstwie 46, które było naszym obejściem.
 - Wybór: domyślnie `native_slots=True`. Biblioteka ze slotami dostaje nagłówek 9.7.0, bez slotów zostaje 9.6.2. `native_slots=False` daje stare frezowanie. `drill` to szerokość slotu, `slotLength` długość całkowita (zgodnie z EasyEDA `hole_length`), `rot` to kierunek osi długiej.
 - Powód: to dokładnie forma zapisywana przez Fusiona. Ryzyko: semantyka `slotLength` (całkowita czy między środkami) nie jest udokumentowana. Brama 1 importuje obie wersje osobno.
+
+## D-019 Auto-dopasowanie korpusu symbolu do nazw pinów (ACCEPTED, kalibracja do potwierdzenia)
+
+- Kontekst: w Bramie 1 nazwy pinów rysowane przez Eagle wewnątrz korpusu nakładały się (np. SOIC-8, USB-C, QFN). Źródłowe korpusy EasyEDA są dobrane do jego drobnej czcionki. Eagle zaczyna nazwę pinu około 2,3 mm w głąb korpusu, a znak ma około 1,35 mm szerokości (pomiar na zrzucie użytkownika, korpus 10,16 mm i piny 2,54 mm dają skalę).
+- Wybór: `parser/symbol_fit.py` powiększa prostokątny korpus (tylko w górę, w krokach 2,54 mm, piny jadą razem z krawędzią), gdy nazwy przeciwległych pinów w tym samym wierszu lub kolumnie się nie mieszczą. Pomija symbole o 2 pinach lub mniej (writer ukrywa im nazwy) i korpusy nieprostokątne. Stała kalibracji są na górze modułu. `parse_part(fit_symbols=False)` wyłącza to dla testów wierności względem źródła.
+- Powód: czytelność we Fusionie bez zmiany pozycji pinów wzdłuż krawędzi. Z 24 realnych części zmieniają się 3 (kryształ C13738, USB-C C165948, NE555DR C7593). D-016 zostaje prawdziwe, bo wzrost jest w krokach siatki 2,54 mm.

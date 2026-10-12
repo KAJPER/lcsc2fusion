@@ -82,7 +82,7 @@ from lcsc2fusion.parser.svgpath import (
 )
 from lcsc2fusion.parser.units import Transform
 
-__all__ = ["parse_symbol_units", "symbol_prefix"]
+__all__ = ["build_name_value_labels", "parse_symbol_units", "symbol_prefix"]
 
 DEFAULT_PREFIX = "U"
 
@@ -450,7 +450,7 @@ class _UnitBuilder:
         if not self.raw_pins:
             raise ParseError(f"Symbol {self.name} has no pins")
         pins = self._finish_pins()
-        graphics = [*self.graphics, *self._labels(pins)]
+        graphics = [*self.graphics, *build_name_value_labels(self.graphics, pins)]
         return Symbol(self.name, tuple(pins), tuple(graphics))
 
     # -- helpers ------------------------------------------------------------------------------
@@ -655,34 +655,6 @@ class _UnitBuilder:
         if repeated:
             self._warn(f"repeated pin numbers: {', '.join(repeated)}")
 
-    # -- labels -------------------------------------------------------------------------------
-
-    def _labels(self, pins: Sequence[Pin]) -> list[Label]:
-        xs, ys = _graphics_extent(self.graphics)
-        pin_xs = [p.x for p in pins]
-        pin_ys = [p.y for p in pins]
-        left = min(xs) if xs else min(pin_xs)
-        top = max([*ys, *pin_ys])
-        bottom = min([*ys, *pin_ys])
-        return [
-            Label(
-                round(left, 6),
-                round(top + _LABEL_GAP_MM, 6),
-                _NAME_TEXT,
-                LABEL_SIZE_SYMBOL_MM,
-                Layer.NAMES,
-                align=TextAlign.BOTTOM_LEFT,
-            ),
-            Label(
-                round(left, 6),
-                round(bottom - _LABEL_GAP_MM, 6),
-                _VALUE_TEXT,
-                LABEL_SIZE_SYMBOL_MM,
-                Layer.VALUES,
-                align=TextAlign.TOP_LEFT,
-            ),
-        ]
-
 
 def _wire_extent_points(wire: Wire) -> list[tuple[float, float]]:
     """Endpoints of a wire plus samples along its arc when it is curved."""
@@ -721,6 +693,39 @@ def _graphics_extent(graphics: Sequence[Graphic]) -> tuple[list[float], list[flo
         elif isinstance(g, Polygon):
             points.extend((p.x, p.y) for p in g.points)
     return [p[0] for p in points], [p[1] for p in points]
+
+
+def build_name_value_labels(graphics: Sequence[Graphic], pins: Sequence[Pin]) -> list[Label]:
+    """``>NAME`` (above) and ``>VALUE`` (below) labels for a symbol.
+
+    Both sit at the left edge of the graphics bounding box. ``graphics`` are the symbol graphics
+    without labels; the Y position clears them and the pin connection points, so the labels do
+    not collide with pins on the top or bottom edge. Shared by the parser and by symbol fitting.
+    """
+    xs, ys = _graphics_extent(graphics)
+    pin_xs = [p.x for p in pins]
+    pin_ys = [p.y for p in pins]
+    left = min(xs) if xs else min(pin_xs)
+    top = max([*ys, *pin_ys])
+    bottom = min([*ys, *pin_ys])
+    return [
+        Label(
+            round(left, 6),
+            round(top + _LABEL_GAP_MM, 6),
+            _NAME_TEXT,
+            LABEL_SIZE_SYMBOL_MM,
+            Layer.NAMES,
+            align=TextAlign.BOTTOM_LEFT,
+        ),
+        Label(
+            round(left, 6),
+            round(bottom - _LABEL_GAP_MM, 6),
+            _VALUE_TEXT,
+            LABEL_SIZE_SYMBOL_MM,
+            Layer.VALUES,
+            align=TextAlign.TOP_LEFT,
+        ),
+    ]
 
 
 # ---------------------------------------------------------------------------------------------

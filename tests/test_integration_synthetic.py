@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from lcsc2fusion.constants import GRID_MM
 from lcsc2fusion.lbr_writer import build_library, lint_library
 from lcsc2fusion.model import Part
 from lcsc2fusion.parser.part import parse_part
@@ -27,10 +28,10 @@ GOLDEN_PARTS = ["r0603", "cap0603_arc", "soic8", "qfn16_ep", "usbc_like", "modul
 TOL = 1e-3
 
 
-def _load(name: str) -> tuple[Part, dict[str, Any]]:
+def _load(name: str, *, fit_symbols: bool = True) -> tuple[Part, dict[str, Any]]:
     doc = json.loads((SYNTH / f"{name}.json").read_text(encoding="utf-8"))
     expected = json.loads((SYNTH / f"{name}.expected.json").read_text(encoding="utf-8"))
-    return parse_part(doc), expected
+    return parse_part(doc, fit_symbols=fit_symbols), expected
 
 
 def _rot(value: str | None) -> float:
@@ -93,7 +94,8 @@ def test_holes_in_xml_match_expected(name: str) -> None:
 
 @pytest.mark.parametrize("name", NAMES)
 def test_symbol_pins_in_xml_match_expected(name: str) -> None:
-    part, expected = _load(name)
+    # Source fidelity: symbol fitting (which moves pins on purpose) is switched off here.
+    part, expected = _load(name, fit_symbols=False)
     root = ET.fromstring(build_library([part]))
     symbols = root.findall(".//symbols/symbol")
     assert len(symbols) == expected["unit_count"]
@@ -157,3 +159,49 @@ def test_full_pipeline_golden(name: str) -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
     assert path.exists(), f"missing golden {path.name}; run with UPDATE_GOLDEN=1"
     assert text == path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_fitting_only_moves_pins_outwards_by_whole_grid_steps(name: str) -> None:
+    """Fitted symbols keep pin order, numbers, names and sides; coordinates only move outwards."""
+    plain, _ = _load(name, fit_symbols=False)
+    fitted, _ = _load(name)
+    assert len(plain.symbols) == len(fitted.symbols)
+    for before, after in zip(plain.symbols, fitted.symbols, strict=True):
+        assert before.name == after.name
+        assert [(p.name, p.number, p.angle, p.direction, p.length) for p in before.pins] == [
+            (p.name, p.number, p.angle, p.direction, p.length) for p in after.pins
+        ]
+        for old, new in zip(before.pins, after.pins, strict=True):
+            dx, dy = new.x - old.x, new.y - old.y
+            # The position along the edge never changes, the other coordinate moves outwards.
+            outward = {
+                0: (-dx, dy),  # left pin: x decreases
+                180: (dx, dy),  # right pin: x increases
+                270: (dy, dx),  # top pin: y increases
+                90: (-dy, dx),  # bottom pin: y decreases
+            }[old.angle]
+            shift, along = outward
+            assert abs(along) < 1e-6, f"{name} pin {old.number} moved along its edge"
+            assert shift > -1e-6, f"{name} pin {old.number} moved inwards"
+            steps = shift / GRID_MM
+            assert abs(steps - round(steps)) < 1e-6, f"{name} pin {old.number}: {shift} mm"
+        if before.pins != after.pins:
+            assert any(
+                "body enlarged" in w
+                for w in fitted.warnings
+                if w.startswith(f"Symbol {before.name}:")
+            )
+
+
+def test_fitting_changes_pipeline_output_only_for_symbols_that_do_not_fit() -> None:
+    """Two pin symbols (names hidden), non rectangular bodies and short names stay as they are."""
+    for name in ("r0603", "header1x6", "cap0603_arc", "opamp2", "module_dup"):
+        plain, _ = _load(name, fit_symbols=False)
+        fitted, _ = _load(name)
+        assert plain == fitted, name
+    for name in ("soic8", "qfn16_ep", "usbc_like", "xtal4"):
+        plain, _ = _load(name, fit_symbols=False)
+        fitted, _ = _load(name)
+        assert plain.symbols != fitted.symbols, name
+        assert plain.package == fitted.package, name

@@ -9,6 +9,7 @@ from lcsc2fusion.errors import ParseError, PartNotFoundError
 from lcsc2fusion.model import Part
 from lcsc2fusion.parser.footprint import parse_footprint
 from lcsc2fusion.parser.symbol import parse_symbol_units, symbol_prefix
+from lcsc2fusion.parser.symbol_fit import fit_symbol
 
 
 def _mapping(value: Any, what: str) -> Mapping[str, Any]:
@@ -21,10 +22,13 @@ def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def parse_part(doc: Mapping[str, Any]) -> Part:
+def parse_part(doc: Mapping[str, Any], *, fit_symbols: bool = True) -> Part:
     """Parse the JSON returned by the EasyEDA component endpoint into a Part.
 
     Accepts the top level response (`{"success": ..., "result": {...}}`) or the bare `result`.
+    With `fit_symbols` (default) every symbol body is enlarged where needed so the pin names
+    Eagle draws inside it do not overlap (see parser/symbol_fit.py); pass False to keep the
+    source geometry exactly.
     """
     doc = _mapping(doc, "component document")
     if doc.get("success") is False:
@@ -53,6 +57,10 @@ def parse_part(doc: Mapping[str, Any]) -> Part:
     base_name = mpn or lcsc_id or "PART"
 
     symbols, symbol_warnings = parse_symbol_units(result, base_name=base_name)
+    if fit_symbols:
+        fitted = [fit_symbol(symbol) for symbol in symbols]
+        symbols = [symbol for symbol, _ in fitted]
+        symbol_warnings = symbol_warnings + [note for _, notes in fitted for note in notes]
     package, package_warnings = parse_footprint(package_detail)
 
     attributes: list[tuple[str, str]] = []
