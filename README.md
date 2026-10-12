@@ -8,7 +8,7 @@ with a search palette, in the spirit of SnapEDA.
 Status: the converter core is covered by offline tests (2000+). Confirmed by hand in Fusion
 Electronics: libraries generated from synthetic parts import cleanly (pads, slots, arcs, symbols,
 multi gate parts) and the placed 3D model lines up with the footprint for three real parts. The add-in
-palette itself still needs its manual run, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
+window still needs its manual run, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
 
 ## Install (development)
 
@@ -54,8 +54,11 @@ python scripts/build_addin.py          # creates dist/LCSC2Fusion and dist/LCSC2
 ```
 
 Unpack `LCSC2Fusion` into `%APPDATA%\Autodesk\FusionAddins\` (or add the folder with the green plus
-in Scripts and Add-Ins), start the add-in, and open the LCSC2Fusion palette. Search, press
-"Add to library", and follow the status message. See [addin/README.md](addin/README.md) and
+in Scripts and Add-Ins) and run it. The UI opens in a separate browser window (Edge or Chrome in app
+mode, served locally by the add-in), so it stays open when Fusion switches environment, for example
+when a library opens in the Electronics editor. The LCSC2Fusion button is in Utilities > ADD-INS of
+the Design, Schematic, Board and Library environments. Search, press "Add to library", and follow
+the status message. See [addin/README.md](addin/README.md) and
 [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
 
 ## How it works

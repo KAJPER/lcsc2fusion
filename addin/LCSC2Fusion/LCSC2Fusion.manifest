@@ -7,7 +7,7 @@
         "": "Search LCSC parts and add them to a Fusion Electronics library. Symbols and footprints come from the JLCEDA/EasyEDA Official Library. Unofficial tool for personal use."
     },
     "version": "0.1.0",
-    "runOnStartup": false,
+    "runOnStartup": true,
     "supportedOS": "windows|mac",
     "editEnabled": true,
     "iconFilename": "AddInIcon.svg"

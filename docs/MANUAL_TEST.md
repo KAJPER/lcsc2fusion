@@ -55,26 +55,6 @@ Plik: `docs/manual_test/synthetic_all.lbr` (18 części syntetycznych). Rendery 
   inwersji i znaczniki zegara tam, gdzie render je pokazuje (`C9000005`).
 - [ ] Odnotuj, czy Fusion zgłasza ostrzeżenia ERC "off grid" dla pinów (D-016) i dla których części.
 
-## Brama 2: add-in
-
-Instalacja: rozpakuj `dist/LCSC2Fusion.zip` do `%APPDATA%\Autodesk\FusionAddins\` tak, żeby istniał
-plik `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest`. W Fusion: Shift+S, zakładka
-Add-Ins, uruchom `LCSC2Fusion` (opcjonalnie zaznacz "Run on Startup").
-
-- [ ] Add-in startuje bez okna z błędem. W Utilities > Add-Ins jest przycisk LCSC2Fusion i otwiera paletę.
-- [ ] Wpisz `C2040` i Search: lista ma jeden wynik (RP2040, obudowa QFN-56).
-- [ ] Wpisz `100nF 0603` i Search: lista wyników z kolumnami id, MPN, producent, obudowa, typ.
-- [ ] "Add to library" przy RP2040: status "ok", w `%USERPROFILE%\LCSC2Fusion\libraries\C2040.lbr`
-  powstaje plik, w palecie są przyciski "Open in Fusion Electronics" i "Open folder".
-- [ ] "Open in Fusion Electronics": biblioteka otwiera się w edytorze. Jeśli nie, paleta pokazuje kroki
-  ręczne (File > Open > Open from my computer, potem File > Save). Zapisz, które z dwóch zaszło.
-- [ ] Po zapisie do projektu biblioteka jest w Library Manager, a RP2040 da się umieścić w schemacie.
-- [ ] Porównaj footprint RP2040 w Fusionie z `python -m lcsc2fusion C2040 --render -o out`
-  (plik `out/C2040_footprint.png`) i z podglądem w EasyEDA: 56 padów na obwodzie plus pad 57 w środku.
-- [ ] Błędny numer `C1` lub `C0`: czytelny komunikat, add-in dalej działa.
-- [ ] Odłącz sieć i wyszukaj: czytelny komunikat o błędzie sieci, bez zawieszenia Fusiona.
-- [ ] Zatrzymaj i uruchom add-in ponownie: palety nie ma dwa razy, brak błędów w Text Commands.
-
 ## Brama 3: modele 3D
 
 Status: PRZESZŁA (2026-10-12). `<id>.placed.step` leży poprawnie na footprincie dla C25804, C2040 i
@@ -96,6 +76,36 @@ python -m lcsc2fusion <id> --3d -o out
 
 Jeśli model jest przesunięty lub obrócony, wklej mi: id części, zrzut oraz zawartość `<id>.3d.json`
 (pole `placement`, w tym `placement_source`).
+
+## Brama 4: add-in w osobnym oknie (D-022)
+
+Brama 2 (paleta w Fusionie) jest zastąpiona tą. Paleta znikała przy każdej zmianie środowiska.
+
+Instalacja: rozpakuj `dist\LCSC2Fusion.zip` do `%APPDATA%\Autodesk\FusionAddins\` (nadpisz stary folder),
+w Fusionie Shift+S > Add-Ins > `LCSC2Fusion` > Run. Zaznacz "Run on Startup".
+
+- [ ] Po Run otwiera się osobne okno (Edge lub Chrome bez paska adresu) z formularzem wyszukiwania i
+  statusem "Ready. Libraries are saved to ...". Brak banera rozłączenia.
+- [ ] W oknie Text Commands (klawisz `S`, "Text Commands") są linie `button: ... -> added|exists|missing`.
+  Wklej je do rozmowy, zwłaszcza te z `missing` lub `failed` i linie `relatedWorkspaces`.
+- [ ] Przycisk LCSC2Fusion jest w Utilities > ADD-INS w Design, Schematic, Board i Library
+  (zapisz, w których go brakuje).
+- [ ] Wyszukaj `C2040`: jeden wynik (RP2040). Wyszukaj `100nF 0603`: lista z kolumnami.
+- [ ] "Add to library" przy RP2040: status Saved, plik w `%USERPROFILE%\LCSC2Fusion\libraries\C2040.lbr`.
+- [ ] "Open in Fusion Electronics": biblioteka otwiera się w edytorze, a OKNO ZOSTAJE otwarte i dalej
+  działa (to jest cała zmiana). Jeśli komenda nie zadziała, okno pokazuje kroki ręczne. Zapisz, co się stało.
+- [ ] Przełącz się między Design, Schematic, Board i Library: okno nie znika, przycisk jest dostępny.
+- [ ] Kliknij przycisk LCSC2Fusion, gdy okno już jest: istniejące okno wychodzi na wierzch, nie powstaje
+  drugie. Zamknij okno krzyżykiem i kliknij przycisk: otwiera się nowe.
+- [ ] Zaznacz "Include 3D model (STEP)", dodaj `C25804`: pliki STEP leżą obok `.lbr`, karta pokazuje kroki.
+- [ ] Stop add-inu (Shift+S > Stop): okno zamyka się samo.
+- [ ] Zamknij i uruchom ponownie Fusion (z "Run on Startup"): przyciski są od razu, okno otwiera się
+  dopiero po kliknięciu.
+- [ ] Brak błędów w Text Commands i w `%LOCALAPPDATA%\Autodesk\Autodesk Fusion 360\<userId>\logs\AppLogFile*.log`
+  (szukaj `LCSC2Fusion`).
+
+Wynik zapiszemy jako D-023: który mechanizm otwierania biblioteki zostaje, które przyciski działają i czy
+usuwamy tryb palety (`LCSC2FUSION_UI=palette`).
 
 ## Co wkleić, jeśli coś nie działa
 

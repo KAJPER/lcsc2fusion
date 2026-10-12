@@ -285,6 +285,21 @@ button.link {
   border-radius: 4px;
 }
 
+/* Connection banner (http-bridge.js, separate browser window only) ----------------------- */
+
+.conn-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: -12px -12px 10px;
+  padding: 8px 12px;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-bottom: 1px solid var(--warn);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /* Results: one card per part, built from real table elements (roles set in the HTML) ---- */
 
 .results-table,

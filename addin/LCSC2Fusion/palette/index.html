@@ -9,6 +9,9 @@
 </head>
 <body>
   <main id="app" aria-busy="false">
+    <!-- Filled by http-bridge.js (separate browser window only) when the link to Fusion is lost. -->
+    <div id="conn-banner" class="conn-banner" role="status" aria-live="polite" hidden></div>
+
     <header class="app-header">
       <h1>LCSC2Fusion</h1>
       <p class="subtitle">Find an LCSC part and add its symbol and footprint to Fusion Electronics.</p>
@@ -98,6 +101,7 @@
   </template>
 
   <script src="mock-bridge.js"></script>
+  <script src="http-bridge.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

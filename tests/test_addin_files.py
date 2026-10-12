@@ -99,7 +99,7 @@ def test_names_are_consistent_and_manifest_is_valid() -> None:
     manifest = json.loads((ADDIN_DIR / f"{name}.manifest").read_text(encoding="utf-8"))
     assert manifest["autodeskProduct"] == "Fusion"
     assert manifest["type"] == "addin"
-    assert manifest["runOnStartup"] is False
+    assert manifest["runOnStartup"] is True  # the buttons must exist after every Fusion start
     assert manifest["editEnabled"] is True
     assert manifest["supportedOS"] == "windows|mac"
     assert isinstance(manifest["description"], dict)
@@ -297,14 +297,14 @@ def test_mock_is_inert_in_fusion() -> None:
 def test_html_references_existing_local_files_only() -> None:
     html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
     references = re.findall(r'(?:src|href)="([^"]+)"', html)
-    assert {"style.css", "app.js", "mock-bridge.js"} <= set(references)
+    assert {"style.css", "app.js", "mock-bridge.js", "http-bridge.js"} <= set(references)
     for reference in references:
         assert not re.match(r"[a-z]+://", reference), f"external resource: {reference}"
         assert (PALETTE_DIR / reference).is_file(), reference
 
 
 def test_no_external_urls_in_scripts_and_styles() -> None:
-    for name in ("app.js", "mock-bridge.js", "style.css"):
+    for name in ("app.js", "mock-bridge.js", "http-bridge.js", "style.css"):
         text = (PALETTE_DIR / name).read_text(encoding="utf-8")
         assert not re.search(r"https?://", text), name
         assert "@import" not in text
@@ -419,6 +419,130 @@ def test_css_supports_both_color_schemes() -> None:
     assert ":focus-visible" in css
 
 
+# Separate browser window: http-bridge.js and the connection banner -----------------------------
+
+
+def js_code(name: str) -> str:
+    """A palette script without comments, so that the checks do not trip over prose."""
+    text = (PALETTE_DIR / name).read_text(encoding="utf-8")
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return re.sub(r"(?m)^\s*//.*$|(?<=\s)//.*$", "", text)
+
+
+def test_html_loads_the_http_bridge_after_the_mock_and_before_app_js() -> None:
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    scripts = re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', html)
+    assert scripts == ["mock-bridge.js", "http-bridge.js", "app.js"]
+
+
+def test_html_has_no_inline_scripts_styles_or_event_handlers() -> None:
+    # The window is served with CSP default-src 'self': any of these would be blocked.
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    for match in re.finditer(r"<script\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE):
+        assert match.group(1).strip() == ""
+    for tag, attrs in parse_html().tags:
+        assert tag != "style"
+        assert "style" not in attrs, f"inline style on <{tag}>"
+        assert not [name for name in attrs if name.startswith("on")], f"event handler on <{tag}>"
+
+
+def test_html_has_the_connection_banner_at_the_top_of_main() -> None:
+    page = parse_html()
+    found = page.find("conn-banner")
+    assert found is not None, "#conn-banner is missing"
+    tag, attrs = found
+    assert tag == "div"
+    assert attrs["class"] == "conn-banner"
+    assert attrs["role"] == "status"
+    assert attrs["aria-live"] == "polite"
+    assert "hidden" in attrs  # shown only by http-bridge.js
+    main_index = [name for name, _ in page.tags].index("main")
+    assert page.tags[main_index + 1][1].get("id") == "conn-banner"
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    assert re.search(r'<div id="conn-banner"[^>]*></div>', html)  # the text is set by the script
+
+
+def test_http_bridge_installs_only_for_http_pages_without_adsk() -> None:
+    code = js_code("http-bridge.js")
+    guard = r"if \(window\.location\.protocol !== 'http:' \|\| window\.adsk\) return;"
+    assert re.search(guard, code)
+    # the guard comes before anything is installed
+    assert code.index("return;") < code.index("window.adsk =")
+    assert code.index("return;") < code.index("new EventSource")
+
+
+def test_http_bridge_is_csp_clean_and_writes_text_only() -> None:
+    raw = (PALETTE_DIR / "http-bridge.js").read_text(encoding="utf-8")
+    assert not re.search(r"https?://", raw)
+    code = js_code("http-bridge.js")
+    for forbidden in (
+        "eval(",
+        "new Function",
+        "innerHTML",
+        "outerHTML",
+        "insertAdjacentHTML",
+        "document.write",
+        "localStorage",
+        "sessionStorage",
+        "indexedDB",
+    ):
+        assert forbidden not in code, forbidden
+    assert not re.search(r"setTimeout\(\s*['\"`]", code)  # no string timers
+    assert "'use strict'" in code
+    assert code.count("textContent") >= 2  # the banner text is set (and cleared) as text
+
+
+def test_http_bridge_talks_to_the_documented_endpoints_only() -> None:
+    code = js_code("http-bridge.js")
+    assert set(re.findall(r"'(/[a-z/]+)'", code)) == {"/api/act", "/api/events", "/api/ping"}
+    assert "method: 'POST'" in code
+    assert "'Content-Type': 'application/json'" in code
+    assert "'X-LCSC': '1'" in code
+    assert code.count("credentials: 'same-origin'") == 2  # the POST and the ping probe
+    assert "new EventSource(EVENTS_URL)" in code
+    assert "AbortController" in code
+
+
+def test_http_bridge_handles_the_shutdown_action_that_the_page_does_not_know() -> None:
+    code = js_code("http-bridge.js")
+    assert "ACTION_SHUTDOWN = 'shutdown'" in code
+    assert "window.close()" in code
+    app = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    assert "shutdown" not in js_action_pairs(app, "FROM_PYTHON").values()
+
+
+def test_http_bridge_leaves_the_pages_handler_and_the_mock_alone() -> None:
+    code = js_code("http-bridge.js")
+    assert not re.search(r"fusionJavaScriptHandler\s*=[^=]", code)  # app.js defines it
+    assert "LcscMock" not in code
+    assert set(re.findall(r"window\.([A-Za-z_]\w*)\s*=[^=]", code)) == {"adsk"}
+    assert "'__lcscHttpBridge'" in code  # the read only test hook
+
+
+def test_http_bridge_sticks_to_es2019_syntax() -> None:
+    code = js_code("http-bridge.js")
+    for pattern in (
+        r"\?\.",
+        r"\?\?",
+        r"\.replaceAll\(",
+        r"\.at\(",
+        r"allSettled",
+        r"Promise\.any",
+        r"\bBigInt\b",
+    ):
+        assert not re.search(pattern, code), pattern
+
+
+def test_connection_banner_is_styled_with_the_theme_variables() -> None:
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    match = re.search(r"\.conn-banner \{(.*?)\}", css, re.DOTALL)
+    assert match is not None
+    block = match.group(1)
+    assert "var(--warn)" in block
+    assert "var(--warn-bg)" in block
+    assert "#" not in block  # no hard coded colour, so both themes work
+
+
 # Build script --------------------------------------------------------------------------------
 
 
@@ -465,6 +589,7 @@ def test_build_produces_folder_and_zip_with_expected_members(
         "LCSC2Fusion/palette/app.js",
         "LCSC2Fusion/palette/style.css",
         "LCSC2Fusion/palette/mock-bridge.js",
+        "LCSC2Fusion/palette/http-bridge.js",
         "LCSC2Fusion/resources/16x16.png",
         "LCSC2Fusion/lcsc2fusion/__init__.py",
         "LCSC2Fusion/lcsc2fusion/model.py",

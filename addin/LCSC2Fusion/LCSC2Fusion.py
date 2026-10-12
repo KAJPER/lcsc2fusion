@@ -2,17 +2,28 @@
 
 Fusion calls `run(context)` when the add-in starts and `stop(context)` when it ends. Everything
 else lives in sibling modules; this file only prepares `sys.path`, builds the UI through
-`fusion_adapter` and reports failures.
+`fusion_adapter` and reports failures. When Fusion starts the add-in at application startup
+(`runOnStartup`) only the toolbar buttons and the local server are set up, no window is shown.
 """
 
 from __future__ import annotations
 
+import json
 import sys
 import traceback
 from pathlib import Path
 from typing import Any
 
 ADDIN_DIR = Path(__file__).resolve().parent
+
+# Modules of this folder that stop() unloads, so that stop followed by run picks up edited sources.
+ADDIN_MODULES = (
+    "fusion_adapter",
+    "core_service",
+    "controller",
+    "http_transport",
+    "browser_window",
+)
 
 _app: Any = None  # fusion_adapter.AddinApp while the add-in runs
 
@@ -36,10 +47,27 @@ def _prepare_import_path() -> None:
 def _forget_modules() -> None:
     """Drop our modules so that stop followed by run picks up edited sources."""
     for name in list(sys.modules):
-        if name in ("fusion_adapter", "core_service", "controller") or name.startswith(
-            "lcsc2fusion"
-        ):
+        if name in ADDIN_MODULES or name.startswith("lcsc2fusion"):
             del sys.modules[name]
+
+
+def should_show_window(context: Any) -> bool:
+    """False when Fusion started the add-in at application startup (run on startup).
+
+    `context` is a JSON string such as `{"IsApplicationStartup": true}`. Anything unexpected
+    (no JSON, other types, a missing key) counts as a manual run: the window is shown.
+    """
+    if isinstance(context, (str, bytes, bytearray)):
+        try:
+            context = json.loads(context)
+        except ValueError:
+            return True
+    if not isinstance(context, dict):
+        return True
+    startup = context.get("IsApplicationStartup", False)
+    if isinstance(startup, str):
+        startup = startup.strip().lower() == "true"
+    return startup is not True
 
 
 def _report(where: str) -> bool:
@@ -60,7 +88,7 @@ def run(context: Any) -> None:
         import fusion_adapter
 
         _app = fusion_adapter.AddinApp(ADDIN_DIR)
-        _app.start()
+        _app.start(should_show_window(context))
     except Exception:  # boundary with Fusion: report with a traceback instead of failing silently
         reported = _report("start")
         if _app is not None:
