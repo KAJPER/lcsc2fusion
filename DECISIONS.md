@@ -159,3 +159,9 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Błąd: model leżał na boku. Przyczyna: obrót jak u SnapEDA ((x,y,z) na (x,-z,y)) kompensuje ICH pliki STEP, a nasz `placed.step` ma już Z w górę i początek w początku footprintu (ręczne podłączenie w Bramie 3 działało bez obrotu). Poprawka: `STEP_IMPORT_TURN_RAD = 0.0`, import zostawiamy bez transformacji (obrót SnapEDA zostaje jako nazwana stała `SNAPEDA_TURN_RAD`).
 - Do obserwacji: modalny błąd Fusiona "Can't rename ... .flbr.~~~ to ... .flbr.lbr, Error code: 5" (odmowa dostępu) pojawił się raz, około 70 s po pierwszym zapisie nowej biblioteki, w trakcie importu STEP (po zdarzeniach "WipContentAvailable" dla biblioteki). Wygląda na wyścig Fusiona między odświeżeniem lokalnej kopii świeżo wysłanej biblioteki a otwartym dokumentem Electronics. Nie występował w żadnym wcześniejszym logu (SnapEDA). Przepływ po nim kontynuował, a użytkownik zamknął okno błędu. Sprawdzamy, czy wraca przy kolejnych częściach (biblioteka już istnieje) i przy ponownym 3D dla tej samej części.
 - Import STEP trwa około 53 s dla 1 MB pliku (rezystor 0603, 12 tysięcy encji). To czas Fusiona, nie naszego kodu.
+
+## D-027 Brama 5 przeszła (2026-10-13)
+
+- Użytkownik potwierdził po poprawce obrotu (D-026), że przepływ działa: zbiorcza "LCSC2Fusion Library" w Hubie, dodawanie kolejnych części do tej samej biblioteki i pakiet 3D otwierany z modelem do zatwierdzenia. Decyzje D-022, D-024 i D-025 są więc zweryfikowane we Fusionie (D-024 i D-025 poza dwiema obserwacjami niżej).
+- Nie sprawdzone osobno i zostają do obserwacji: czy ikona okna pojawia się też na pasku zadań Windows (plan awaryjny: skrót `.lnk` z własną ikoną), czy sporadyczny błąd "Can't rename ... Error code: 5" z D-026 wraca przy kolejnych częściach.
+- Tryb `LCSC2FUSION_UI=palette` (D-022) jest już zbędny i można go usunąć przy najbliższym porządkowaniu.

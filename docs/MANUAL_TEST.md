@@ -109,6 +109,8 @@ usuwamy tryb palety (`LCSC2FUSION_UI=palette`).
 
 ## Brama 5: zbiorcza biblioteka i automatyczne 3D (D-024)
 
+Status: PRZESZŁA (2026-10-13, potwierdzenie użytkownika po poprawce obrotu, D-026 i D-027).
+
 Instalacja: nowa wersja z `dist\LCSC2Fusion.zip` jest już rozpakowana w `%APPDATA%\Autodesk\FusionAddins\`.
 W Fusionie: Shift+S, Add-Ins, `LCSC2Fusion`, Stop, potem Run. Praca Fusiona przy dodawaniu części trwa do około
 minuty (okno pokazuje postęp), więc w tym czasie nie klikaj w Fusionie.

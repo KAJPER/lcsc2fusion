@@ -5,10 +5,11 @@ Eagle `.lbr` library (symbol + footprint) ready to use in Autodesk Fusion Electr
 from the unofficial EasyEDA/LCSC endpoints. It works as a command line tool and as a Fusion add-in
 with a search palette, in the spirit of SnapEDA.
 
-Status: the converter core is covered by offline tests (2000+). Confirmed by hand in Fusion
-Electronics: libraries generated from synthetic parts import cleanly (pads, slots, arcs, symbols,
-multi gate parts) and the placed 3D model lines up with the footprint for three real parts. The add-in
-window still needs its manual run, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
+Status: the converter core is covered by offline tests (3000+) and the whole chain is confirmed by hand in
+Fusion Electronics: generated libraries import cleanly, the add-in window (search, accumulating
+"LCSC2Fusion Library" in the hub, 3D package editor opened with the model in place) works, and the placed 3D
+model lines up with the footprint. Open points: the Windows taskbar icon and a rare Fusion "Can't rename"
+error right after a library is first created, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md) and DECISIONS.md.
 
 ## Install (development)
 
