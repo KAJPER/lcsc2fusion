@@ -92,7 +92,7 @@ w Fusionie Shift+S > Add-Ins > `LCSC2Fusion` > Run. Zaznacz "Run on Startup".
   (zapisz, w których go brakuje).
 - [ ] Wyszukaj `C2040`: jeden wynik (RP2040). Wyszukaj `100nF 0603`: lista z kolumnami.
 - [ ] "Add to library" przy RP2040: status Saved, plik w `%USERPROFILE%\LCSC2Fusion\libraries\C2040.lbr`.
-- [ ] "Open in Fusion Electronics": biblioteka otwiera się w edytorze, a OKNO ZOSTAJE otwarte i dalej
+- [ ] "Open as a separate library" (dawniej "Open in Fusion Electronics"): biblioteka otwiera się w edytorze, a OKNO ZOSTAJE otwarte i dalej
   działa (to jest cała zmiana). Jeśli komenda nie zadziała, okno pokazuje kroki ręczne. Zapisz, co się stało.
 - [ ] Przełącz się między Design, Schematic, Board i Library: okno nie znika, przycisk jest dostępny.
 - [ ] Kliknij przycisk LCSC2Fusion, gdy okno już jest: istniejące okno wychodzi na wierzch, nie powstaje
@@ -106,6 +106,31 @@ w Fusionie Shift+S > Add-Ins > `LCSC2Fusion` > Run. Zaznacz "Run on Startup".
 
 Wynik zapiszemy jako D-023: który mechanizm otwierania biblioteki zostaje, które przyciski działają i czy
 usuwamy tryb palety (`LCSC2FUSION_UI=palette`).
+
+## Brama 5: zbiorcza biblioteka i automatyczne 3D (D-024)
+
+Instalacja: nowa wersja z `dist\LCSC2Fusion.zip` jest już rozpakowana w `%APPDATA%\Autodesk\FusionAddins\`.
+W Fusionie: Shift+S, Add-Ins, `LCSC2Fusion`, Stop, potem Run. Praca Fusiona przy dodawaniu części trwa do około
+minuty (okno pokazuje postęp), więc w tym czasie nie klikaj w Fusionie.
+
+- [ ] Okno ma własną ikonę (niebieski układ scalony) w pasku tytułu i na pasku zadań. Jeśli na pasku zadań
+  nadal jest globus, napisz (zrobimy skrót z własną ikoną).
+- [ ] Część 1 (np. `C25804`, bez 3D, pole "Add to the Fusion library right away" zaznaczone): w oknie kolejne
+  statusy, a w Fusionie powstaje i otwiera się dokument "LCSC2Fusion Library", zapisany w Hubie w katalogu
+  głównym aktywnego projektu. Napisz, w którym projekcie.
+- [ ] Część 2 (np. `C2040`): wchodzi do TEJ SAMEJ biblioteki (nie powstaje druga), w Library Manager są oba
+  komponenty z footprintami, wersja pliku w Data Panel rośnie.
+- [ ] Ta sama część jeszcze raz: komunikat "already there", żadnych okien dialogowych.
+- [ ] Dwie części z tym samym pakietem (np. dwa różne rezystory 0603): bez dialogu nadpisywania. Jeśli dialog
+  się pojawi, zrób zrzut i napisz, co wybrałeś.
+- [ ] Z 3D (zaznacz "Include 3D model (STEP)"): po dodaniu Fusion otwiera edytor pakietu 3D z modelem. Model leży
+  na padach, stoi prosto i jest zwrócony tak jak footprint (to samo kryterium co w Bramie 3). Potem Finish, Save, OK
+  i File > Save biblioteki. Jeśli model jest obrócony lub przesunięty, napisz jak (zrzut).
+- [ ] Przycisk "Add to Fusion library" przy karcie części działa, gdy pole automatyczne jest odznaczone.
+- [ ] Zamknij Fusion i uruchom ponownie: kolejna część dodaje się do tej samej biblioteki (id zapamiętane).
+
+Co wkleić przy błędzie: statusy z okna, linie `LCSC2Fusion` z najnowszego `AppLogFile*.log` (zwłaszcza `merge`,
+`create_3d_package`, `import_step`) i zawartość `%LOCALAPPDATA%\LCSC2Fusion\state.json`. Wynik zapiszemy jako D-026.
 
 ## Co wkleić, jeśli coś nie działa
 

@@ -19,6 +19,8 @@ ADDIN_DIR = Path(__file__).resolve().parent
 # Modules of this folder that stop() unloads, so that stop followed by run picks up edited sources.
 ADDIN_MODULES = (
     "fusion_adapter",
+    "fusion_library_flow",
+    "library_registry",
     "core_service",
     "controller",
     "http_transport",

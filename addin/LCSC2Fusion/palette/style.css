@@ -257,7 +257,8 @@ button.link {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .spinner,
+  .fusion-sending .fusion-head::before {
     animation-duration: 3s;
   }
 }
@@ -432,7 +433,99 @@ button.link {
 .added-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+  margin-top: 6px;
+}
+
+/* Secondary actions of a card (open as a separate library, open folder). */
+.added-actions button.small {
+  padding: 3px 8px;
+  font-size: 0.92rem;
+}
+
+/* State of the part in the accumulating Fusion library --------------------------------------- */
+
+.fusion {
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-left: 3px solid var(--border);
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+
+.fusion-head {
+  font-weight: 700;
+}
+
+.fusion-idle .fusion-head {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fusion-sending {
+  border-left-color: var(--info);
+}
+
+.fusion-sending .fusion-head {
+  color: var(--info);
+}
+
+.fusion-sending .fusion-head::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 2px solid var(--border);
+  border-top-color: var(--info);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.fusion-ok {
+  border-left-color: var(--ok);
+}
+
+.fusion-ok .fusion-head {
+  color: var(--ok);
+}
+
+.fusion-warn {
+  border-left-color: var(--warn);
+}
+
+.fusion-warn .fusion-head {
+  color: var(--warn);
+}
+
+.fusion-fail {
+  color: var(--error);
+  background: var(--error-bg);
+  border-left-color: var(--error);
+}
+
+.fusion-3d {
+  margin-top: 4px;
+}
+
+.fusion-3d-started {
+  color: var(--info);
+  font-weight: 600;
+}
+
+.fusion-3d-problem {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.fusion .fusion-warnings {
+  margin: 4px 0 0;
+}
+
+.option-row + .option-row {
   margin-top: 6px;
 }
 

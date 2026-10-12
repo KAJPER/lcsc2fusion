@@ -592,3 +592,273 @@ def test_the_job_runner_also_drains_the_dispatcher(
     runner.fire()  # a bare fire (used as the dispatcher fallback) runs the extra drain as well
     loop.call(lambda: None)
     assert drained.count("dispatcher") >= 2
+
+
+# MainThreadDispatcher.post: deferred tasks ----------------------------------------------------
+
+
+class Ordered:
+    """A `handle` function and task factory that share one list, to check the run order."""
+
+    def __init__(self) -> None:
+        self.order: list[str] = []
+        self.idents: list[int] = []
+
+    def __call__(self, action: str, data: str) -> str:
+        self.order.append(f"req:{data}")
+        self.idents.append(threading.get_ident())
+        return "ok"
+
+    def task(self, name: str) -> Callable[[], None]:
+        def run() -> None:
+            self.order.append(name)
+            self.idents.append(threading.get_ident())
+
+        return run
+
+
+def make_ordered_dispatcher(
+    fa: ModuleType, app: LoopApp, loop: MainLoop, timeout_s: float = WAIT_S
+) -> tuple[Any, Any, Ordered]:
+    ordered = Ordered()
+    dispatcher, safe_log, _ = make_dispatcher(
+        fa,
+        app,
+        loop,
+        ordered,  # type: ignore[arg-type]  # any callable works as `handle`
+        timeout_s=timeout_s,
+    )
+    return dispatcher, safe_log, ordered
+
+
+def test_post_returns_at_once_and_runs_the_task_on_the_main_thread_later(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop)
+    release = loop.block()  # Fusion is busy (a modal dialog)
+
+    started = time.monotonic()
+    dispatcher.post(ordered.task("t1"))
+
+    assert time.monotonic() - started < 1.0  # nothing waits for the main thread
+    assert ordered.order == []
+    assert app.fired[-1][0] == "test_event"  # the main thread was woken
+    release()
+    loop.call(lambda: None)
+    assert ordered.order == ["t1"]
+    assert ordered.idents == [loop.ident]
+
+
+def test_post_from_the_main_thread_defers_instead_of_running_inline(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop)
+    inline: list[list[str]] = []
+
+    def on_main() -> None:
+        dispatcher.post(ordered.task("t1"))
+        inline.append(list(ordered.order))
+
+    loop.call(on_main)
+    loop.call(lambda: None)  # the event posted by `post` has been handled by now
+
+    assert inline == [[]]
+    assert ordered.order == ["t1"]
+
+
+def test_tasks_and_requests_run_in_the_order_they_were_queued(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop, timeout_s=30)
+    release = loop.block()
+    threads = []
+
+    dispatcher.post(ordered.task("t1"))
+    for name in ("A", "B"):
+        thread = threading.Thread(target=dispatcher.dispatch, args=("act", name), daemon=True)
+        thread.start()
+        threads.append(thread)
+        wait_until(lambda: len(dispatcher._queue) == 2 * len(threads))
+        dispatcher.post(ordered.task(f"after-{name}"))
+    release()
+    for thread in threads:
+        thread.join(WAIT_S)
+
+    wait_until(lambda: len(ordered.order) == 5)
+    assert ordered.order == ["t1", "req:A", "after-A", "req:B", "after-B"]
+
+
+def test_a_failing_task_is_logged_with_its_traceback_and_does_not_stop_the_rest(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop, timeout_s=30)
+    release = loop.block()
+
+    def explode() -> None:
+        raise ValueError("task blew up")
+
+    dispatcher.post(ordered.task("before"))
+    dispatcher.post(explode)
+    dispatcher.post(ordered.task("after"))
+    thread = threading.Thread(target=dispatcher.dispatch, args=("act", "R"), daemon=True)
+    thread.start()
+    wait_until(lambda: len(dispatcher._queue) == 4)
+    release()
+    thread.join(WAIT_S)
+    loop.call(lambda: None)
+
+    assert ordered.order == ["before", "after", "req:R"]
+    failures = [line for line in app.logged if "Deferred task" in line]
+    assert len(failures) == 1
+    assert "explode" in failures[0]
+    assert "ValueError: task blew up" in failures[0]
+    assert "Traceback" in failures[0]
+    assert dispatcher.dispatch("act", "later") == "ok"  # the dispatcher is still alive
+
+
+def test_the_task_queue_is_bounded_separately_from_the_request_queue(
+    fa: ModuleType, app: LoopApp, loop: MainLoop, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fa, "MAX_PENDING_TASKS", 2)
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop, timeout_s=30)
+    release = loop.block()
+    dispatcher.post(ordered.task("t1"))
+    dispatcher.post(ordered.task("t2"))
+
+    with pytest.raises(fa.DispatcherBusyError, match="queued tasks"):
+        dispatcher.post(ordered.task("t3"))
+    assert len(dispatcher._queue) == 2  # the refused task was not kept
+
+    thread = threading.Thread(target=dispatcher.dispatch, args=("act", "R"), daemon=True)
+    thread.start()  # requests are not counted against the task cap
+    wait_until(lambda: len(dispatcher._queue) == 3)
+    release()
+    thread.join(WAIT_S)
+    loop.call(lambda: None)
+    assert ordered.order == ["t1", "t2", "req:R"]
+
+    dispatcher.post(ordered.task("t4"))  # room again once the tasks have run
+    loop.call(lambda: None)
+    assert ordered.order[-1] == "t4"
+
+
+def test_a_stopped_dispatcher_refuses_tasks_and_drops_the_waiting_ones_with_a_log_line(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, safe_log, ordered = make_ordered_dispatcher(fa, app, loop)
+    release = loop.block()
+    dispatcher.post(ordered.task("t1"))
+    dispatcher.post(ordered.task("t2"))
+
+    dispatcher.close()  # no Fusion call needed, works while the main thread is busy
+    with pytest.raises(fa.DispatcherStoppedError):
+        dispatcher.post(ordered.task("t3"))
+    release()
+    loop.call(safe_log.flush)
+    loop.call(lambda: None)
+
+    assert ordered.order == []  # nothing ran after the stop
+    assert any("Dropped 2 queued task(s)" in line for line in app.logged)
+    dispatcher.close()  # idempotent, and silent the second time
+    loop.call(safe_log.flush)
+    assert len([line for line in app.logged if "Dropped" in line]) == 1
+
+
+def test_a_failing_fire_custom_event_takes_the_task_back(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop)
+    app.fire_error = RuntimeError("fusion is closing")
+
+    with pytest.raises(RuntimeError, match="fusion is closing"):
+        dispatcher.post(ordered.task("t1"))
+    assert len(dispatcher._queue) == 0
+    app.fire_error = None
+    loop.call(lambda: None)
+    assert ordered.order == []
+
+
+def test_a_false_return_from_fire_custom_event_wakes_the_task_through_the_fallback(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop)
+    app.fire_result = False
+    app.deliver = False  # the own event never reaches the handler
+    wakes: list[int] = []
+
+    def fallback() -> bool:
+        wakes.append(1)
+        loop.post(dispatcher.drain)  # what the job event's handler does
+        return True
+
+    dispatcher.set_fallback_fire(fallback)
+    dispatcher.post(ordered.task("t1"))
+    wait_until(lambda: ordered.order == ["t1"])
+
+    assert wakes
+    assert ordered.idents == [loop.ident]
+
+
+def test_tasks_posted_from_many_threads_all_run_on_the_main_thread(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop)
+
+    threads, _ = run_in_threads(lambda i: dispatcher.post(ordered.task(f"t{i}")), 12)
+    for thread in threads:
+        thread.join(WAIT_S)
+    wait_until(lambda: len(ordered.order) == 12)
+
+    assert sorted(ordered.order) == sorted(f"t{i}" for i in range(12))
+    assert set(ordered.idents) == {loop.ident}
+
+
+def test_a_drain_inside_a_running_task_serves_requests_but_never_nests_tasks(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    """Fusion may pump its event loop inside a slow task, which runs `drain` again."""
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop, timeout_s=30)
+    replies: list[str] = []
+
+    def slow_task() -> None:
+        ordered.order.append("t1:start")
+        requester = threading.Thread(
+            target=lambda: replies.append(dispatcher.dispatch("act", "R")), daemon=True
+        )
+        requester.start()
+        wait_until(lambda: len(dispatcher._queue) == 1)
+        dispatcher.post(ordered.task("t2"))  # queued behind the request
+        dispatcher.drain()  # Fusion pumped its event loop: serves R, stops at t2
+        ordered.order.append("t1:end")
+        requester.join(WAIT_S)
+
+    dispatcher.post(slow_task)
+    wait_until(lambda: len(ordered.order) == 4)
+    loop.call(lambda: None)
+
+    assert ordered.order == ["t1:start", "req:R", "t1:end", "t2"]
+    assert replies == ["ok"]
+
+
+def test_a_nested_drain_leaves_a_task_at_the_head_of_the_queue_alone(
+    fa: ModuleType, app: LoopApp, loop: MainLoop
+) -> None:
+    dispatcher, _, ordered = make_ordered_dispatcher(fa, app, loop, timeout_s=30)
+    replies: list[str] = []
+
+    def slow_task() -> None:
+        ordered.order.append("t1:start")
+        dispatcher.post(ordered.task("t2"))  # head of the queue
+        requester = threading.Thread(
+            target=lambda: replies.append(dispatcher.dispatch("act", "R")), daemon=True
+        )
+        requester.start()
+        wait_until(lambda: len(dispatcher._queue) == 2)
+        dispatcher.drain()  # stops at t2, so R behind it waits too: the order is kept
+        ordered.order.append("t1:end")
+
+    dispatcher.post(slow_task)
+    wait_until(lambda: len(ordered.order) == 4)
+
+    assert ordered.order == ["t1:start", "t1:end", "t2", "req:R"]
+    wait_until(lambda: replies == ["ok"])

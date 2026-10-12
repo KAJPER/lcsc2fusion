@@ -8,7 +8,7 @@ import hashlib
 import json
 import os
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -95,6 +95,7 @@ def convert_parts(
     client: EasyEdaClient | None = None,
     library_name: str | None = None,
     with_3d: bool = False,
+    part_transform: Callable[[Part], Part] | None = None,
 ) -> ConversionResult:
     """Download parts and write ONE .lbr containing all of them.
 
@@ -105,11 +106,18 @@ def convert_parts(
     attribution) next to the library, and its device gets the technology attribute
     `MODEL3D_STEP=<id>.placed.step`. A missing or unusable model never fails the conversion: the
     part is written without 3D files and `ConversionResult.warnings` says why.
+
+    `part_transform`, when given, is applied to every parsed part before anything is written
+    (3D files, the .lbr and `ConversionResult.parts` all see the transformed part). The Fusion
+    add-in uses it to rename a footprint that would clash with a different one already in its
+    accumulating library. None means no change.
     """
     if not lcsc_ids:
         raise ConversionError("No part ids given")
     client = client or EasyEdaClient()
     parts = tuple(load_part(lcsc_id, client) for lcsc_id in lcsc_ids)
+    if part_transform is not None:
+        parts = tuple(part_transform(part) for part in parts)
     models: list[ModelFiles] = []
     model_warnings: list[str] = []
     if with_3d:

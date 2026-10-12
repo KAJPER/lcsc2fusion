@@ -15,6 +15,7 @@
     ADD: 'add',
     OPEN_FOLDER: 'open_folder',
     OPEN_LIBRARY: 'open_library',
+    ADD_TO_FUSION: 'add_to_fusion',
   });
 
   const FROM_PYTHON = Object.freeze({
@@ -23,23 +24,37 @@
     ADDED: 'added',
     BUSY: 'busy',
     ERROR: 'error',
+    FUSION_DONE: 'fusion_done',
   });
 
   const LEVELS = Object.freeze({ info: 'Info', ok: 'OK', warn: 'Warning', error: 'Error' });
   const BRIDGE_WAIT_MS = 1500;
   const BRIDGE_POLL_MS = 50;
   const MAX_SAVED_ITEMS = 10;
+  const BUSY_TEXT = 'Another request is still running. Please wait for it.';
+  const BUTTON_ADD_TO_FUSION = 'Add to Fusion library';
+  const BUTTON_OPEN_SEPARATE = 'Open as a separate library';
 
-  // The "Include 3D model" choice lives in the checkbox only, so it lasts as long as the palette
-  // page does and nothing is written to browser storage. A part added without 3D can be added
-  // again with 3D, but not twice in the same mode.
+  // The "Include 3D model" and "Add to the Fusion library" choices live in the checkboxes only, so
+  // they last as long as the palette page does and nothing is written to browser storage. A part
+  // added without 3D can be added again with 3D, but not twice in the same mode.
+  //
+  // `fusion` holds what the page knows about the hand-off of each part to the Fusion library, by
+  // LCSC id (the controller remembers only the latest add of an id as well):
+  //   { phase: 'idle' | 'sending' | 'done', result: fusion_done message | null, before: entry | null }
+  // `before` is the entry to go back to when a request is refused.
   const state = {
     busy: false,
     pendingId: null,
+    pendingFusion: false,
     addedIds: new Set(),
     added3dIds: new Set(),
+    fusion: new Map(),
     bridge: null,
   };
+
+  // The parts of a saved library card that change later, kept off the DOM nodes themselves.
+  const cardParts = new WeakMap();
 
   const $ = (id) => document.getElementById(id);
 
@@ -64,6 +79,13 @@
     $('error-box').hidden = false;
     setStatus('error', 'The request failed.');
     state.pendingId = null;
+    state.pendingFusion = false;
+    // A refused hand-off request gets no fusion_done: put its card back (a hand-off that is really
+    // running sends fusion_done later and corrects the card again).
+    state.fusion.forEach((entry, id) => {
+      if (entry.phase === 'sending') state.fusion.set(id, entry.before || { phase: 'idle', result: null });
+    });
+    refreshAllFusion();
     updateAddButtons();
   }
 
@@ -77,12 +99,44 @@
     $('app').setAttribute('aria-busy', String(value));
     $('busy').hidden = !value;
     $('search-button').disabled = value;
-    if (!value) state.pendingId = null;
+    if (!value) {
+      state.pendingId = null;
+      state.pendingFusion = false;
+      settleSendingFusion();
+    }
+    refreshAllFusion();
     updateAddButtons();
+  }
+
+  // The controller sends fusion_done before it clears busy, so a card still "sending" when the
+  // page goes idle never got its answer: say so and offer the button again.
+  function settleSendingFusion() {
+    state.fusion.forEach((entry, id) => {
+      if (entry.phase !== 'sending') return;
+      state.fusion.set(id, {
+        phase: 'done',
+        before: null,
+        result: {
+          lcsc_id: id,
+          ok: false,
+          created_library: false,
+          merged: false,
+          already_present: false,
+          three_d: 'none',
+          library_name: '',
+          message: 'Fusion did not report back. Try again.',
+          warnings: [],
+        },
+      });
+    });
   }
 
   function wants3d() {
     return $('with-3d').checked;
+  }
+
+  function wantsFusion() {
+    return $('to-fusion').checked;
   }
 
   function fileName(path) {
@@ -148,10 +202,26 @@
   function renderAdded(data) {
     state.addedIds.add(data.lcsc_id);
     if (data.with_3d) state.added3dIds.add(data.lcsc_id);
+    const fusionRequested = state.pendingFusion;
     state.pendingId = null;
+    state.pendingFusion = false;
     const hasModel = Boolean(data.step_path || data.placed_step_path);
+    state.fusion.set(data.lcsc_id, {
+      phase: fusionRequested ? 'sending' : 'idle',
+      result: null,
+      before: null,
+    });
 
     const item = el('li', 'added-item');
+    item.dataset.lcsc = data.lcsc_id;
+    const parts = {
+      data: data,
+      fusionBlock: null,
+      fusionButton: null,
+      modelHelp: null,
+      instructions: null,
+    };
+    cardParts.set(item, parts);
     const title = el('p', 'added-title');
     title.appendChild(el('span', null, data.lcsc_id));
     if (data.mpn) title.appendChild(el('span', null, data.mpn));
@@ -170,6 +240,8 @@
       warnings.forEach((warning) => warningList.appendChild(el('li', null, warning)));
       item.appendChild(warningList);
     }
+    parts.fusionBlock = buildFusionBlock();
+    item.appendChild(parts.fusionBlock);
     if (data.with_3d && !hasModel) {
       const missing = el('p', 'model-missing');
       missing.appendChild(el('strong', null, 'No 3D model. '));
@@ -183,27 +255,45 @@
     }
 
     const details = el('details');
-    details.open = !data.opened;
+    details.open = !data.opened && !fusionRequested;
     details.appendChild(el('summary', null, 'How to use it in Fusion'));
     details.appendChild(el('p', null, data.instructions));
     item.appendChild(details);
+    parts.instructions = details;
 
     const actions = el('div', 'added-actions');
-    const libraryButton = el('button', 'primary', 'Open in Fusion Electronics');
+    const fusionButton = el('button', 'primary', BUTTON_ADD_TO_FUSION);
+    fusionButton.type = 'button';
+    fusionButton.dataset.fusion = data.lcsc_id;
+    fusionButton.setAttribute('aria-label', BUTTON_ADD_TO_FUSION + ' for ' + data.lcsc_id);
+    actions.appendChild(fusionButton);
+    parts.fusionButton = fusionButton;
+    const libraryButton = el('button', 'small', BUTTON_OPEN_SEPARATE);
     libraryButton.type = 'button';
     libraryButton.dataset.library = data.path;
+    libraryButton.title = 'Opens only this part as its own library in the Fusion Electronics editor';
     actions.appendChild(libraryButton);
-    const folderButton = el('button', null, 'Open folder');
+    const folderButton = el('button', 'small', 'Open folder');
     folderButton.type = 'button';
     folderButton.dataset.folder = data.path;
     actions.appendChild(folderButton);
     item.appendChild(actions);
-    if (hasModel) item.appendChild(buildModelHelp(data));
+    if (hasModel) {
+      const help = buildModelHelp(data);
+      parts.modelHelp = help.querySelector('.model-help');
+      item.appendChild(help);
+    }
 
+    // An older card of the same part would show a state that no longer applies: the controller
+    // hands over the latest add only, so only the newest card keeps the Fusion controls.
+    Array.from($('added-list').children).forEach((card) => {
+      if (card.dataset.lcsc === data.lcsc_id) retireFusionControls(card);
+    });
     const list = $('added-list');
     list.insertBefore(item, list.firstChild);
     while (list.children.length > MAX_SAVED_ITEMS) list.removeChild(list.lastChild);
     $('added-section').hidden = false;
+    applyFusion(item);
     updateAddButtons();
   }
 
@@ -220,6 +310,136 @@
     if (!data.placed_step_path) help.querySelector('.model-placed-row').remove();
     if (!data.step_path) help.querySelector('.model-raw-row').remove();
     return help;
+  }
+
+  // Fusion library state of a card ----------------------------------------------------------------
+
+  function buildFusionBlock() {
+    const block = el('div', 'fusion fusion-idle');
+    const line = el('p', 'fusion-line');
+    line.appendChild(el('strong', 'fusion-head'));
+    line.appendChild(document.createTextNode(' '));
+    line.appendChild(el('span', 'fusion-detail'));
+    block.appendChild(line);
+    block.appendChild(el('p', 'fusion-3d'));
+    block.appendChild(el('ul', 'warnings fusion-warnings'));
+    return block;
+  }
+
+  function threeDLine(result, warnings) {
+    // The flow words a failed 3D step as a warning that starts with "3D:"; show it here once.
+    const own = warnings.findIndex((text) => text.indexOf('3D: ') === 0);
+    const reason = own >= 0 ? warnings[own].slice(4) : 'see the warnings below.';
+    const rest = own >= 0 ? warnings.filter((text, index) => index !== own) : warnings;
+    if (result.three_d === 'started') {
+      return {
+        kind: 'started',
+        rest: rest,
+        text: '3D package opened: check the model position, then Finish, Save, OK in Fusion.',
+      };
+    }
+    if (result.three_d === 'failed') return { kind: 'problem', rest: rest, text: '3D failed: ' + reason };
+    if (result.three_d === 'skipped') return { kind: 'problem', rest: rest, text: '3D skipped: ' + reason };
+    return { kind: 'none', rest: warnings, text: '' };
+  }
+
+  // What a card says about its part and the Fusion library, from the entry in state.fusion.
+  function describeFusion(entry) {
+    const view = { kind: 'idle', head: 'Not in the Fusion library yet.', detail: '', threeD: null, warnings: [] };
+    if (entry.phase === 'sending') {
+      view.kind = 'sending';
+      view.head = 'Sending to Fusion...';
+      view.detail = 'Fusion may not respond for up to a minute.';
+      return view;
+    }
+    const result = entry.result;
+    if (entry.phase !== 'done' || !result) return view;
+    const warnings = Array.isArray(result.warnings) ? result.warnings.map(String) : [];
+    if (!result.ok) {
+      view.kind = 'fail';
+      view.detail = result.message || '';
+      view.head = 'Not added to the Fusion library' + (view.detail ? ':' : '.');
+      view.warnings = warnings;
+      return view;
+    }
+    view.head = 'In ' + (result.library_name || 'the Fusion library') + ':';
+    if (result.already_present) view.detail = 'already there, not added again.';
+    else if (result.created_library) view.detail = 'created the library with this part.';
+    else if (result.merged) view.detail = 'added to the library.';
+    else view.detail = 'saved.';
+    const threeD = threeDLine(result, warnings);
+    view.threeD = threeD.kind === 'none' ? null : threeD;
+    view.warnings = threeD.rest;
+    view.kind = threeD.kind === 'problem' || threeD.rest.length > 0 ? 'warn' : 'ok';
+    return view;
+  }
+
+  // Writes the state of one card into its DOM (text only).
+  function applyFusion(card) {
+    const parts = cardParts.get(card);
+    if (!parts || !parts.fusionBlock) return;
+    const entry = state.fusion.get(parts.data.lcsc_id) || { phase: 'idle', result: null, before: null };
+    const view = describeFusion(entry);
+    const block = parts.fusionBlock;
+    block.className = 'fusion fusion-' + view.kind;
+    block.querySelector('.fusion-head').textContent = view.head;
+    block.querySelector('.fusion-detail').textContent = view.detail;
+
+    const threeD = block.querySelector('.fusion-3d');
+    threeD.hidden = !view.threeD;
+    threeD.className = 'fusion-3d' + (view.threeD ? ' fusion-3d-' + view.threeD.kind : '');
+    threeD.textContent = view.threeD ? view.threeD.text : '';
+
+    const list = block.querySelector('.fusion-warnings');
+    list.replaceChildren();
+    view.warnings.forEach((text) => list.appendChild(el('li', null, text)));
+    list.hidden = view.warnings.length === 0;
+
+    const button = parts.fusionButton;
+    const inLibrary = view.kind === 'ok' || view.kind === 'warn';
+    button.hidden = inLibrary;
+    button.disabled = state.busy || view.kind === 'sending';
+    button.textContent = view.kind === 'sending' ? 'Sending...' : BUTTON_ADD_TO_FUSION;
+
+    // The manual 3D steps are the fallback: not while Fusion is working on it, and not when it
+    // already opened the 3D package. They open by themselves when the hand-off went wrong.
+    if (parts.modelHelp) {
+      const started = Boolean(view.threeD && view.threeD.kind === 'started');
+      parts.modelHelp.hidden = view.kind === 'sending' || started;
+      if (view.kind === 'fail' || (view.threeD && view.threeD.kind === 'problem')) {
+        parts.modelHelp.open = true;
+      }
+    }
+    if (parts.instructions && view.kind === 'fail') parts.instructions.open = true;
+  }
+
+  function retireFusionControls(card) {
+    const parts = cardParts.get(card);
+    if (!parts) return;
+    if (parts.fusionBlock) parts.fusionBlock.remove();
+    if (parts.fusionButton) parts.fusionButton.remove();
+    parts.fusionBlock = null;
+    parts.fusionButton = null;
+    // its text points at a button this card no longer has
+    if (parts.instructions) parts.instructions.open = false;
+  }
+
+  function latestCard(lcscId) {
+    return Array.from($('added-list').children).find((card) => card.dataset.lcsc === lcscId) || null;
+  }
+
+  function refreshFusion(lcscId) {
+    const card = latestCard(lcscId);
+    if (card) applyFusion(card);
+  }
+
+  function refreshAllFusion() {
+    Array.from($('added-list').children).forEach(applyFusion);
+  }
+
+  function applyFusionDone(data) {
+    state.fusion.set(data.lcsc_id, { phase: 'done', result: data, before: null });
+    refreshFusion(data.lcsc_id);
   }
 
   // Messages from Python --------------------------------------------------------------------
@@ -247,6 +467,9 @@
         break;
       case FROM_PYTHON.ERROR:
         showError(data.message);
+        break;
+      case FROM_PYTHON.FUSION_DONE:
+        applyFusionDone(data);
         break;
       default:
         return 'Unexpected action: ' + action;
@@ -303,13 +526,38 @@
 
   function requestAdd(lcscId) {
     if (state.busy) {
-      setStatus('warn', 'Another request is still running. Please wait for it.');
+      setStatus('warn', BUSY_TEXT);
       return;
     }
     clearError();
     state.pendingId = lcscId;
+    state.pendingFusion = wantsFusion();
     updateAddButtons();
-    send(TO_PYTHON.ADD, { lcsc_id: lcscId, with_3d: wants3d() });
+    send(TO_PYTHON.ADD, { lcsc_id: lcscId, with_3d: wants3d(), fusion: wantsFusion() });
+  }
+
+  // The "Add to Fusion library" button of a saved card: the controller reuses the files of the
+  // latest add of this part (and its 3D choice), so the request carries the id only.
+  function requestAddToFusion(lcscId) {
+    if (state.busy) {
+      setStatus('warn', BUSY_TEXT);
+      return;
+    }
+    clearError();
+    state.fusion.set(lcscId, {
+      phase: 'sending',
+      result: null,
+      before: state.fusion.get(lcscId) || null,
+    });
+    refreshFusion(lcscId);
+    send(TO_PYTHON.ADD_TO_FUSION, { lcsc_id: lcscId }).then((reply) => {
+      if (reply !== 'BUSY' && reply !== 'ERROR') return;
+      const entry = state.fusion.get(lcscId);
+      if (entry && entry.phase === 'sending') {
+        state.fusion.set(lcscId, entry.before || { phase: 'idle', result: null, before: null });
+        refreshFusion(lcscId);
+      }
+    });
   }
 
   // Bridge discovery (Fusion injects `adsk`; a plain browser gets the mock) --------------------
@@ -374,6 +622,11 @@
       if (button && !button.disabled) requestAdd(button.dataset.add);
     });
     $('added-list').addEventListener('click', (event) => {
+      const fusion = event.target.closest('button[data-fusion]');
+      if (fusion) {
+        if (!fusion.disabled) requestAddToFusion(fusion.dataset.fusion);
+        return;
+      }
       const library = event.target.closest('button[data-library]');
       if (library) {
         clearError();

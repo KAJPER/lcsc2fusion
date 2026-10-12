@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <!-- Window colour follows the page background (--bg in style.css) in both schemes. -->
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1e2227" media="(prefers-color-scheme: dark)">
   <title>LCSC2Fusion</title>
+  <!-- Icon of the separate browser window (tab, title bar, taskbar). All links are relative, so
+       the page also works from file:// (Fusion palette, mock mode) when a file is missing.
+       The manifest is fetched WITHOUT credentials unless asked: the server answers 403 to a
+       request without its session cookie, so use-credentials is required here. -->
+  <link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64 128x128 256x256">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -34,7 +44,14 @@
           <input id="with-3d" name="with_3d" type="checkbox" aria-describedby="with-3d-hint">
           <span>Include 3D model (STEP)</span>
         </label>
-        <p id="with-3d-hint" class="hint">Saved next to the library. Attached by hand in Fusion.</p>
+        <p id="with-3d-hint" class="hint">Saved next to the library. With the option below, Fusion opens it for you.</p>
+      </div>
+      <div class="option-row">
+        <label class="check" for="to-fusion">
+          <input id="to-fusion" name="fusion" type="checkbox" checked aria-describedby="to-fusion-hint">
+          <span>Add to the Fusion library right away</span>
+        </label>
+        <p id="to-fusion-hint" class="hint">Merges the part into your LCSC2Fusion Library. Fusion may stop responding for up to a minute.</p>
       </div>
     </form>
 
@@ -83,10 +100,10 @@
   <!-- Filled by app.js for a saved part that has 3D files. The text is fixed here so that it
        matches the official Fusion steps; app.js only inserts the file names. -->
   <template id="model-template">
-    <details class="model-help" open>
-      <summary>Attach the 3D model in Fusion</summary>
+    <details class="model-help">
+      <summary>Attach the 3D model by hand</summary>
       <ol class="model-steps">
-        <li>Open the library in Fusion Electronics (button above) and save it to a project.</li>
+        <li>Open the library in Fusion Electronics ("Open as a separate library" above) and save it to a project.</li>
         <li>In the Content Manager open the Footprints tab, right click the footprint and choose "Attach Existing 3D Model".</li>
         <li>Click "Select from my computer..." and pick the placed STEP file: <code class="model-pick"></code></li>
         <li>Name the package and press OK.</li>

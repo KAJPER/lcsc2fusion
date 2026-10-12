@@ -163,7 +163,13 @@ def test_sources_parse_with_python_311_grammar(path: Path) -> None:
     ast.parse(path.read_text(encoding="utf-8"), feature_version=(3, 11))
 
 
-TEXT_FILES = [*python_files(), *PALETTE_DIR.iterdir(), ROOT / "scripts" / "build_addin.py"]
+BINARY_SUFFIXES = (".ico", ".png")  # icon files of the browser window, not text
+TEXT_FILES = [
+    *python_files(),
+    *(path for path in PALETTE_DIR.iterdir() if path.suffix not in BINARY_SUFFIXES),
+    ROOT / "scripts" / "build_addin.py",
+    ROOT / "scripts" / "make_icons.py",
+]
 
 
 @pytest.mark.parametrize("path", TEXT_FILES, ids=lambda p: p.name)
@@ -190,11 +196,15 @@ def test_every_js_action_constant_is_used_by_the_page() -> None:
             assert f"{group}.{key}" in source, f"{group}.{key} is defined but never used"
 
 
-def test_palette_offers_the_open_in_fusion_button() -> None:
+def test_palette_offers_the_fusion_library_and_the_separate_library_buttons() -> None:
     source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
-    assert "Open in Fusion Electronics" in source
+    assert f"'{controller.BUTTON_ADD_TO_FUSION}'" in source
+    assert f"'{controller.BUTTON_OPEN_SEPARATE}'" in source
+    assert "Open in Fusion Electronics" not in source  # renamed: it is the fallback now
+    assert "TO_PYTHON.ADD_TO_FUSION" in source
     assert "TO_PYTHON.OPEN_LIBRARY" in source
     assert "TO_PYTHON.OPEN_FOLDER" in source
+    assert "FROM_PYTHON.FUSION_DONE" in source
 
 
 def test_js_add_request_carries_exactly_the_controller_fields() -> None:
@@ -204,6 +214,22 @@ def test_js_add_request_carries_exactly_the_controller_fields() -> None:
     keys = {part.split(":")[0].strip() for part in match.group(1).split(",") if part.strip()}
     assert keys == set(controller.ADD_REQUEST_FIELDS)
     assert "with_3d: wants3d()" in match.group(1)
+    assert "fusion: wantsFusion()" in match.group(1)
+
+
+def test_js_add_to_fusion_request_carries_exactly_the_controller_fields() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    match = re.search(r"send\(TO_PYTHON\.ADD_TO_FUSION, \{([^}]*)\}\)", source)
+    assert match is not None, "send(TO_PYTHON.ADD_TO_FUSION, {...}) not found in app.js"
+    keys = {part.split(":")[0].strip() for part in match.group(1).split(",") if part.strip()}
+    assert keys == set(controller.ADD_TO_FUSION_REQUEST_FIELDS)
+
+
+def test_js_reads_every_field_of_the_fusion_done_message() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    for field in controller.FUSION_DONE_FIELDS:
+        pattern = rf"\b(?:data|result)\.{field}\b"
+        assert re.search(pattern, source), f"app.js never reads {field} of fusion_done"
 
 
 def test_js_reads_every_field_of_the_added_message() -> None:
@@ -219,6 +245,15 @@ def test_mock_added_message_has_every_field_and_both_3d_outcomes_in_the_source()
     for field in controller.ADDED_FIELDS:
         assert re.search(rf"\b{field}:", block), f"mock added message lacks {field}"
     assert "null" in block  # the "3D requested but not produced" case sends null paths
+
+
+def test_mock_fusion_done_message_has_every_field() -> None:
+    mock = (PALETTE_DIR / "mock-bridge.js").read_text(encoding="utf-8")
+    start = mock.index("function handOff(")
+    block = mock[start : mock.index("function add(", start)]
+    for field in controller.FUSION_DONE_FIELDS:
+        assert re.search(rf"\b{field}\b", block), f"mock fusion_done lacks {field}"
+    assert "deliver('fusion_done', result)" in block
 
 
 def test_mock_handles_every_page_to_python_action() -> None:
@@ -282,6 +317,102 @@ def test_mock_bridge_shows_3d_produced_and_3d_unavailable() -> None:
         assert not any("3D" in warning for warning in message["warnings"])
 
 
+MOCK_FUSION_SCRIPT = """
+global.window = {};
+const realSetTimeout = setTimeout;
+global.setTimeout = (fn, ms) => realSetTimeout(fn, Math.floor(ms / 25));  // run the mock fast
+require(process.argv[1]);
+const sent = [];
+const bridge = window.LcscMock.install((action, data) => sent.push([action, data]));
+const send = (action, payload) => bridge.fusionSendData(action, JSON.stringify(payload));
+const at = (ms, fn) => realSetTimeout(fn, ms);
+
+send('add', { lcsc_id: 'C25804', with_3d: true, fusion: true });     // creates, 3D started
+at(300, () => send('add', { lcsc_id: 'C14663', with_3d: true, fusion: true }));  // 3D fails
+at(600, () => send('add', { lcsc_id: 'C2040', with_3d: false, fusion: false })); // no hand-off
+at(900, () => send('add_to_fusion', { lcsc_id: 'C2040' }));          // merged by the button
+at(1200, () => send('add', { lcsc_id: 'C2040', with_3d: true, fusion: true }));  // already there
+at(1500, () => send('add', { lcsc_id: 'C2913202', with_3d: false, fusion: true }));  // fails
+at(1800, () => send('add_to_fusion', { lcsc_id: 'C2913202' }));      // retry works
+at(2100, () => send('add_to_fusion', { lcsc_id: 'C1' }));            // unknown id
+at(2600, () => console.log(JSON.stringify(sent)));
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_mock_bridge_plays_every_fusion_hand_off_outcome() -> None:
+    completed = subprocess.run(
+        [str(shutil.which("node")), "-e", MOCK_FUSION_SCRIPT, str(PALETTE_DIR / "mock-bridge.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    sent = json.loads(completed.stdout)
+    done: dict[str, list[dict[str, object]]] = {}
+    for action, data in sent:
+        if action == "fusion_done":
+            assert set(data) == set(controller.FUSION_DONE_FIELDS)
+            done.setdefault(data["lcsc_id"], []).append(data)
+
+    created = done["C25804"][0]
+    assert (created["ok"], created["created_library"], created["merged"]) == (True, True, False)
+    assert created["three_d"] == "started"
+    assert created["library_name"] == "LCSC2Fusion Library"
+
+    broken_3d = done["C14663"][0]
+    assert broken_3d["ok"] is True
+    assert broken_3d["three_d"] == "failed"
+    assert broken_3d["merged"] is True
+    assert str(broken_3d["warnings"][0]).startswith("3D: ")  # type: ignore[index]
+
+    first, second = done["C2040"]  # the button, then the second add with 3D
+    assert (first["merged"], first["already_present"], first["three_d"]) == (True, False, "none")
+    assert (second["already_present"], second["merged"], second["three_d"]) == (
+        True,
+        False,
+        "started",
+    )
+
+    failed, retried = done["C2913202"]
+    assert failed["ok"] is False
+    assert failed["message"]
+    assert (retried["ok"], retried["merged"]) == (True, True)
+
+    errors = [data["message"] for action, data in sent if action == "error"]
+    assert len(errors) == 1
+    assert "C1" in errors[0]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_mock_page_stays_busy_from_the_add_until_fusion_done() -> None:
+    script = """
+global.window = {};
+const realSetTimeout = setTimeout;
+global.setTimeout = (fn, ms) => realSetTimeout(fn, Math.floor(ms / 25));
+require(process.argv[1]);
+const sent = [];
+const bridge = window.LcscMock.install((action, data) => sent.push([action, data]));
+bridge.fusionSendData('add', JSON.stringify({ lcsc_id: 'C25804', with_3d: false, fusion: true }));
+realSetTimeout(() => console.log(JSON.stringify(sent)), 800);
+"""
+    completed = subprocess.run(
+        [str(shutil.which("node")), "-e", script, str(PALETTE_DIR / "mock-bridge.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    names = [action for action, _ in json.loads(completed.stdout)]
+    busy_values = [d["value"] for a, d in json.loads(completed.stdout) if a == "busy"]
+    assert names.index("added") < names.index("fusion_done")
+    assert names[-2:] == ["fusion_done", "busy"]
+    assert busy_values[-1] is False
+    assert busy_values.count(False) == 1  # idle only after fusion_done
+
+
 def test_mock_is_inert_in_fusion() -> None:
     app = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
     mock = (PALETTE_DIR / "mock-bridge.js").read_text(encoding="utf-8")
@@ -326,6 +457,42 @@ def test_html_has_the_required_controls_and_accessibility_hooks() -> None:
     assert "<table" in html
     for column in ("LCSC", "MPN", "Type", "Manufacturer", "Package", "Description"):
         assert f">{column}</th>" in html
+
+
+def test_fusion_checkbox_has_a_label_and_is_on_by_default() -> None:
+    page = parse_html()
+    found = page.find("to-fusion")
+    assert found is not None, "checkbox #to-fusion is missing"
+    tag, attrs = found
+    assert tag == "input"
+    assert attrs["type"] == "checkbox"
+    assert "checked" in attrs  # the hand-off is what most people want
+    index = [a.get("for") for t, a in page.tags if t == "label"].index("to-fusion")
+    assert "Add to the Fusion library right away" in " ".join(page.label_texts[index].split())
+    assert "input" in page.label_children[index]  # the input sits inside its own label
+    describedby = attrs["aria-describedby"]
+    assert describedby is not None
+    assert page.find(describedby) is not None
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    form = html[html.index('<form id="search-form"') : html.index("</form>")]
+    assert 'id="to-fusion"' in form
+    assert 'id="with-3d"' in form  # next to the 3D choice
+
+
+def test_the_manual_3d_steps_are_titled_as_the_fallback() -> None:
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    template = html[html.index('<template id="model-template">') : html.index("</template>")]
+    assert "<summary>Attach the 3D model by hand</summary>" in template
+    assert controller.BUTTON_OPEN_SEPARATE in template  # step 1 names the renamed button
+
+
+def test_fusion_state_has_styles_and_is_never_written_as_markup() -> None:
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    for state_class in ("fusion-idle", "fusion-sending", "fusion-ok", "fusion-warn", "fusion-fail"):
+        assert f".{state_class}" in css, state_class
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    assert "insertAdjacentHTML" not in source
+    assert "fusion-" in source  # the class names app.js sets on the card
 
 
 def test_with_3d_checkbox_has_a_label_and_is_off_by_default() -> None:
@@ -603,6 +770,45 @@ def test_build_produces_folder_and_zip_with_expected_members(
     extracted = tmp_path / "LCSC2Fusion"
     assert (extracted / "LCSC2Fusion.manifest").is_file()
     assert (extracted / "lcsc2fusion" / "__init__.py").is_file()
+
+
+ICON_FILES = (
+    "palette/favicon.ico",
+    "palette/icon-192.png",
+    "palette/icon-512.png",
+    "palette/manifest.webmanifest",
+    "resources/16x16.png",
+    "resources/32x32.png",
+    "resources/64x64.png",
+)
+
+
+def test_build_ships_the_icon_files_byte_for_byte(build_addin: ModuleType, tmp_path: Path) -> None:
+    result = build_addin.build(root=ROOT, dist=tmp_path)
+    with zipfile.ZipFile(result.zip_path) as archive:
+        for relative in ICON_FILES:
+            shipped = archive.read(f"LCSC2Fusion/{relative}")
+            assert shipped == (ADDIN_DIR / relative).read_bytes(), relative
+            assert (tmp_path / "LCSC2Fusion" / relative).read_bytes() == shipped
+            assert relative in result.files
+    assert not [name for name in result.files if name.endswith("make_icons.py")]  # dev tool only
+
+
+def test_the_build_script_stays_stdlib_only_so_the_icons_are_committed_assets() -> None:
+    tree = ast.parse((ROOT / "scripts" / "build_addin.py").read_text(encoding="utf-8"))
+    imported = {
+        name.split(".")[0]
+        for node in ast.walk(tree)
+        for name in (
+            [alias.name for alias in node.names]
+            if isinstance(node, ast.Import)
+            else [node.module or ""]
+            if isinstance(node, ast.ImportFrom)
+            else []
+        )
+    }
+    assert "PIL" not in imported
+    assert imported <= set(sys.stdlib_module_names)
 
 
 def test_build_is_deterministic(build_addin: ModuleType, tmp_path: Path) -> None:

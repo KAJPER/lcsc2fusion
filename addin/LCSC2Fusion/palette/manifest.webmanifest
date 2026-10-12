@@ -1,0 +1,22 @@
+{
+  "name": "LCSC2Fusion",
+  "short_name": "LCSC2Fusion",
+  "description": "Find an LCSC part and add its symbol and footprint to Fusion Electronics.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1e2227",
+  "theme_color": "#1f5ea8",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

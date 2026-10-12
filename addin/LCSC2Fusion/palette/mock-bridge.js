@@ -6,6 +6,13 @@
  * way palette.sendInfoToHTML would. Try: C2040, "resistor", "none" (no hits), "fail" (error).
  * With "Include 3D model" ticked, adding C2913202 shows the "no 3D model" case; the other parts
  * get a 3D model.
+ *
+ * "Add to the Fusion library" (the `fusion` flag of `add`, or the `add_to_fusion` button) plays
+ * the hand-off with progress messages and a final `fusion_done`:
+ *   - the first part creates the library, later ones are merged into it;
+ *   - the same part again is "already present" (nothing merged);
+ *   - with 3D the 3D package opens ("started"), except for C14663, where the 3D step fails;
+ *   - C2913202 fails the first time (nothing reaches the library) and works on the retry.
  */
 (function () {
   'use strict';
@@ -53,8 +60,11 @@
   const MOCK_MANUAL_STEPS =
     'File > Open > Open from my computer, select the .lbr file, then File > Save into a project so it appears in the Library Manager.';
   const MOCK_INSTRUCTIONS =
-    'Press "Open in Fusion Electronics", then use File > Save in the editor and pick a project so the library appears in the Library Manager. If that does not work, do it manually: ' +
+    'Press "Add to Fusion library" to merge the part into your LCSC2Fusion Library. To use just this part on its own, press "Open as a separate library", then use File > Save in the editor and pick a project so the library appears in the Library Manager. If that does not work, do it manually: ' +
     MOCK_MANUAL_STEPS;
+  const LIBRARY_NAME = 'LCSC2Fusion Library';
+  const FAILS_FIRST_ID = 'C2913202';
+  const BROKEN_3D_ID = 'C14663';
 
   function install(deliver) {
     const later = (ms, fn) => setTimeout(fn, ms);
@@ -92,7 +102,87 @@
     const NO_MODEL_ID = 'C2913202';
     const MOCK_DIR = 'C:\\Users\\mock\\LCSC2Fusion\\libraries\\';
 
-    function add(lcscId, with3d) {
+    // What the page has added so far, like the controller's memory: id -> { with3d, hasModel, mpn }.
+    const addedParts = new Map();
+    const libraryParts = new Set();
+    const failedOnce = new Set();
+    let libraryCreated = false;
+
+    function label(lcscId) {
+      const mpn = addedParts.has(lcscId) ? addedParts.get(lcscId).mpn : '';
+      return mpn ? lcscId + ' (' + mpn + ')' : lcscId;
+    }
+
+    // The hand-off to the Fusion library: progress as `status`, then `fusion_done`, then idle.
+    function handOff(lcscId) {
+      const info = addedParts.get(lcscId);
+      const name = label(lcscId);
+      const wantsModel = info.with3d && info.hasModel;
+      const steps = [];
+      let result;
+      if (lcscId === FAILS_FIRST_ID && !failedOnce.has(lcscId)) {
+        failedOnce.add(lcscId);
+        steps.push(['info', 'Opening the ' + LIBRARY_NAME + '...']);
+        result = {
+          ok: false, created_library: false, merged: false, already_present: false,
+          three_d: wantsModel ? 'skipped' : 'none',
+          message: 'Could not open the library: mock failure in Fusion. The library may be open with unsaved changes.',
+          warnings: [],
+        };
+      } else {
+        const present = libraryParts.has(lcscId);
+        const created = !present && !libraryCreated;
+        const merged = !present && !created;
+        let message;
+        if (present) {
+          message = name + ' is already in the ' + LIBRARY_NAME + ', so it was not added again.';
+        } else if (created) {
+          steps.push(['info', 'Creating the ' + LIBRARY_NAME + ' from ' + name + '...']);
+          message = 'Created the ' + LIBRARY_NAME + ' with ' + name + '.';
+        } else {
+          steps.push(['info', 'Opening the ' + LIBRARY_NAME + '...']);
+          steps.push(['info', 'Merging ' + name + ' into the library...']);
+          steps.push(['info', 'Saving the library...']);
+          message = 'Added ' + name + ' to the ' + LIBRARY_NAME + '.';
+        }
+        let threeD = 'none';
+        const warnings = [];
+        if (wantsModel) {
+          steps.push(['info', 'Creating the 3D package for ' + name + '...']);
+          if (lcscId === BROKEN_3D_ID) {
+            threeD = 'failed';
+            warnings.push('3D: could not import ' + lcscId + '.placed.step: mock error from Fusion. You can import it by hand.');
+            message += ' The 3D package could not be created, see the warnings.';
+          } else {
+            steps.push(['info', 'Importing the 3D model...']);
+            threeD = 'started';
+            message += ' The 3D package editor is open: check the position of the model, then click Finish, Save, OK.';
+          }
+        }
+        libraryParts.add(lcscId);
+        libraryCreated = true;
+        result = {
+          ok: true, created_library: created, merged: merged, already_present: present,
+          three_d: threeD, message: message, warnings: warnings,
+        };
+      }
+      result.lcsc_id = lcscId;
+      result.library_name = LIBRARY_NAME;
+
+      deliver('busy', { value: true });
+      deliver('status', { level: 'info', text: 'Sending ' + lcscId + ' to Fusion...' });
+      steps.forEach((step, index) => {
+        later(500 * (index + 1), () => deliver('status', { level: step[0], text: step[1] }));
+      });
+      later(500 * (steps.length + 1), () => {
+        const level = !result.ok ? 'warn' : result.warnings.length ? 'warn' : result.already_present ? 'info' : 'ok';
+        deliver('status', { level: level, text: result.message });
+        deliver('fusion_done', result);
+        deliver('busy', { value: false });
+      });
+    }
+
+    function add(lcscId, with3d, fusion) {
       const part = SAMPLE_PARTS.find((candidate) => candidate.lcsc_id === lcscId);
       deliver('busy', { value: true });
       deliver('status', { level: 'info', text: 'Downloading ' + lcscId + (with3d ? ' and building the library and the 3D model...' : ' and building the library...') });
@@ -126,8 +216,25 @@
           status = { level: 'ok', text: 'Saved ' + lcscId + (hasModel ? ' and its 3D model.' : '.') };
         }
         deliver('status', status);
-        deliver('busy', { value: false });
+        addedParts.set(lcscId, {
+          with3d: with3d,
+          hasModel: hasModel,
+          mpn: part ? part.mpn : '',
+        });
+        if (fusion) {
+          handOff(lcscId); // the page stays busy until fusion_done, like the controller
+        } else {
+          deliver('busy', { value: false });
+        }
       });
+    }
+
+    function addToFusion(lcscId) {
+      if (!addedParts.has(lcscId)) {
+        deliver('error', { message: lcscId + ' was not added in this session. Press Add to library for it first.' });
+        return;
+      }
+      handOff(lcscId);
     }
 
     // Like Fusion: opening works for every library except C2913202, which shows the fallback.
@@ -152,7 +259,10 @@
             search(data.query);
             break;
           case 'add':
-            add(data.lcsc_id, data.with_3d === true);
+            add(data.lcsc_id, data.with_3d === true, data.fusion === true);
+            break;
+          case 'add_to_fusion':
+            addToFusion(data.lcsc_id);
             break;
           case 'open_library':
             openLibrary(data.path);

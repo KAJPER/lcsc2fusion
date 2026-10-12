@@ -409,7 +409,7 @@ def test_browser_search_and_add_round_trip(browser_run: BrowserRun) -> None:
     posts = browser_run.server.posts
     assert [post["action"] for post in posts[:3]] == ["ready", "search", "add"]
     assert json.loads(posts[1]["data"]) == {"query": "C2040"}
-    assert json.loads(posts[2]["data"]) == {"lcsc_id": "C2040", "with_3d": False}
+    assert json.loads(posts[2]["data"]) == {"lcsc_id": "C2040", "with_3d": False, "fusion": True}
 
 
 def test_browser_first_request_waits_for_a_slow_stream(browser_run: BrowserRun) -> None:

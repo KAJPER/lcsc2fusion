@@ -58,7 +58,10 @@ in Scripts and Add-Ins) and run it. The UI opens in a separate browser window (E
 mode, served locally by the add-in), so it stays open when Fusion switches environment, for example
 when a library opens in the Electronics editor. The LCSC2Fusion button is in Utilities > ADD-INS of
 the Design, Schematic, Board and Library environments. Search, press "Add to library", and follow
-the status message. See [addin/README.md](addin/README.md) and
+the status message. With "Add to the Fusion library right away" (default) the part goes into one
+accumulating library, "LCSC2Fusion Library", in your active Fusion hub project, and with the 3D box ticked the
+3D package editor opens with the model already in place, so you only check it and press Finish (unverified in
+Fusion until gate 5, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)). See [addin/README.md](addin/README.md) and
 [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
 
 ## How it works

@@ -18,6 +18,8 @@ addin/LCSC2Fusion/            folder name == .py name == .manifest name (Fusion 
   core_service.py             PartService on top of lcsc2fusion.service (lazy import)
   http_transport.py           local HTTP server: page, POST /api/act, SSE /api/events, no adsk
   browser_window.py           finds Edge/Chrome, opens the app mode window, tracks and closes it
+  library_registry.py         state file (library id, added parts, package fingerprints), no adsk
+  fusion_library_flow.py      accumulating library + 3D package sequence on a fake-able API, no adsk
   fusion_adapter.py           the ONLY module importing adsk: main thread dispatcher, buttons,
                               command, worker thread, show/stop of the window
   palette/                    index.html, app.js, style.css, mock-bridge.js, http-bridge.js
@@ -167,3 +169,26 @@ The controller, file and build tests need nothing from Fusion. `test_addin_adapt
 official `adsk` API stubs, which are licensed CC BY-NC-SA and therefore not in this repository. Set
 `ADSK_DEFS` to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\Python\defs` (the default location is
 tried automatically); without the stubs those tests are skipped.
+
+## Accumulating library and 3D package (D-024)
+
+With "Add to the Fusion library right away" ticked (default) the part is written as before and then handed
+to Fusion on the main thread, in the background (about 45 s, progress shown in the window):
+
+1. First part: `Document.newDesignFromLocal` of the part's `.lbr`, `saveAs("LCSC2Fusion Library")` in the root
+   folder of the active hub project. Later parts: the library is opened from its stored id (or found by name),
+   then `Electron.run` `Use`, `Copy "<DEVICESET>.dev@<file>"`, `Use "-<file>"` (the same three commands SnapEDA
+   uses) and `document.save`. The active document of the user is never closed.
+2. With the 3D box ticked: `Electron.Create3DPackage "<part.lbr>"`, `saveAs` of the new package design, import of
+   `<id>.placed.step`, turn of the occurrence like SnapEDA does ((x,y,z) to (x,-z,y)). The window then asks to check
+   the position and to press Finish, Save, OK in Fusion.
+3. `%LOCALAPPDATA%\LCSC2Fusion\state.json` remembers the library id and the added parts. The same part again is not
+   merged twice; a package with an existing name but different geometry is renamed before the `.lbr` is written.
+
+Everything in step 1 and 2 is unverified inside Fusion until gate 5 of `docs/MANUAL_TEST.md`. "Open as a separate
+library" keeps the old behaviour (one `.lbr` opened as its own document) as a fallback.
+
+## Window icon
+
+`scripts/make_icons.py` (Pillow, development only) generates `palette/favicon.ico`, `icon-192.png`, `icon-512.png`,
+`manifest.webmanifest` and the toolbar PNGs in `resources/` from one drawing. The generated files are committed.

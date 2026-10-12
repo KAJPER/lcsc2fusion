@@ -8,14 +8,25 @@ Keep it thin: decisions live in `controller.py`. Threading rules (RESEARCH 3.1, 
   main thread with `app.fireCustomEvent` (safe from any thread) and waits for the answer.
 * Log lines written from other threads go through `ThreadSafeLog`, which queues them and flushes
   them from the same custom event.
+* Long Fusion work (the accumulating library flow, tens of seconds) is queued with
+  `MainThreadDispatcher.post` and runs on the main thread in a later `drain`; the HTTP request that
+  asked for it has long returned and progress goes out through the status callback.
 * Fusion deletes all palettes when the workspace changes, but add-ins keep running, so the window
   (not a palette) survives environment switches. The toolbar button is registered in every
   Electronics environment (`TARGETS`).
+
+`AdskLibraryApi` implements the `FusionLibraryApi` facade of `fusion_library_flow` with real `adsk`
+calls. The sequence copies the installed SnapEDA add-in, whose calls are proven on the same Fusion
+build, but SnapEDA runs it from its `openedFromURL` handler. Ours runs from a custom event handler.
+`Document.saveAs`, `Document.save` and `ImportManager.importToTarget2` are documented as not
+supported "within any of the Command related events"; a custom event is none of those, so the
+calls are expected to work, but that is UNVERIFIED until plan gate 5 runs it inside Fusion.
 """
 
 from __future__ import annotations
 
 import contextlib
+import math
 import os
 import queue
 import re
@@ -23,17 +34,27 @@ import threading
 import time
 import traceback
 from collections import deque
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple, TypeVar
 
 import adsk.core
+import adsk.fusion
 from browser_window import BrowserWindow
 from controller import Controller, ImportOutcome, JobResult
 from core_service import CorePartService
+from fusion_library_flow import (
+    LIBRARY_NAME,
+    FlowRequest,
+    FlowResult,
+    FusionLibraryApi,
+    FusionLibraryFlow,
+    LibraryRef,
+)
 from http_transport import HttpTransport, Hub, HubSink
+from library_registry import StateStore
 
 T = TypeVar("T")
 
@@ -48,9 +69,17 @@ CUSTOM_EVENT_ID = "LCSC2Fusion_JobDone"
 DISPATCH_EVENT_ID = "LCSC2Fusion_Dispatch"
 LOG_PREFIX = "[LCSC2Fusion] "
 OPEN_COMMAND = "Document.newDesignFromLocal"
+ELECTRON_COMMAND = "Electron.run"
+CREATE_3D_COMMAND = "Electron.Create3DPackage"
+LIBRARY_EXTENSION = "flbr"  # DataFile.fileExtension of a Fusion Electronics library
+THREE_D_PACKAGE_DESCRIPTION = "LCSC2Fusion 3D package"
+# SnapEDA turns the imported occurrence by 90 degrees about X (to compensate for Fusion turning a
+# Z up STEP into Y up on import), so that (x, y, z) -> (x, -z, y).
+STEP_IMPORT_TURN_RAD = math.pi / 2
 
 DISPATCH_TIMEOUT_S = 30.0  # how long an HTTP request may wait for the main thread
 MAX_PENDING_REQUESTS = 64  # queued requests while the main thread is busy (modal dialog)
+MAX_PENDING_TASKS = 16  # queued deferred tasks (library flows) while the main thread is busy
 MAX_PENDING_LOG_LINES = 500
 SHUTDOWN_WAIT_S = 1.0  # stop(): how long to wait for the window to disconnect
 LAUNCH_GRACE_S = 30.0  # a window that was just launched may still be loading its page
@@ -176,6 +205,14 @@ class _Request:
     future: Future[str]
 
 
+@dataclass(eq=False)  # same reason as `_Request`
+class _Task:
+    """A callable queued by `MainThreadDispatcher.post`; nobody waits for its result."""
+
+    fn: Callable[[], None]
+    label: str
+
+
 class _DrainHandler(adsk.core.CustomEventHandler):
     def __init__(self, drain: Callable[[], None], label: str = "Job completion") -> None:
         super().__init__()
@@ -189,8 +226,10 @@ class _DrainHandler(adsk.core.CustomEventHandler):
 class MainThreadDispatcher:
     """Runs `handle(action, data)` on Fusion's main thread for callers on other threads.
 
-    `dispatch` (any thread) queues a request, fires the custom event and waits. `drain` (the
-    event handler, main thread) runs the queued requests and flushes the `ThreadSafeLog`.
+    `dispatch` (any thread) queues a request, fires the custom event and waits. `post` (any
+    thread, including the main one) queues a task, fires the event and returns at once. `drain`
+    (the event handler, main thread) runs requests and tasks in the order they were queued and
+    flushes the `ThreadSafeLog`.
     """
 
     def __init__(
@@ -210,7 +249,8 @@ class MainThreadDispatcher:
         self._safe_log = safe_log
         self._timeout_s = timeout_s
         self._lock = threading.Lock()
-        self._queue: deque[_Request] = deque()
+        self._queue: deque[_Request | _Task] = deque()
+        self._task_running = False  # a deferred task is executing in `drain` (main thread)
         self._closed = False
         self._false_reported = False
         self._true_reported = False
@@ -240,14 +280,23 @@ class MainThreadDispatcher:
             self._safe_log.bind(self.wake)
 
     def close(self) -> None:
-        """Refuse new requests and fail the waiting ones. Needs no Fusion call, idempotent."""
+        """Refuse new requests and tasks, fail the waiting requests and drop the waiting tasks.
+
+        Needs no Fusion call (the one log line about dropped tasks goes through the thread safe
+        log), idempotent.
+        """
         with self._lock:
             self._closed = True
             waiting = list(self._queue)
             self._queue.clear()
-        for request in waiting:
-            if request.future.set_running_or_notify_cancel():
-                request.future.set_exception(DispatcherStoppedError("The add-in is stopping."))
+        dropped = 0
+        for item in waiting:
+            if isinstance(item, _Task):
+                dropped += 1
+            elif item.future.set_running_or_notify_cancel():
+                item.future.set_exception(DispatcherStoppedError("The add-in is stopping."))
+        if dropped:
+            self._note(f"Dropped {dropped} queued task(s): the add-in is stopping.")
 
     def stop(self) -> None:
         """`close` plus unregistering the custom event (main thread), idempotent."""
@@ -327,20 +376,68 @@ class MainThreadDispatcher:
                 "(is a dialog open?)."
             ) from None
 
+    def post(self, fn: Callable[[], None]) -> None:
+        """Run `fn` on the main thread in a later `drain` and return at once (any thread).
+
+        Tasks and `dispatch` requests run in the order they were queued. A failing task is logged
+        with its traceback and never stops the ones behind it. Raises `DispatcherStoppedError`
+        when the add-in is stopping, `DispatcherBusyError` when `MAX_PENDING_TASKS` tasks wait.
+        """
+        task = _Task(fn, getattr(fn, "__qualname__", repr(fn)))
+        with self._lock:
+            if self._closed:
+                raise DispatcherStoppedError("The add-in is stopping.")
+            waiting = sum(1 for item in self._queue if isinstance(item, _Task))
+            if waiting >= MAX_PENDING_TASKS:
+                raise DispatcherBusyError("Fusion is busy: too many queued tasks.")
+            self._queue.append(task)
+        try:
+            self._fire(report=True)
+        except Exception as exc:  # the task would never run: take it back
+            self._abandon(task)
+            raise RuntimeError(f"Could not reach Fusion's main thread: {exc}") from exc
+
     def drain(self) -> None:
-        """Run the queued requests and flush queued log lines (main thread)."""
+        """Run the queued requests and tasks, then flush queued log lines (main thread).
+
+        A task can take a minute and Fusion may pump its event loop meanwhile, which runs `drain`
+        again inside the task. That nested call still serves requests (the window stays
+        responsive) but stops at the next task, so tasks never nest and the order is kept.
+        """
         while True:
             with self._lock:
                 if not self._queue:
                     break
-                request = self._queue.popleft()
+                item = self._queue[0]
+                is_task = isinstance(item, _Task)
+                if is_task and self._task_running:
+                    break  # the outer drain continues with it when the running task is done
+                self._queue.popleft()
+                if is_task:
+                    self._task_running = True
+            if isinstance(item, _Task):
+                self._run_task(item)
+                continue
             if not self._drain_reported:
                 self._drain_reported = True
                 if self._safe_log is not None:
                     self._safe_log("The first request reached the main thread.")
-            self._run(request)
+            self._run(item)
         if self._safe_log is not None:
             self._safe_log.flush()
+
+    def _run_task(self, task: _Task) -> None:
+        try:
+            task.fn()
+        except Exception:  # a task is a boundary with the caller's code: log, keep draining
+            self._note(f"Deferred task {task.label} failed:\n{_redact(traceback.format_exc())}")
+        finally:
+            with self._lock:
+                self._task_running = False
+
+    def _note(self, message: str) -> None:
+        """Log from any thread; falls back to the Fusion log when there is no `ThreadSafeLog`."""
+        (self._safe_log if self._safe_log is not None else log)(message)
 
     def _run(self, request: _Request) -> None:
         future = request.future
@@ -354,11 +451,12 @@ class MainThreadDispatcher:
         except Exception as exc:  # handed to the waiting HTTP thread, which reports it
             future.set_exception(exc)
 
-    def _abandon(self, request: _Request) -> None:
-        """Make sure a request that nobody waits for any more is skipped and not kept."""
-        request.future.cancel()
+    def _abandon(self, item: _Request | _Task) -> None:
+        """Make sure a request or task that nobody wants any more is skipped and not kept."""
+        if isinstance(item, _Request):
+            item.future.cancel()
         with self._lock, contextlib.suppress(ValueError):
-            self._queue.remove(request)
+            self._queue.remove(item)
 
 
 # Palette output -------------------------------------------------------------------------
@@ -453,14 +551,27 @@ class ThreadJobRunner:
 # Opening the library --------------------------------------------------------------------
 
 
-def build_open_command(path: Path) -> str:
-    """Text command for D-006 variant A. Forward slashes, path quoted. Raises ValueError."""
+_QUOTE_NAMES = {'"': "double quote", "'": "single quote"}
+
+
+def command_path(path: Path, forbidden: str = '"') -> str:
+    """`path` as it goes into a text command: forward slashes, absolute, no `forbidden` quote.
+
+    The text commands have no escaping, so a quote inside the path would end the quoted argument
+    early. Raises ValueError.
+    """
     if not path.is_absolute():
         raise ValueError(f"The library path must be absolute: {path}")
     text = path.as_posix()
-    if '"' in text:
-        raise ValueError(f"The library path contains a double quote: {text}")
-    return f'{OPEN_COMMAND} "{text}"'
+    for char in forbidden:
+        if char in text:
+            raise ValueError(f"The library path contains a {_QUOTE_NAMES[char]}: {text}")
+    return text
+
+
+def build_open_command(path: Path) -> str:
+    """Text command for D-006 variant A. Forward slashes, path quoted. Raises ValueError."""
+    return f'{OPEN_COMMAND} "{command_path(path)}"'
 
 
 class FusionImporter:
@@ -491,6 +602,435 @@ class FusionImporter:
             return ImportOutcome(opened=False, message=f"Fusion rejected the open command ({exc})")
         self._log(f"{command} -> {reply!r}")
         return ImportOutcome(opened=True, message="Open command sent to Fusion.")
+
+
+# The accumulating library: pure helpers --------------------------------------------------
+
+Vector3 = tuple[float, float, float]
+
+
+class LibraryApiError(RuntimeError):
+    """A Fusion library operation failed. The flow shows the message to the user."""
+
+
+def _check_token(what: str, value: str, forbidden: str = '"') -> None:
+    """A name that goes between quotes of a text command (no escaping exists there)."""
+    if not value.strip() or not value.isprintable():
+        raise ValueError(f"The {what} {value!r} is empty or has unprintable characters.")
+    for char in forbidden:
+        if char in value:
+            raise ValueError(
+                f"The {what} {value!r} contains {char!r}, which a text command cannot carry."
+            )
+
+
+def build_merge_commands(lbr_path: Path, deviceset: str) -> tuple[str, str, str]:
+    """The three `Electron.run` text commands that merge a part .lbr into the open library.
+
+    Built like SnapEDA builds them, with the inner quotes NOT escaped:
+        Electron.run "Use '<path>'"
+        Electron.run "Copy "<DEVICESET>.dev@<stem>""
+        Electron.run "Use "-<stem>""
+    `stem` is the file name without extension (the name Eagle gives the library loaded by `Use`),
+    `Use -<stem>` unloads it again. The path has forward slashes (SnapEDA passes the native ones;
+    Eagle accepts both on Windows, UNVERIFIED for these commands). Raises ValueError, before
+    anything has run, for a relative path or a character the commands cannot carry.
+    """
+    path = command_path(lbr_path, forbidden="\"'")
+    stem = lbr_path.stem
+    _check_token("device set name", deviceset)
+    _check_token("library file name", stem, forbidden='"@')
+    return (
+        f"{ELECTRON_COMMAND} \"Use '{path}'\"",
+        f'{ELECTRON_COMMAND} "Copy "{deviceset}.dev@{stem}""',
+        f'{ELECTRON_COMMAND} "Use "-{stem}""',
+    )
+
+
+def build_create_3d_command(lbr_path: Path) -> str:
+    """`Electron.Create3DPackage "<part .lbr>"`. Raises ValueError like `build_open_command`."""
+    return f'{CREATE_3D_COMMAND} "{command_path(lbr_path)}"'
+
+
+def step_turn_axes(
+    angle: float = STEP_IMPORT_TURN_RAD,
+) -> tuple[Vector3, Vector3, Vector3, Vector3]:
+    """Origin and x, y, z axes of the matrix applied to the imported STEP (SnapEDA `rotate_step`).
+
+    A turn by `angle` about X: x stays, y = (0, cos, sin), z = (0, -sin, cos). For 90 degrees the
+    columns are X=(1,0,0), Y=(0,0,1), Z=(0,-1,0), so (x, y, z) -> (x, -z, y). Fusion converts the Z
+    up STEP to its Y up frame on import, the turn puts the model back where the package expects it.
+    Float noise such as cos(pi/2) = 6e-17 is snapped to exact zeros.
+    """
+
+    def snap(value: float) -> float:
+        return 0.0 if abs(value) < 1e-12 else value
+
+    cosine, sine = snap(math.cos(angle)), snap(math.sin(angle))
+    return (0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, cosine, sine), (0.0, snap(-sine), cosine)
+
+
+def build_turn_matrix(angle: float = STEP_IMPORT_TURN_RAD) -> adsk.core.Matrix3D:
+    """The `step_turn_axes` as an `adsk.core.Matrix3D`."""
+    origin, x_axis, y_axis, z_axis = step_turn_axes(angle)
+    matrix = adsk.core.Matrix3D.create()
+    done = matrix.setWithCoordinateSystem(
+        adsk.core.Point3D.create(*origin),
+        adsk.core.Vector3D.create(*x_axis),
+        adsk.core.Vector3D.create(*y_axis),
+        adsk.core.Vector3D.create(*z_axis),
+    )
+    if done is False:
+        raise LibraryApiError("Fusion rejected the rotation matrix for the 3D model.")
+    return matrix
+
+
+def turn_occurrence(occurrence: Any, matrix: Any, log_fn: Callable[[str], None]) -> str:
+    """Give the occurrence `matrix` as its transform; returns the property that took it.
+
+    `Occurrence.transform2` is the documented replacement of `transform`, which is retired because
+    it returns wrong results in some cases (the stubs only list `transform2`). SnapEDA still sets
+    `transform` and that is proven on this build, so it stays the fallback for a build without
+    `transform2`, or one where assigning `transform2` raises.
+    """
+    if hasattr(occurrence, "transform2"):
+        try:
+            occurrence.transform2 = matrix
+        except Exception as exc:  # Fusion errors are RuntimeError; try the proven property
+            log_fn(f"Occurrence.transform2 failed ({exc!r}), trying Occurrence.transform.")
+        else:
+            return "transform2"
+    occurrence.transform = matrix
+    return "transform"
+
+
+def pick_root_folder(data: Any) -> Any:
+    """Root folder of the active project, else of the first project. Raises LibraryApiError."""
+    try:
+        project = data.activeProject
+    except Exception:  # Fusion raises when no hub is selected; the first project is the fallback
+        project = None
+    if project is None:
+        projects = data.dataProjects
+        project = projects.item(0) if projects is not None and projects.count > 0 else None
+    if project is None:
+        raise LibraryApiError("Fusion has no project to keep the library in. Sign in to a hub.")
+    folder = project.rootFolder
+    if folder is None:
+        raise LibraryApiError("Fusion did not return the root folder of the project.")
+    return folder
+
+
+def data_file_id(document: Any) -> str | None:
+    """`DataFile.id` of a saved document, None for an unsaved one (or when Fusion refuses)."""
+    try:
+        data_file = document.dataFile
+        file_id = None if data_file is None else data_file.id
+    except Exception:  # an unsaved document may raise instead of returning None
+        return None
+    return file_id if isinstance(file_id, str) and file_id else None
+
+
+def document_changed(
+    before: Any, after: Any, count_before: int | None, count_after: int | None
+) -> bool:
+    """True when `after` is another document than `before`.
+
+    The wrappers Fusion hands out may not compare equal for the same document, so the signals are
+    used in this order: a document appeared (`Documents.count` grew), the wrappers are equal, the
+    data file ids (saved documents), and finally saved against unsaved.
+    """
+    if after is None:
+        return False
+    if before is None:
+        return True
+    if count_before is not None and count_after is not None and count_after > count_before:
+        return True
+    if after is before or after == before:
+        return False
+    id_before, id_after = data_file_id(before), data_file_id(after)
+    if id_before is not None and id_after is not None:
+        return id_before != id_after
+    return bool(getattr(before, "isSaved", False)) != bool(getattr(after, "isSaved", False))
+
+
+def document_name(document: Any) -> str:
+    try:
+        return str(document.name)
+    except Exception:  # only used in log lines
+        return "?"
+
+
+# The accumulating library: the adsk implementation ---------------------------------------
+
+
+class _Step:
+    """What `AdskLibraryApi._step` lets a method add to its closing log line."""
+
+    def __init__(self) -> None:
+        self.detail = ""
+
+
+class AdskLibraryApi:
+    """`FusionLibraryApi` (see `fusion_library_flow`) with real `adsk` calls.
+
+    Every method runs on Fusion's main thread, logs one summary line with the elapsed time and
+    raises on failure (`LibraryApiError` for what this class detects, whatever Fusion raises
+    otherwise). Nothing here shows a dialog: the flow reports through its status callback.
+    The library document is never closed, because Fusion uploads it asynchronously after a save.
+    """
+
+    def __init__(
+        self, app: adsk.core.Application, ui: adsk.core.UserInterface, log_fn: Callable[[str], None]
+    ) -> None:
+        self._app = app
+        self._ui = ui  # only read for the workspace id in log lines
+        self._log = log_fn
+        self._library_document: Any = None  # the library the flow works on (create or open)
+
+    # FusionLibraryApi ---------------------------------------------------------------------
+
+    def find_library(self, file_id: str | None, name: str) -> LibraryRef | None:
+        """The stored id if it still names a library file, else the file `name` in the root
+        folder of the active project (or of the first project). Raises when there is no project
+        to look in."""
+        with self._step("find_library") as step:
+            data_file = self._library_by_id(file_id) if file_id else None
+            how = "by id"
+            if data_file is None:
+                data_file, how = self._library_by_name(name), "by name"
+            if data_file is None:
+                step.detail = f"no library {name!r}"
+                return None
+            ref = LibraryRef(file_id=data_file.id, name=data_file.name)
+            step.detail = f"found {ref.name!r} {how}"
+            return ref
+
+    def create_library_from_part(self, lbr_path: Path, name: str) -> LibraryRef:
+        """Open the part .lbr as a new document and save it as `name` in the root folder.
+
+        The document must be new and unsaved: this guards `saveAs` against renaming something
+        the user was working on when the open command did nothing.
+        """
+        with self._step("create_library_from_part") as step:
+            command = build_open_command(lbr_path)
+            folder = pick_root_folder(self._app.data)  # fail before a document is opened
+            before, count_before = self._active_document(), self._document_count()
+            self._text_command(command)
+            document = self._active_document()
+            if not document_changed(before, document, count_before, self._document_count()):
+                raise LibraryApiError("Fusion did not open the part library as a new document.")
+            if document.isSaved:
+                raise LibraryApiError(
+                    f"The part library did not open as a new document: the active document "
+                    f"{document_name(document)!r} is already saved."
+                )
+            if not document.saveAs(name, folder, "", ""):
+                raise LibraryApiError(f"Fusion could not save the new library as {name!r}.")
+            data_file = document.dataFile
+            if data_file is None:
+                raise LibraryApiError(
+                    f"Fusion saved {name!r} but did not report its file. The next part finds "
+                    "the library by its name."
+                )
+            self._library_document = document
+            ref = LibraryRef(file_id=data_file.id, name=data_file.name)
+            extension = getattr(data_file, "fileExtension", "?")
+            step.detail = (
+                f"saved {ref.name!r} (extension {extension!r}, id {ref.file_id}), kept open"
+            )
+            return ref
+
+    def open_library(self, ref: LibraryRef) -> None:
+        """`documents.open` the library and make sure it is the active document."""
+        with self._step("open_library") as step:
+            data_file = self._app.data.findFileById(ref.file_id)
+            if data_file is None:
+                raise LibraryApiError(f"Fusion cannot find the library {ref.name!r} any more.")
+            document = self._app.documents.open(data_file)
+            if document is None:
+                raise LibraryApiError(f"Fusion could not open the library {ref.name!r}.")
+            active = self._active_document()
+            differs = active is None or document_changed(document, active, None, None)
+            if differs and not document.activate():
+                raise LibraryApiError(f"Fusion could not activate the library {ref.name!r}.")
+            self._library_document = document
+            step.detail = f"opened {document_name(document)!r} in {self._workspace_id()}"
+
+    def merge_part(self, lbr_path: Path, deviceset: str) -> None:
+        """`Use`, `Copy`, `Use -` in the active library (`build_merge_commands`).
+
+        The replies are only logged: Electron answers '' and reports nothing, so a failed command
+        shows up as an exception from Fusion or not at all.
+        """
+        with self._step("merge_part") as step:
+            commands = build_merge_commands(lbr_path, deviceset)  # before anything runs
+            library, active = self._library_document, self._active_document()
+            if library is not None and document_changed(library, active, None, None):
+                raise LibraryApiError(
+                    f"The active document {document_name(active)!r} is not the library, "
+                    "so nothing was merged."
+                )
+            for command in commands:
+                self._text_command(command)
+            step.detail = f"merged {deviceset} from {lbr_path.name}"
+
+    def save_active(self, description: str) -> None:
+        """`Document.save(description)` of the active document."""
+        with self._step("save_active") as step:
+            document = self._active_document()
+            if document is None:
+                raise LibraryApiError("There is no active document to save.")
+            if not document.save(description):
+                raise LibraryApiError(f"Fusion could not save {document_name(document)!r}.")
+            step.detail = f"saved {document_name(document)!r} ({description!r})"
+
+    def create_3d_package(self, lbr_path: Path) -> None:
+        """`Electron.Create3DPackage`, then save the new design (Fusion names it, like SnapEDA)."""
+        with self._step("create_3d_package") as step:
+            command = build_create_3d_command(lbr_path)
+            folder = pick_root_folder(self._app.data)  # fail before the editor opens
+            library = self._library_document
+            reference = library if library is not None else self._active_document()
+            count_before = self._document_count()
+            self._text_command(command)
+            document = self._active_document()
+            if not document_changed(reference, document, count_before, self._document_count()):
+                raise LibraryApiError("The 3D package editor did not open.")
+            if not document.saveAs("", folder, THREE_D_PACKAGE_DESCRIPTION, ""):
+                raise LibraryApiError("Fusion could not save the new 3D package design.")
+            step.detail = f"saved {document_name(document)!r} in {self._workspace_id()}"
+
+    def import_step(self, step_path: Path) -> None:
+        """Import the STEP into the root component of the active design and turn the occurrence."""
+        with self._step("import_step") as step:
+            if not step_path.is_absolute() or not step_path.is_file():
+                raise LibraryApiError(f"The STEP file does not exist: {step_path}")
+            design = adsk.fusion.Design.cast(self._app.activeProduct)
+            if design is None:
+                raise LibraryApiError(
+                    "The active document is not a design, so the STEP file cannot be imported."
+                )
+            manager = self._app.importManager
+            options = manager.createSTEPImportOptions(str(step_path))  # native separators
+            imported = manager.importToTarget2(options, design.rootComponent)
+            if imported is None or imported.count == 0:
+                raise LibraryApiError(f"Fusion imported nothing from {step_path.name}.")
+            occurrence = adsk.fusion.Occurrence.cast(imported.item(0))
+            if occurrence is None:
+                raise LibraryApiError("The imported STEP file did not produce an occurrence.")
+            used = turn_occurrence(occurrence, build_turn_matrix(), self._log)
+            step.detail = f"imported {step_path.name}, turned about X via {used}"
+
+    # Helpers ------------------------------------------------------------------------------
+
+    @contextlib.contextmanager
+    def _step(self, name: str) -> Iterator[_Step]:
+        """Log one line when the method ends: its detail and the elapsed time, or the failure."""
+        step, started = _Step(), time.monotonic()
+        try:
+            yield step
+        except Exception as exc:  # logged and passed on, the flow reports it
+            self._log(f"{name} failed after {time.monotonic() - started:.1f} s: {exc!r}")
+            raise
+        self._log(f"{name}: {step.detail} ({time.monotonic() - started:.1f} s)")
+
+    def _text_command(self, command: str) -> str:
+        """`executeTextCommand`, logging the command and its reply (an exception is the error)."""
+        try:
+            reply = self._app.executeTextCommand(command)
+        except Exception as exc:
+            self._log(f"{command} raised {exc!r}")
+            raise
+        self._log(f"{command} -> {reply!r}")
+        return reply
+
+    def _library_by_id(self, file_id: str) -> Any:
+        try:
+            data_file = self._app.data.findFileById(file_id)
+        except Exception as exc:  # Fusion raises for an id it does not know (stale, other hub)
+            self._log(f"findFileById({file_id!r}) failed: {exc!r}")
+            return None
+        return data_file if data_file is not None and self._is_library(data_file) else None
+
+    def _library_by_name(self, name: str) -> Any:
+        files = pick_root_folder(self._app.data).dataFiles
+        matches = [files.item(index) for index in range(files.count)]
+        matches = [item for item in matches if item.name == name and self._is_library(item)]
+        if len(matches) > 1:
+            self._log(f"{len(matches)} libraries are called {name!r}, using the first one.")
+        return matches[0] if matches else None
+
+    def _is_library(self, data_file: Any) -> bool:
+        """A library file (extension `flbr`); an extension that cannot be read counts as a match."""
+        extension = getattr(data_file, "fileExtension", None)
+        if isinstance(extension, str) and extension and extension.lower() != LIBRARY_EXTENSION:
+            self._log(f"{data_file.name!r} has extension {extension!r}, not {LIBRARY_EXTENSION!r}.")
+            return False
+        return True
+
+    def _active_document(self) -> Any:
+        return self._app.activeDocument
+
+    def _document_count(self) -> int | None:
+        try:
+            return int(self._app.documents.count)
+        except Exception:  # only a hint for `document_changed`
+            return None
+
+    def _workspace_id(self) -> str:
+        try:
+            return str(self._ui.activeWorkspace.id)
+        except Exception:  # only for the log line
+            return "?"
+
+
+class FlowLibraryAdder:
+    """`LibraryAdder` of the controller: one `FusionLibraryFlow` per part, on the main thread.
+
+    `store` is `CorePartService.state_store`, the registry the service used when it renamed
+    clashing footprints. `add` never raises, a failure comes back as `FlowResult(ok=False)`.
+    """
+
+    def __init__(
+        self, api: FusionLibraryApi, store: StateStore, log_fn: Callable[[str], None]
+    ) -> None:
+        self._api = api
+        self._store = store
+        self._log = log_fn
+        self._running = False
+
+    def add(self, request: FlowRequest, status: Callable[[str, str], None]) -> FlowResult:
+        if self._running:  # a nested call (Fusion pumping events inside the flow)
+            return self._failed(
+                request, status, "Another library operation is still running. Wait for it."
+            )
+        self._running = True
+        try:
+            return FusionLibraryFlow(self._api, self._store, status, self._log).run(request)
+        except Exception as exc:  # boundary: `run` should not raise, but this runs in an event
+            self._log(f"The library flow crashed:\n{_redact(traceback.format_exc())}")
+            text = str(exc).strip() or type(exc).__name__
+            return self._failed(
+                request, status, f"Unexpected error while adding {request.lcsc_id}: {text}"
+            )
+        finally:
+            self._running = False
+
+    def _failed(
+        self, request: FlowRequest, status: Callable[[str, str], None], message: str
+    ) -> FlowResult:
+        with contextlib.suppress(Exception):  # the sink may be what failed
+            status("error", message)
+        return FlowResult(
+            ok=False,
+            created_library=False,
+            merged=False,
+            already_present=False,
+            three_d="skipped" if request.placed_step_path is not None else "none",
+            library_name=LIBRARY_NAME,
+            message=message,
+        )
 
 
 # Toolbar buttons ------------------------------------------------------------------------
@@ -733,12 +1273,20 @@ class AddinApp:
         """Dispatcher, controller, local HTTP server and the (not yet shown) window helper."""
         self._dispatcher.start()
         hub = self._hub = Hub()
+        service = CorePartService()
+        # The accumulating library: the flow shares the service's registry file, and the controller
+        # queues the (up to a minute long) Fusion work on the main thread through `post`.
+        library = FlowLibraryAdder(
+            AdskLibraryApi(self._app, self._ui, self._log), service.state_store, self._log
+        )
         controller = Controller(
-            CorePartService(),
+            service,
             FusionImporter(self._app, self._log),
             HubSink(hub),
             self._runner,
             self._log,
+            library=library,
+            defer=self._dispatcher.post,
         )
         self._dispatcher.set_handler(controller.handle)
         transport = self._transport = HttpTransport(

@@ -6,6 +6,7 @@ uses only xml.etree.ElementTree. The generated text is linted before it is retur
 
 from __future__ import annotations
 
+import hashlib
 import html
 import math
 import re
@@ -45,6 +46,8 @@ from lcsc2fusion.model import (
 __all__ = [
     "build_library",
     "format_number",
+    "package_element_fingerprint",
+    "package_fingerprint",
     "sanitize_name",
     "write_library",
 ]
@@ -383,6 +386,47 @@ def _build_package(
     for graphic in package.graphics:
         _add_graphic(element, graphic, ctx)
     return element
+
+
+def package_fingerprint(package: Package, *, native_slots: bool = True) -> str:
+    """Hex SHA-256 of a package's geometry, independent of its name and description.
+
+    Two footprints that differ only in name (or description) share the fingerprint; any change to
+    pads, holes or graphics (position, size, layer, order) changes it. It is computed from the
+    same `<package>` element `build_library` writes, so it equals `package_element_fingerprint`
+    of that element read back from a written .lbr (`native_slots` must match the writer's, the
+    default is the writer's default).
+
+    The value is stored by the add-in in its library registry: changing how the writer formats a
+    package therefore changes every fingerprint (tests pin one value to make that visible).
+    Raises ConversionError when the package cannot be written.
+    """
+    ctx = f"package {package.name or '?'}"
+    return package_element_fingerprint(_build_package(package, "", ctx, native_slots=native_slots))
+
+
+def package_element_fingerprint(element: ET.Element) -> str:
+    """Fingerprint of an existing `<package>` element, as `package_fingerprint` defines it.
+
+    The `name` attribute and the `<description>` child of the root are ignored, and so is all
+    layout whitespace (a parsed, indented file gives the same value as a freshly built element).
+    """
+    return hashlib.sha256(_canonical_xml(element, top=True).encode("utf-8")).hexdigest()
+
+
+def _canonical_xml(element: ET.Element, *, top: bool = False) -> str:
+    attributes = "".join(
+        f' {key}="{html.escape(value, quote=True)}"'
+        for key, value in sorted(element.attrib.items())
+        if not (top and key == "name")
+    )
+    children = [child for child in element if not (top and child.tag == "description")]
+    if children:  # whitespace between child elements is layout only
+        inner = "".join(_canonical_xml(child) for child in children)
+    else:
+        text = (element.text or "").replace("\r\n", "\n").replace("\r", "\n")
+        inner = html.escape(text, quote=False)
+    return f"<{element.tag}{attributes}>{inner}</{element.tag}>"
 
 
 # ----- symbol -----

@@ -77,12 +77,22 @@ MAX_DATA_CHARS = 60000
 OVERFLOW_ACTION = "overflow"
 
 # Static file allow list: file name -> Content-Type. Nothing else is ever read from `static_dir`.
+# The icon files and the web app manifest give the browser window its own icon (tab, title bar,
+# taskbar) instead of the default globe. They are binary: `_static` reads and sends bytes.
+# They are NOT exempt from the session cookie, Host and Origin checks. Checked with real Chrome
+# and Edge 154 in `--app` mode: the page's favicon request, the manifest (only because its <link>
+# says crossorigin="use-credentials", otherwise the browser sends no cookie and gets the 403) and
+# the manifest icons all arrive with the cookie. So no cookie free path is needed.
 STATIC_FILES: dict[str, str] = {
     "index.html": "text/html; charset=utf-8",
     "app.js": "text/javascript; charset=utf-8",
     "style.css": "text/css; charset=utf-8",
     "http-bridge.js": "text/javascript; charset=utf-8",
     "mock-bridge.js": "text/javascript; charset=utf-8",
+    "favicon.ico": "image/x-icon",
+    "icon-192.png": "image/png",
+    "icon-512.png": "image/png",
+    "manifest.webmanifest": "application/manifest+json",
 }
 
 _SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
@@ -108,10 +118,8 @@ _ROUTE_POST = "POST"
 _PATH_ACT = "/api/act"
 _PATH_EVENTS = "/api/events"
 _PATH_PING = "/api/ping"
-_PATH_FAVICON = "/favicon.ico"
 _ROUTES: dict[str, str] = {
     "/": _ROUTE_GET,
-    _PATH_FAVICON: _ROUTE_GET,
     _PATH_PING: _ROUTE_GET,
     _PATH_EVENTS: _ROUTE_GET,
     _PATH_ACT: _ROUTE_POST,
@@ -531,8 +539,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._events()
         elif path == _PATH_PING:
             self._ping()
-        elif path == _PATH_FAVICON:
-            self._reply(204, b"", None)
         else:
             self._static("index.html" if path == "/" else path[1:])
 

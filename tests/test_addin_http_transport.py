@@ -290,7 +290,12 @@ STATIC_CONTENT_TYPES = {
     "style.css": "text/css; charset=utf-8",
     "http-bridge.js": "text/javascript; charset=utf-8",
     "mock-bridge.js": "text/javascript; charset=utf-8",
+    "favicon.ico": "image/x-icon",
+    "icon-192.png": "image/png",
+    "icon-512.png": "image/png",
+    "manifest.webmanifest": "application/manifest+json",
 }
+ICON_PATHS = ("/favicon.ico", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest")
 
 
 @pytest.fixture
@@ -1225,6 +1230,8 @@ def test_an_unknown_method_gets_a_protocol_error_with_the_security_headers(rig: 
         ("POST", "/", "GET"),
         ("POST", "/app.js", "GET"),
         ("POST", "/favicon.ico", "GET"),
+        ("POST", "/icon-192.png", "GET"),
+        ("POST", "/manifest.webmanifest", "GET"),
     ],
 )
 def test_a_known_path_with_the_wrong_method_gets_405(
@@ -1310,11 +1317,89 @@ def test_files_beside_the_allow_list_are_never_served(rig: Rig, cookie: str) -> 
         assert b"SECRET" not in response.body
 
 
-def test_favicon_is_an_empty_204(rig: Rig, cookie: str) -> None:
+def test_favicon_is_the_real_icon_and_no_longer_an_empty_204(rig: Rig, cookie: str) -> None:
     response = rig.get("/favicon.ico", cookie)
-    assert response.status == 204
-    assert response.body == b""
+    assert response.status == 200
+    assert response.header("content-type") == "image/x-icon"
+    assert response.body == b"content of favicon.ico\n"
     assert_security_headers(response)
+
+
+def test_the_icon_files_and_the_manifest_are_on_the_allow_list() -> None:
+    for path in ICON_PATHS:
+        assert ht.STATIC_FILES[path[1:]] == STATIC_CONTENT_TYPES[path[1:]]
+
+
+@pytest.mark.parametrize("path", ICON_PATHS)
+def test_binary_assets_are_served_byte_for_byte(
+    rig: Rig, cookie: str, static_dir: Path, path: str
+) -> None:
+    # Every byte value, including CR, LF, NUL and the bytes that are not valid UTF-8.
+    blob = bytes(range(256)) * 4 + b"\r\n\x00\xff\xfe"
+    (static_dir / path[1:]).write_bytes(blob)
+    response = rig.get(path, cookie)
+    assert response.status == 200
+    assert response.body == blob
+    assert response.header("content-length") == str(len(blob))
+    assert response.header("content-type") == STATIC_CONTENT_TYPES[path[1:]]
+    assert response.header("x-content-type-options") == "nosniff"
+    assert_security_headers(response)
+
+
+@pytest.mark.parametrize("path", ICON_PATHS)
+def test_icon_assets_keep_every_access_check(rig: Rig, cookie: str, path: str) -> None:
+    # The icon files are not exempt from the session: browsers send the cookie for the page's
+    # favicon and, with crossorigin="use-credentials", for the manifest and its icons.
+    anonymous = request(rig.port, "GET", path)
+    assert anonymous.status == 403
+    assert anonymous.header("set-cookie") is None
+    assert b"content of" not in anonymous.body
+    assert_security_headers(anonymous)
+    wrong_cookie = request(rig.port, "GET", path, cookie="lcsc_s=not-a-session")
+    assert wrong_cookie.status == 403
+    for host in ("evil.com", f"localhost:{rig.port}", None):
+        refused = request(rig.port, "GET", path, cookie=cookie, host=host)
+        assert refused.status == 403
+        assert b"content of" not in refused.body
+    foreign = rig.get(path, cookie, origin="http://evil.com")
+    assert foreign.status == 403
+    assert b"content of" not in foreign.body
+    assert_security_headers(foreign)
+    own = rig.get(path, cookie, origin=f"http://127.0.0.1:{rig.port}")
+    assert own.status == 200
+    assert rig.get(path + "?v=2", cookie).status == 200  # the query string is ignored
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/favicon.ico/",
+        "/FAVICON.ICO",
+        "/favicon.png",
+        "/icons/icon-192.png",
+        "/icon-192.png/",
+        "/icon-192.PNG",
+        "/icon-256.png",
+        "/manifest.json",
+        "/manifest.webmanifest/",
+        "/..%2ficon-512.png",
+    ],
+)
+def test_icon_names_are_matched_exactly(rig: Rig, cookie: str, path: str) -> None:
+    assert rig.get(path, cookie).status == 404
+
+
+def test_a_missing_icon_file_is_a_404_and_the_page_files_still_work(
+    rig: Rig, cookie: str, static_dir: Path
+) -> None:
+    for name in ("favicon.ico", "icon-192.png", "manifest.webmanifest"):
+        (static_dir / name).unlink()
+    for path in ("/favicon.ico", "/icon-192.png", "/manifest.webmanifest"):
+        response = rig.get(path, cookie)
+        assert response.status == 404
+        assert_security_headers(response)
+    assert rig.get("/icon-512.png", cookie).status == 200
+    assert rig.get("/", cookie).status == 200
 
 
 def test_head_is_not_a_way_to_probe_files(rig: Rig, cookie: str) -> None:
