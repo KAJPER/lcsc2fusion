@@ -53,6 +53,9 @@ ACTION_SEARCH = "search"
 ACTION_ADD = "add"
 ACTION_OPEN_FOLDER = "open_folder"
 ACTION_OPEN_LIBRARY = "open_library"
+# Not sent by our page: on the Qt browser Fusion answers every `sendInfoToHTML` with this event,
+# data being the return value of the page's fusionJavaScriptHandler. It is only an acknowledgement.
+ACTION_RESPONSE = "response"
 
 ACTION_STATUS = "status"
 ACTION_RESULTS = "results"
@@ -254,6 +257,12 @@ class Controller:
 
     def handle(self, action: str, data: str) -> str:
         """Process one palette event. Never raises; returns the reply string for the page."""
+        if action == ACTION_RESPONSE:
+            # Must come before payload parsing (the data is "OK", not JSON). Answering it with an
+            # error message would make Fusion acknowledge that message too, and so on forever.
+            if data not in ("", REPLY_OK):
+                self._log(f"The palette answered a message with {data!r}.")
+            return REPLY_OK
         try:
             payload = _parse_payload(data)
             handler = self._handlers.get(action)

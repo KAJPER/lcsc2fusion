@@ -693,6 +693,35 @@ def test_malformed_requests_get_an_error_and_never_raise(
     assert h.controller.busy is False
 
 
+# response acknowledgement -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("data", ["OK", ""])
+def test_fusion_response_acknowledgement_is_ignored_silently(h: Harness, data: str) -> None:
+    assert h.controller.handle("response", data) == "OK"
+    assert h.sink.raw == []  # no error message, so no endless acknowledgement ping pong
+    assert h.logs == []
+    assert h.service.search_calls == []
+    assert h.service.add_calls == []
+
+
+def test_fusion_response_with_a_failure_text_is_logged_but_not_shown(h: Harness) -> None:
+    assert h.controller.handle("response", "ERROR") == "OK"
+    assert h.sink.raw == []
+    assert any("ERROR" in line for line in h.logs)
+
+
+def test_every_message_the_controller_sends_may_be_acknowledged_without_new_traffic(
+    h: Harness,
+) -> None:
+    call(h, ACTION_SEARCH, {"query": "C2040"})
+    sent = len(h.sink.raw)
+    assert sent > 0
+    for _ in range(sent):
+        h.controller.handle("response", "OK")  # Fusion acknowledges each one
+    assert len(h.sink.raw) == sent
+
+
 # open_folder ---------------------------------------------------------------------------------
 
 
