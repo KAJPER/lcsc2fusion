@@ -13,3 +13,10 @@ out/
 tests/fixtures/real/
 graphify-out/
 docs/test_library/
+
+# Private notes, secrets and generated promo material (never commit)
+/IDEAS.md
+/promo/
+*.key
+.env
+.env.*

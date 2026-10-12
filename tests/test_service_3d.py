@@ -284,11 +284,11 @@ def test_file_names_never_come_from_a_path_like_id(tmp_path: Path) -> None:
     out = tmp_path / "out"
     doc = load_doc("box3d_rot90")
     client = StubClient(docs={"../EVIL": doc})
-    result = convert_parts(["../evil"], out, client=client, with_3d=True)
-    assert result.models == ()
-    assert any("3D model not written" in w and "../evil" in w for w in result.warnings)
-    assert listing(tmp_path) == ["out"]
-    assert [p.suffix for p in out.iterdir()] == [".lbr"]  # only the library, inside out_dir
+    # A lenient client could serve it; the conversion still refuses to name files after it.
+    with pytest.raises(PartNotFoundError):
+        convert_parts(["../evil"], out, client=client, with_3d=True)
+    assert listing(tmp_path) in ([], ["out"])
+    assert not out.exists() or list(out.iterdir()) == []
 
 
 def test_output_directory_is_created(tmp_path: Path) -> None:

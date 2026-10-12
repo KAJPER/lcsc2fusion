@@ -27,6 +27,8 @@ EXCLUDED_DIRS = frozenset(
 EXCLUDED_DIR_SUFFIXES = (".egg-info",)
 EXCLUDED_FILE_SUFFIXES = (".pyc", ".pyo")
 EXCLUDED_FILE_NAMES = frozenset({".DS_Store", "Thumbs.db"})
+# Sub packages of the core that the add-in never imports (the MCP server runs outside Fusion).
+CORE_EXCLUDED_PACKAGES = frozenset({"mcp"})
 
 REQUIRED_MANIFEST_KEYS = (
     "autodeskProduct",
@@ -106,8 +108,10 @@ def collect_files(source: Path) -> list[Path]:
     return sorted(found, key=lambda p: p.as_posix())
 
 
-def _copy_tree(source: Path, target: Path) -> None:
+def _copy_tree(source: Path, target: Path, skip_top: frozenset[str] = frozenset()) -> None:
     for relative in collect_files(source):
+        if relative.parts[0] in skip_top:
+            continue
         destination = target / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / relative, destination)
@@ -143,7 +147,7 @@ def build(root: Path = ROOT, dist: Path | None = None) -> BuildResult:
     folder.mkdir(parents=True)
 
     _copy_tree(addin_src, folder)
-    _copy_tree(core_src, folder / CORE_NAME)
+    _copy_tree(core_src, folder / CORE_NAME, CORE_EXCLUDED_PACKAGES)
     license_file = root / "LICENSE"
     if license_file.is_file():
         shutil.copyfile(license_file, folder / "LICENSE")

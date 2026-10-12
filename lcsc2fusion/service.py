@@ -131,7 +131,14 @@ def convert_parts(
             attribute = (MODEL3D_ATTRIBUTE, files.placed_step_path.name)
             written.append(dataclasses.replace(part, attributes=(*part.attributes, attribute)))
         parts = tuple(written)
-    name = library_name or (parts[0].lcsc_id if len(parts) == 1 else "lcsc2fusion")
+    # The file name never comes from the downloaded document (`lcsc.number` is network data):
+    # a single part is named after the id that was requested and validated.
+    if library_name:
+        name = _plain_file_stem(library_name)
+    elif len(parts) == 1:
+        name = normalize_lcsc_id(lcsc_ids[0])
+    else:
+        name = "lcsc2fusion"
     description = "LCSC parts: " + ", ".join(p.lcsc_id for p in parts)
     path = write_library(out_dir / f"{name}.lbr", parts, description=description)
     return ConversionResult(
@@ -141,6 +148,21 @@ def convert_parts(
         model_warnings=tuple(model_warnings),
         with_3d=with_3d,
     )
+
+
+def _plain_file_stem(name: str) -> str:
+    """`name` when it is a plain file name (no folders, no device names), else `ConversionError`."""
+    stripped = name.strip()
+    forbidden = set('<>:"/\\|?*\0')
+    if (
+        not stripped
+        or stripped in {".", ".."}
+        or stripped != name
+        or stripped.endswith(".")
+        or any(char in forbidden or ord(char) < 32 for char in stripped)
+    ):
+        raise ConversionError(f"{name!r} is not usable as a library file name")
+    return stripped
 
 
 def search(query: str, limit: int = 20, client: EasyEdaClient | None = None) -> list[SearchResult]:
