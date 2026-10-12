@@ -544,3 +544,6 @@ Dwa niezależne researche (dane EasyEDA i workflow Fusiona) oraz plan Etapu 3 (D
   model o 90 stopni wokół X (stąd wariant Y-up w Bramie 3).
 - Licencja w JSON-ie: "3D models" są wprost własnością JLCEDA/EasyEDA, użycie komercyjne tylko w EasyEDA,
   obowiązek atrybucji. Dlatego `--3d` jest opt-in, a pliki STEP nie trafiają do repo.
+- Brama 3 przeszła (D-021): wariant `placed` (Z w górę) leży poprawnie we Fusionie dla C25804, C2040 i
+  C165948. Wariant Y-up kładzie model na boku, surowy STEP jest obrócony o 90 stopni. Transformacja
+  z sekcji 10 jest więc potwierdzona w Fusionie, łącznie ze znakiem rotacji i podniesieniem do `z`.

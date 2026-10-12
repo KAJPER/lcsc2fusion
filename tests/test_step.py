@@ -33,7 +33,6 @@ from lcsc2fusion.step import (
     StepInfo,
     place_step,
     read_step,
-    rotate_x,
     step_bbox,
     transform_step,
 )
@@ -732,45 +731,6 @@ def test_non_finite_placement_is_refused() -> None:
         place_step(make_box_step(), _model(bottom_z=math.inf))
 
 
-# ===== rotate_x =====
-
-
-def test_rotate_x_90_maps_y_z_to_minus_z_y() -> None:
-    data = make_box_step(center=(0.3, -0.2), zmin=-0.85)
-    out = rotate_x(data, 90)
-    before, after = _vertices(data), _vertices(out)
-    for vid, (x, y, z) in before.items():
-        _assert_vec(after[vid], (x, -z, y))  # right handed: (x, y, z) -> (x, -z, y)
-    box = step_bbox(out)
-    # y' = -z spans (0.35, 0.85) and z' = y spans (-0.6, 0.2).
-    assert (box.min_y, box.max_y) == pytest.approx((0.35, 0.85), abs=1e-9)
-    assert (box.min_z, box.max_z) == pytest.approx((-0.6, 0.2), abs=1e-9)
-    assert box.size == pytest.approx((1.6, 0.5, 0.8), abs=1e-9)
-
-
-def test_rotate_x_minus_90_is_the_y_up_variant() -> None:
-    data = make_box_step(center=(0.3, -0.2), zmin=-0.85)
-    out = rotate_x(data, -90)
-    for vid, (x, y, z) in _vertices(data).items():
-        _assert_vec(_vertices(out)[vid], (x, z, -y))  # Z-up becomes Y-up
-
-
-def test_rotate_x_full_turn_and_round_trip() -> None:
-    data = make_box_step()
-    assert rotate_x(data, 360) == data
-    assert rotate_x(data, 0) == data
-    back = rotate_x(rotate_x(data, 90), -90)
-    for ident, (_, values) in _coords(data).items():
-        assert _coords(back)[ident][1] == pytest.approx(values, abs=1e-12)
-
-
-def test_rotate_x_directions_follow_points() -> None:
-    out = rotate_x(make_box_step(), 90)
-    after = {i: v for i, (k, v) in _coords(out).items() if k == b"DIRECTION" and len(v) == 3}
-    assert any(v == pytest.approx((0.0, 0.0, 1.0), abs=1e-12) for v in after.values())  # +Y -> +Z
-    assert any(v == pytest.approx((0.0, -1.0, 0.0), abs=1e-12) for v in after.values())  # +Z -> -Y
-
-
 # ===== refusals and odd layouts =====
 
 
@@ -779,7 +739,7 @@ def test_assembly_is_refused_everywhere() -> None:
     with pytest.raises(ModelError, match="assembly"):
         place_step(data, _model())
     with pytest.raises(ModelError, match="assembly"):
-        rotate_x(data, 90)
+        transform_step(data, Matrix3x4.rotation_x(90))
     with pytest.raises(ModelError, match="assembly"):
         transform_step(data, Matrix3x4.identity())  # even a no-op is refused, no silent success
 
@@ -829,7 +789,7 @@ def test_four_coordinate_point_is_refused() -> None:
     odd = b"#9999 = CARTESIAN_POINT ( 'NONE',  ( 1.0, 2.0, 3.0, 4.0 ) ) ;\r\n"
     data = make_box_step().replace(b"ENDSEC;\r\nEND-", odd + b"ENDSEC;\r\nEND-")
     with pytest.raises(ModelError, match="unsupported layout"):
-        rotate_x(data, 90)
+        transform_step(data, Matrix3x4.rotation_x(90))
 
 
 def test_unbalanced_quote_cannot_cause_a_silent_partial_transform() -> None:
@@ -969,13 +929,3 @@ def test_real_round_trip_and_timing() -> None:
     assert original.keys() == restored.keys()
     for ident, (_, values) in original.items():
         assert restored[ident][1] == pytest.approx(values, abs=1e-6)
-
-
-@pytest.mark.real
-def test_real_rotate_x_swaps_height_and_depth() -> None:
-    data = _real("C165948")
-    before = step_bbox(data)
-    after = step_bbox(rotate_x(data, 90))
-    assert after.min_x == pytest.approx(before.min_x, abs=1e-6)
-    assert (after.min_y, after.max_y) == pytest.approx((-before.max_z, -before.min_z), abs=1e-6)
-    assert (after.min_z, after.max_z) == pytest.approx((before.min_y, before.max_y), abs=1e-6)

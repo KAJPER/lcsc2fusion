@@ -123,3 +123,10 @@ Format: kontekst, wybór, powód. Status: ACCEPTED (przyjęte do planu), PENDING
 - Powód: to jedyna ścieżka w pełni potwierdzona dokumentacją. Opt-in, bo to dodatkowe pobranie treści chronionej licencją (licencja w JSON-ie wprost wymienia "3D models"), z obowiązkiem atrybucji i bez redystrybucji.
 - Odrzucone na teraz: zapis `package3d`/`wip_urn` do `.lbr` (niewykonalny offline) i automatyzacja `Electron.Create3DPackage` w stylu SnapEDA (nieudokumentowana, niepotwierdzona synchroniczność i kontekst wywołania). Wrócimy do niej po Bramie 3.
 - Wynik Bramy 3 (który wariant osi i początku Fusion przyjmuje) zapiszemy jako D-021.
+
+## D-021 Brama 3 przeszła: `placed.step` (Z w górę) jest poprawny (ACCEPTED, 2026-10-12)
+
+- Kontekst: dla C25804 (rezystor 0603, `rz = 90`), C2040 (QFN-56) i C165948 (USB-C, `rz = 180`, `z = -0,85 mm`, przesunięcie -1,1 mm) użytkownik podłączył do footprintu we Fusionie trzy warianty STEP przez Attach Existing 3D Model.
+- Wynik: `<id>.placed.step` leży poprawnie na footprincie dla wszystkich trzech części (położenie, obrót, wysokość). Wariant `placed_yup` (obrócony o 90 stopni wokół X) kładzie model na boku. Surowy STEP jest obrócony o 90 stopni względem footprintu (C25804).
+- Wniosek: Fusion przyjmuje model w układzie "Z w górę, mm, początek w początku footprintu, spód na płytce", bez konwersji osi. Wzór transformacji z D-020 (obrót `rz` wokół środka bbox, przesunięcie `c_origin`, podniesienie do `z`) jest potwierdzony we Fusionie, także znak rotacji i reguła `zb - zmin` dla modeli z `z != 0`.
+- Zmiany: wariant Y-up i skrypt paczki testowej usunięte (`rotate_x`, `scripts/make_3d_test_pack.py`), bo służyły tylko do tego eksperymentu. Zwykłe `--3d` wystarcza. Automatyzacja w stylu SnapEDA (D-020, "odrzucone na teraz") zostaje opcją na życzenie.

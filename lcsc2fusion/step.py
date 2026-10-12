@@ -529,15 +529,6 @@ def transform_step(data: bytes, matrix: Matrix3x4) -> bytes:
     return _apply(_parse(data), matrix)
 
 
-def rotate_x(data: bytes, degrees: float) -> bytes:
-    """Rotate the model rigidly about the global X axis through the origin.
-
-    Right handed, counter-clockwise viewed from +X: rotate_x(data, 90) maps (x, y, z) to
-    (x, -z, y). Use -90 to move a Z-up model into a Y-up frame, (x, y, z) to (x, z, -y).
-    """
-    return transform_step(data, Matrix3x4.rotation_x(degrees))
-
-
 def place_step(data: bytes, model: Model3D) -> tuple[bytes, list[str]]:
     """Bake the EasyEDA placement into the STEP file, returning (new bytes, warnings).
 

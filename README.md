@@ -5,9 +5,10 @@ Eagle `.lbr` library (symbol + footprint) ready to use in Autodesk Fusion Electr
 from the unofficial EasyEDA/LCSC endpoints. It works as a command line tool and as a Fusion add-in
 with a search palette, in the spirit of SnapEDA.
 
-Status: early. The converter core is covered by offline tests. The import of a generated `.lbr`
-into Fusion and the add-in itself have not been verified inside Fusion yet, see
-[docs/MANUAL_TEST.md](docs/MANUAL_TEST.md) for the checklist.
+Status: the converter core is covered by offline tests (2000+). Confirmed by hand in Fusion
+Electronics: libraries generated from synthetic parts import cleanly (pads, slots, arcs, symbols,
+multi gate parts) and the placed 3D model lines up with the footprint for three real parts. The add-in
+palette itself still needs its manual run, see [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md).
 
 ## Install (development)
 

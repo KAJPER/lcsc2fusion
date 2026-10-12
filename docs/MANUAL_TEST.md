@@ -75,36 +75,27 @@ Add-Ins, uruchom `LCSC2Fusion` (opcjonalnie zaznacz "Run on Startup").
 - [ ] Odłącz sieć i wyszukaj: czytelny komunikat o błędzie sieci, bez zawieszenia Fusiona.
 - [ ] Zatrzymaj i uruchom add-in ponownie: palety nie ma dwa razy, brak błędów w Text Commands.
 
-## Brama 3: modele 3D (około 20 minut)
+## Brama 3: modele 3D
 
-Przygotowanie: `python scripts/make_3d_test_pack.py` (domyślnie C25804, C2040 i C165948 do `out\3d_test`).
-Dla każdej części powstają `<id>.lbr`, `<id>.step` (surowy z EasyEDA), `<id>.placed.step` (ten sam model
-przeniesiony do układu paczki: mm, Z w górę, początek w początku footprintu, spód bryły na płytce),
-`<id>.placed_yup.step` (wariant obrócony o 90 stopni wokół X, tylko do tego testu) i `<id>.3d.json`.
+Status: PRZESZŁA (2026-10-12). `<id>.placed.step` leży poprawnie na footprincie dla C25804, C2040 i
+C165948. Wariant Y-up kładł model na boku, a surowy STEP był obrócony o 90 stopni (D-021).
 
-Dla każdej części po kolei (zacznij od rezystora 0603, bo jego bryła jest asymetryczna i widać orientację):
+Powtórzenie dla innej części:
 
-1. Otwórz `<id>.lbr` (File > Open > Open from my computer) i zapisz do projektu (File > Save).
-2. Content Manager > Footprints > prawy przycisk na footprincie > **Attach Existing 3D Model** >
-   **Select from my computer...** > wybierz plik STEP > nazwij pakiet > OK.
-3. Obejrzyj model nad footprintem i zapisz w tabeli niżej: czy leży na padach (położenie), czy stoi
-   prosto i nie leży na boku (oś), czy kierunek obrotu się zgadza (znaczniki, pin 1), czy stoi na
-   płytce (wysokość), czy import pokazał błąd lub trwał dziwnie długo.
-4. Powtórz dla pozostałych wariantów: `.placed.step`, `.placed_yup.step`, `.step`. Usuń poprzedni
-   pakiet 3D (albo użyj nowej nazwy pakietu), żeby nie mylić wyników.
+```
+python -m lcsc2fusion <id> --3d -o out
+```
 
-| Część | Wariant STEP | Położenie XY | Oś (leży/stoi) | Obrót | Wysokość | Błąd importu |
-|-|-|-|-|-|-|-|
-| C25804 | placed | | | | | |
-| C25804 | placed_yup | | | | | |
-| C25804 | surowy | | | | | |
-| C2040 | placed | | | | | |
-| C165948 | placed | | | | | |
+- [ ] Otwórz `out\<id>.lbr` (File > Open > Open from my computer) i zapisz do projektu.
+- [ ] Content Manager > Footprints > prawy przycisk na footprincie > **Attach Existing 3D Model** >
+  **Select from my computer...** > `out\<id>.placed.step` > nazwa pakietu > OK.
+- [ ] Model leży na padach, stoi prosto (nie na boku), jest obrócony tak jak footprint (pin 1,
+  znaczniki) i stoi na płytce, nie pod nią ani nad nią.
+- [ ] Add-in: zaznacz "Include 3D model (STEP)", dodaj część, karta wyniku pokazuje pięć kroków i
+  nazwy plików, a pliki STEP leżą obok `.lbr`.
 
-Co z tego wyniknie: który wariant zostaje (D-021), czy trzeba skorygować oś w `step.py`, i czy warto
-robić automatyzację w stylu SnapEDA (D-020, punkt "odrzucone na teraz"). Add-in: zaznacz "Include 3D
-model (STEP)", dodaj część i sprawdź, że karta wyniku pokazuje pięć kroków oraz nazwy plików, a pliki
-STEP leżą obok `.lbr`.
+Jeśli model jest przesunięty lub obrócony, wklej mi: id części, zrzut oraz zawartość `<id>.3d.json`
+(pole `placement`, w tym `placement_source`).
 
 ## Co wkleić, jeśli coś nie działa
 
