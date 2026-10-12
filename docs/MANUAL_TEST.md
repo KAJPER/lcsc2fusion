@@ -138,6 +138,34 @@ już w bibliotece, a 3D zrobi się od nowa), potem drugą część. Zamknij najp
 Co wkleić przy błędzie: statusy z okna, linie `LCSC2Fusion` z najnowszego `AppLogFile*.log` (zwłaszcza `merge`,
 `create_3d_package`, `import_step`) i zawartość `%LOCALAPPDATA%\LCSC2Fusion\state.json`. Wynik zapiszemy jako D-026.
 
+## Brama 6: nowe okno, ustawienia, link do LCSC i MCP (D-028 do D-031)
+
+Instalacja: nowa wersja jest już rozpakowana w `%APPDATA%\Autodesk\FusionAddins\`. W Fusionie: Shift+S, Add-Ins,
+`LCSC2Fusion`, Stop, potem Run (okno przeglądarki zamknie się i otworzy na nowo).
+
+Okno i ustawienia:
+- [ ] Okno wygląda czysto w obu motywach, nic nie wychodzi poza krawędź przy szerokości 520 px i po zwężeniu.
+- [ ] Przycisk Settings otwiera panel. Motyw System, Light, Dark zmienia wygląd od razu, a po zamknięciu i
+  ponownym otwarciu okna wybór zostaje.
+- [ ] Język English i Polski: wszystkie napisy, wyniki i komunikaty przełączają się od razu. Po restarcie okna wybór
+  zostaje. Napisz, które teksty zostały po angielsku (to komunikaty bez wzorca, dopiszemy).
+- [ ] Szukanie `C2040`: w wierszu wyniku numer LCSC jest linkiem. Klik otwiera stronę części na lcsc.com w nowej
+  karcie lub oknie przeglądarki (sprawdź, że nie podmienia okna add-inu). Jeśli jest link "Datasheet", też działa.
+- [ ] Karta zapisanej części ma ten sam link do LCSC.
+
+MCP (drugi Claude używa narzędzia):
+- [ ] Add-in uruchomiony, plik `%LOCALAPPDATA%\LCSC2Fusion\api.json` istnieje (zawiera url, token i pid). Nie wklejaj
+  go nikomu, token jest sekretem.
+- [ ] Nowa sesja `claude` w katalogu projektu pyta o zaufanie do serwera `lcsc2fusion` z `.mcp.json`. Po zatwierdzeniu
+  `/mcp` pokazuje 6 narzędzi.
+- [ ] Prośba "znajdź na LCSC rezystor 0603 100nF" używa `lcsc_search` i zwraca linki do LCSC.
+- [ ] Prośba "dodaj C2040 do mojej biblioteki we Fusionie" używa `fusion_add_part`, a w oknie add-inu widać
+  te same statusy co przy ręcznym dodaniu. Drugie takie polecenie w trakcie pracy dostaje komunikat o zajętości.
+- [ ] Zamknięcie Fusiona usuwa `api.json`. Wtedy `fusion_status` mówi, że add-in nie działa.
+
+Co wkleić przy błędzie: komunikat narzędzia (pole `error_kind`), linie `LCSC2Fusion` z `AppLogFile*.log` (bez tokenu)
+i zrzut okna. Wynik zapiszemy jako D-033.
+
 ## Co wkleić, jeśli coś nie działa
 
 - Dokładny tekst błędu lub zrzut ekranu okna.

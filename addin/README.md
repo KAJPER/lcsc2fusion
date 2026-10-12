@@ -5,8 +5,9 @@ footprint, optionally a 3D model) written by the `lcsc2fusion` core. The UI is a
 window, like SnapEDA's own window, served by a small local HTTP server inside the add-in. Fusion
 deletes every API palette whenever the user switches workspace (for example when a library opens in
 the Electronics editor), so a palette cannot survive that; the separate window does (D-022).
-Status: the window architecture still has to be confirmed inside Fusion, see `docs/MANUAL_TEST.md`
-(gate 4).
+Status: the window architecture and the accumulating library were confirmed inside Fusion (gates 4 and 5,
+DECISIONS.md D-027). The restyled window, the settings, the LCSC links and the local API for the MCP server
+are covered by automated tests and a real browser, and still wait for gate 6 of `docs/MANUAL_TEST.md`.
 
 ## Layout
 
@@ -54,8 +55,8 @@ Edge or Chrome --app (own profile)  <--HTTP-->  HttpTransport (thread in the add
 - `runOnStartup` is true: the add-in only registers buttons and the server at Fusion start, the
   window is shown on the first click. Run manually from Scripts and Add-Ins and the window opens
   at once. Stop closes the window.
-- `LCSC2FUSION_UI=palette` (environment variable) starts the old docked palette instead. Temporary,
-  to compare until gate 4 passed (D-022).
+- `LCSC2FUSION_UI=palette` (environment variable) starts the old docked palette instead. Temporary;
+  gate 4 has passed, so the mode is not needed any more (D-027) and may be removed.
 - Look and links of the page: one blue accent, cool greys, light and dark (System by default, or
   forced in the settings, see "Settings" below);
   the scales (spacing, radius, type) and the contrast rules are documented at the top of
@@ -184,10 +185,10 @@ Fusion palette and the `file://` mock mode behave as before.
 ## Behaviour
 
 - Libraries are written to `~/LCSC2Fusion/libraries/<id>.lbr` (created on demand).
-- After saving, the window shows an "Open in Fusion Electronics" button. Pressing it runs the
+- After saving, the card offers "Open as a separate library". Pressing it runs the
   undocumented text command `Document.newDesignFromLocal "<path>"` on Fusion's main thread, from
-  the custom event handler (D-006 variant A; confirmed for a palette handler, still to be confirmed
-  for this context in gate 4, fallback: the `fusion360://` protocol, D-022). Nothing is opened
+  the custom event handler (D-006 variant A; it worked from this context in the Fusion log of gate 5, D-026;
+  fallback: the `fusion360://` protocol, D-022). Nothing is opened
   automatically. When the command fails, the palette shows the
   manual steps: File > Open > Open from my computer, then File > Save into a project so the
   library appears in the Library Manager.
@@ -248,8 +249,8 @@ to Fusion on the main thread, in the background (about 45 s, progress shown in t
 3. `%LOCALAPPDATA%\LCSC2Fusion\state.json` remembers the library id and the added parts. The same part again is not
    merged twice; a package with an existing name but different geometry is renamed before the `.lbr` is written.
 
-Everything in step 1 and 2 is unverified inside Fusion until gate 5 of `docs/MANUAL_TEST.md`. "Open as a separate
-library" keeps the old behaviour (one `.lbr` opened as its own document) as a fallback.
+Steps 1 to 3 were confirmed inside Fusion in gate 5 (D-026, D-027). A rare Fusion dialog "Can't rename ... Error code: 5"
+was seen once and stays under observation. "Open as a separate library" keeps the old behaviour (one `.lbr` opened as its own document) as a fallback.
 
 ## Local API for the MCP server
 

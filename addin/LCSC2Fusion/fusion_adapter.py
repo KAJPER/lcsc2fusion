@@ -23,7 +23,7 @@ calls. The sequence copies the installed SnapEDA add-in, whose calls are proven 
 build, but SnapEDA runs it from its `openedFromURL` handler. Ours runs from a custom event handler.
 `Document.saveAs`, `Document.save` and `ImportManager.importToTarget2` are documented as not
 supported "within any of the Command related events"; a custom event is none of those, so the
-calls are expected to work, but that is UNVERIFIED until plan gate 5 runs it inside Fusion.
+calls work from a custom event handler too, confirmed inside Fusion by plan gate 5 (D-027).
 """
 
 from __future__ import annotations
