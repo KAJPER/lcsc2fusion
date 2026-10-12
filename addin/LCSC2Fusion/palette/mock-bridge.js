@@ -4,6 +4,8 @@
  * `adsk.fusionSendData` shows up within a short wait. It never touches window.adsk, so nothing
  * changes when the page runs in Fusion. `deliver(action, data)` pushes a message to the page the
  * way palette.sendInfoToHTML would. Try: C2040, "resistor", "none" (no hits), "fail" (error).
+ * With "Include 3D model" ticked, adding C2913202 shows the "no 3D model" case; the other parts
+ * get a 3D model.
  */
 (function () {
   'use strict';
@@ -87,26 +89,43 @@
       });
     }
 
-    function add(lcscId) {
+    const NO_MODEL_ID = 'C2913202';
+    const MOCK_DIR = 'C:\\Users\\mock\\LCSC2Fusion\\libraries\\';
+
+    function add(lcscId, with3d) {
       const part = SAMPLE_PARTS.find((candidate) => candidate.lcsc_id === lcscId);
       deliver('busy', { value: true });
-      deliver('status', { level: 'info', text: 'Downloading ' + lcscId + ' and building the library...' });
+      deliver('status', { level: 'info', text: 'Downloading ' + lcscId + (with3d ? ' and building the library and the 3D model...' : ' and building the library...') });
       later(900, () => {
         const withWarnings = lcscId === 'C2913202';
+        const hasModel = with3d && lcscId !== NO_MODEL_ID;
+        const warnings = withWarnings ? [
+          lcscId + ': pad 41 is shared by 9 pads, renamed to 41, 41_2, ...',
+          lcscId + ': polygon pad approximated by its bounding box',
+        ] : [];
+        if (with3d && !hasModel) {
+          warnings.push(lcscId + ': no 3D model in the EasyEDA data for this part');
+        }
         deliver('added', {
           lcsc_id: lcscId,
-          path: 'C:\\Users\\mock\\LCSC2Fusion\\libraries\\' + lcscId + '.lbr',
+          path: MOCK_DIR + lcscId + '.lbr',
           mpn: part ? part.mpn : '',
-          warnings: withWarnings ? [
-            lcscId + ': pad 41 is shared by 9 pads, renamed to 41, 41_2, ...',
-            lcscId + ': polygon pad approximated by its bounding box',
-          ] : [],
+          warnings: warnings,
           opened: false,
           instructions: MOCK_INSTRUCTIONS,
+          step_path: hasModel ? MOCK_DIR + lcscId + '.step' : null,
+          placed_step_path: hasModel ? MOCK_DIR + lcscId + '.placed.step' : null,
+          with_3d: with3d,
         });
-        deliver('status', withWarnings
-          ? { level: 'warn', text: 'Saved ' + lcscId + ' with 2 warning(s).' }
-          : { level: 'ok', text: 'Saved ' + lcscId + '.' });
+        let status;
+        if (with3d && !hasModel) {
+          status = { level: 'warn', text: 'Saved ' + lcscId + ' without a 3D model: none was produced for this part. See the warnings on the result.' };
+        } else if (warnings.length) {
+          status = { level: 'warn', text: 'Saved ' + lcscId + ' with ' + warnings.length + ' warning(s).' };
+        } else {
+          status = { level: 'ok', text: 'Saved ' + lcscId + (hasModel ? ' and its 3D model.' : '.') };
+        }
+        deliver('status', status);
         deliver('busy', { value: false });
       });
     }
@@ -133,7 +152,7 @@
             search(data.query);
             break;
           case 'add':
-            add(data.lcsc_id);
+            add(data.lcsc_id, data.with_3d === true);
             break;
           case 'open_library':
             openLibrary(data.path);

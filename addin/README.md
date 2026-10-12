@@ -51,7 +51,8 @@ to Fusion's log file.
 
 To look at the palette without Fusion open `addin/LCSC2Fusion/palette/index.html` in a normal
 browser. After about 1.5 seconds without `adsk` it switches to `mock-bridge.js` with fake data
-(try `C2040`, `resistor`, `none`, `fail`). The mock never runs inside Fusion.
+(try `C2040`, `resistor`, `none`, `fail`; with the 3D box ticked `C2913202` shows the "no 3D
+model" case, every other part gets a model). The mock never runs inside Fusion.
 
 ## Behaviour
 
@@ -62,10 +63,34 @@ browser. After about 1.5 seconds without `adsk` it switches to `mock-bridge.js` 
   variant A). Nothing is opened automatically. When the command fails, the palette shows the
   manual steps: File > Open > Open from my computer, then File > Save into a project so the
   library appears in the Library Manager.
+- Optional 3D model: the checkbox "Include 3D model (STEP)" next to the search field is off by
+  default and is remembered only while the palette page lives. With it ticked, "Add to library"
+  sends `{lcsc_id, with_3d: true}`; the core then writes `<id>.step` (raw download) and
+  `<id>.placed.step` (transformed into the package frame) next to the `.lbr`, and the `added`
+  message carries `step_path`, `placed_step_path` and `with_3d`. The result card then shows the
+  file names and the manual steps below. When 3D was requested but no model was produced (the
+  part has none, the download was blocked) the card shows a warning instead and the library is
+  still saved. The model data belongs to JLCEDA/EasyEDA: personal use only, no redistribution.
 - Only one request runs at a time. Library errors (part not found, blocked by EasyEDA, network) are
   shown verbatim; anything unexpected is shown generically and logged with a traceback.
 - Data source and terms: the footer of the palette repeats the attribution. Use is personal and you
   are responsible for complying with the EasyEDA and LCSC terms.
+
+## Attaching the 3D model in Fusion (manual)
+
+Fusion offers no documented API to attach a model to a library from an add-in, so this step is
+manual (official path, Content Manager):
+
+1. Open the library in Fusion Electronics ("Open in Fusion Electronics", then File > Save into a
+   project).
+2. In the Content Manager open the Footprints tab, right click the footprint and choose
+   "Attach Existing 3D Model".
+3. Click "Select from my computer..." and pick `<id>.placed.step` ("Open folder" shows it).
+4. Name the package and press OK.
+5. If the model sits wrong, edit the package to adjust the alignment, then File > Save.
+
+Whether the placed model lines up without adjusting still has to be confirmed inside Fusion
+(stage 3 gate).
 
 ## Tests
 

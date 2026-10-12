@@ -26,6 +26,13 @@
         <button id="search-button" type="submit" class="primary">Search</button>
       </div>
       <p id="query-hint" class="hint">Example: C2040, or words such as "0603 100nF".</p>
+      <div class="option-row">
+        <label class="check" for="with-3d">
+          <input id="with-3d" name="with_3d" type="checkbox" aria-describedby="with-3d-hint">
+          <span>Include 3D model (STEP)</span>
+        </label>
+        <p id="with-3d-hint" class="hint">Saved next to the library. Attached by hand in Fusion.</p>
+      </div>
     </form>
 
     <div class="status-row">
@@ -69,6 +76,26 @@
       <p>Data: JLCEDA/EasyEDA Official Library, https://easyeda.com . Personal use; you are responsible for complying with the EasyEDA and LCSC terms.</p>
     </footer>
   </main>
+
+  <!-- Filled by app.js for a saved part that has 3D files. The text is fixed here so that it
+       matches the official Fusion steps; app.js only inserts the file names. -->
+  <template id="model-template">
+    <details class="model-help" open>
+      <summary>Attach the 3D model in Fusion</summary>
+      <ol class="model-steps">
+        <li>Open the library in Fusion Electronics (button above) and save it to a project.</li>
+        <li>In the Content Manager open the Footprints tab, right click the footprint and choose "Attach Existing 3D Model".</li>
+        <li>Click "Select from my computer..." and pick the placed STEP file: <code class="model-pick"></code></li>
+        <li>Name the package and press OK.</li>
+        <li>If the model sits wrong, edit the package to adjust the alignment. Then use File &gt; Save.</li>
+      </ol>
+      <ul class="model-files">
+        <li class="model-placed-row"><span class="model-file-kind">Placed (use this)</span> <code class="model-placed"></code></li>
+        <li class="model-raw-row"><span class="model-file-kind">Raw (as downloaded)</span> <code class="model-raw"></code></li>
+      </ul>
+      <p class="hint model-note">Model data: JLCEDA/EasyEDA Official Library, https://easyeda.com . Personal use only.</p>
+    </details>
+  </template>
 
   <script src="mock-bridge.js"></script>
   <script src="app.js"></script>

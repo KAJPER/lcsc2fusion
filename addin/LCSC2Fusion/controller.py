@@ -6,14 +6,18 @@ messages through `palette.sendInfoToHTML(action, json)`. This module owns that p
 Palette to Python actions (`INCOMING_ACTIONS`), payload is a JSON object:
     ready                          the page finished loading
     search       {query}           LCSC number (C2040) or free text phrase
-    add          {lcsc_id}         download the part and write its .lbr (does not open it)
+    add          {lcsc_id, with_3d}
+                                   download the part and write its .lbr (does not open it);
+                                   `with_3d` is an optional bool (default false) that also
+                                   writes the STEP files next to the .lbr
     open_folder  {path}            show the folder holding a saved library
     open_library {path}            ask Fusion to open a saved .lbr (answers with a status)
 
 Python to palette actions (`OUTGOING_ACTIONS`):
     status   {level: info|ok|warn|error, text}
     results  {query, items: [SearchResult as dict]}
-    added    {lcsc_id, path, mpn, warnings: [str], opened: false, instructions: str}
+    added    {lcsc_id, path, mpn, warnings: [str], opened: false, instructions: str,
+              step_path: str|null, placed_step_path: str|null, with_3d: bool}
     busy     {value: bool}
     error    {message}
 
@@ -55,6 +59,20 @@ ACTION_RESULTS = "results"
 ACTION_ADDED = "added"
 ACTION_BUSY = "busy"
 ACTION_ERROR = "error"
+
+# Payload fields, checked against app.js and mock-bridge.js by the tests.
+ADD_REQUEST_FIELDS = ("lcsc_id", "with_3d")
+ADDED_FIELDS = (
+    "lcsc_id",
+    "path",
+    "mpn",
+    "warnings",
+    "opened",
+    "instructions",
+    "step_path",
+    "placed_step_path",
+    "with_3d",
+)
 
 INCOMING_ACTIONS = (
     ACTION_READY,
@@ -98,6 +116,8 @@ class AddedPart:
     path: Path
     mpn: str
     warnings: tuple[str, ...] = ()
+    step_path: Path | None = None  # raw STEP, only when 3D was requested and produced
+    placed_step_path: Path | None = None  # STEP transformed into the package frame
 
 
 @dataclass(frozen=True)
@@ -124,7 +144,7 @@ class JobResult(Generic[T]):
 class PartService(Protocol):
     def search(self, query: str, limit: int) -> list[SearchResult]: ...
 
-    def add_part(self, lcsc_id: str, out_dir: Path) -> AddedPart: ...
+    def add_part(self, lcsc_id: str, out_dir: Path, with_3d: bool = False) -> AddedPart: ...
 
 
 class LibraryImporter(Protocol):
@@ -267,16 +287,18 @@ class Controller:
 
     def _on_add(self, payload: dict[str, Any]) -> None:
         lcsc_id = _require_lcsc_id(payload)
+        with_3d = _optional_bool(payload, "with_3d")
         out_dir = self._out_dir
 
         def work() -> AddedPart:  # runs on the worker thread: no Fusion calls here
             out_dir.mkdir(parents=True, exist_ok=True)
-            return self._service.add_part(lcsc_id, out_dir)
+            return self._service.add_part(lcsc_id, out_dir, with_3d=with_3d)
 
+        what = "the library and the 3D model" if with_3d else "the library"
         self._start_job(
-            f"Downloading {lcsc_id} and building the library...",
+            f"Downloading {lcsc_id} and building {what}...",
             work,
-            lambda part: self._finish_add(lcsc_id, part),
+            lambda part: self._finish_add(lcsc_id, part, with_3d),
         )
 
     def _on_open_folder(self, payload: dict[str, Any]) -> None:
@@ -347,7 +369,7 @@ class Controller:
                 f"No parts found for {query!r}. Try an LCSC number such as C2040 or fewer words.",
             )
 
-    def _finish_add(self, lcsc_id: str, part: AddedPart) -> None:
+    def _finish_add(self, lcsc_id: str, part: AddedPart, with_3d: bool) -> None:
         self._send(
             ACTION_ADDED,
             {
@@ -357,11 +379,23 @@ class Controller:
                 "warnings": list(part.warnings),
                 "opened": False,  # opening is a separate, user triggered action
                 "instructions": build_instructions(),
+                "step_path": _path_or_none(part.step_path),
+                "placed_step_path": _path_or_none(part.placed_step_path),
+                "with_3d": with_3d,
             },
         )
         label = f"{lcsc_id} ({part.mpn})" if part.mpn else lcsc_id
-        if part.warnings:
+        has_model = part.step_path is not None or part.placed_step_path is not None
+        if with_3d and not has_model:
+            self._status(
+                Level.WARN,
+                f"Saved {label} without a 3D model: none was produced for this part. "
+                "See the warnings on the result.",
+            )
+        elif part.warnings:
             self._status(Level.WARN, f"Saved {label} with {len(part.warnings)} warning(s).")
+        elif with_3d:
+            self._status(Level.OK, f"Saved {label} and its 3D model to {part.path.parent}")
         else:
             self._status(Level.OK, f"Saved {label} to {part.path}")
 
@@ -423,6 +457,20 @@ def _require_query(payload: dict[str, Any]) -> str:
         raise _BadRequest("The search text contains unsupported characters.")
     candidate = query.upper()
     return candidate if _LCSC_ID_RE.fullmatch(candidate) else query
+
+
+def _optional_bool(payload: dict[str, Any], key: str) -> bool:
+    """Absent means False; anything present must be a real JSON boolean (0, 1, "true" are not)."""
+    if key not in payload:
+        return False
+    value = payload[key]
+    if not isinstance(value, bool):
+        raise _BadRequest(f"Invalid request: {key} must be true or false.")
+    return value
+
+
+def _path_or_none(path: Path | None) -> str | None:
+    return None if path is None else str(path)
 
 
 def _require_lcsc_id(payload: dict[str, Any]) -> str:

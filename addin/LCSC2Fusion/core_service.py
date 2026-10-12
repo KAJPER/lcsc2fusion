@@ -35,9 +35,28 @@ class CorePartService:
 
         return service.search(query, limit, self._get_client())
 
-    def add_part(self, lcsc_id: str, out_dir: Path) -> AddedPart:
+    def add_part(self, lcsc_id: str, out_dir: Path, with_3d: bool = False) -> AddedPart:
         from lcsc2fusion import service
 
-        result = service.convert_parts([lcsc_id], out_dir, client=self._get_client())
+        result = service.convert_parts(
+            [lcsc_id], out_dir, client=self._get_client(), with_3d=with_3d
+        )
         part = result.parts[0]
-        return AddedPart(path=result.path, mpn=part.mpn, warnings=result.warnings)
+        warnings = result.warnings
+        step_path: Path | None = None
+        placed_step_path: Path | None = None
+        if with_3d:  # `models` only exists to carry 3D output, so it is not read otherwise
+            model = next((m for m in result.models if m.lcsc_id.upper() == lcsc_id.upper()), None)
+            if model is not None:
+                step_path = model.step_path
+                placed_step_path = model.placed_step_path
+                for text in (f"{model.lcsc_id}: {w}" for w in model.warnings):
+                    if text not in warnings:  # the core may already have reported it
+                        warnings += (text,)
+        return AddedPart(
+            path=result.path,
+            mpn=part.mpn,
+            warnings=warnings,
+            step_path=step_path,
+            placed_step_path=placed_step_path,
+        )

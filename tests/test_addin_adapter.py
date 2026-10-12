@@ -506,21 +506,31 @@ def test_add_finishing_on_the_custom_event_never_runs_a_text_command(
     controller = importlib.import_module("controller")
     _, fake, palette, libs = start_with_library(fa, monkeypatch, tmp_path)
 
-    def fake_add_part(self: Any, lcsc_id: str, out_dir: Path) -> Any:
+    seen: list[tuple[str, bool]] = []
+
+    def fake_add_part(self: Any, lcsc_id: str, out_dir: Path, with_3d: bool = False) -> Any:
+        seen.append((lcsc_id, with_3d))
         path = out_dir / f"{lcsc_id}.lbr"
         path.write_text("<eagle/>", encoding="utf-8")
-        return controller.AddedPart(path=path, mpn="RP2040")
+        placed = out_dir / f"{lcsc_id}.placed.step" if with_3d else None
+        return controller.AddedPart(path=path, mpn="RP2040", placed_step_path=placed)
 
     monkeypatch.setattr(core_service.CorePartService, "add_part", fake_add_part)
-    event = SimpleNamespace(action="add", data='{"lcsc_id": "C2040"}', returnData="")
+    event = SimpleNamespace(
+        action="add", data='{"lcsc_id": "C2040", "with_3d": true}', returnData=""
+    )
     palette.incomingFromHTML.handlers[0].notify(event)
     assert fake.fired.wait(5)
     fake.registered[fa.CUSTOM_EVENT_ID].handlers[0].notify(None)  # main thread completion
 
+    assert seen == [("C2040", True)]
     added = [json.loads(data) for action, data in palette.sent if action == "added"]
     assert len(added) == 1
     assert added[0]["opened"] is False
     assert added[0]["path"] == str(libs / "C2040.lbr")
+    assert added[0]["with_3d"] is True
+    assert added[0]["placed_step_path"] == str(libs / "C2040.placed.step")
+    assert added[0]["step_path"] is None
     assert fake.commands == []  # opening needs the user's click on "Open in Fusion Electronics"
 
 

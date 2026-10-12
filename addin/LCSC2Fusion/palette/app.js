@@ -30,10 +30,14 @@
   const BRIDGE_POLL_MS = 50;
   const MAX_SAVED_ITEMS = 10;
 
+  // The "Include 3D model" choice lives in the checkbox only, so it lasts as long as the palette
+  // page does and nothing is written to browser storage. A part added without 3D can be added
+  // again with 3D, but not twice in the same mode.
   const state = {
     busy: false,
     pendingId: null,
     addedIds: new Set(),
+    added3dIds: new Set(),
     bridge: null,
   };
 
@@ -77,10 +81,19 @@
     updateAddButtons();
   }
 
+  function wants3d() {
+    return $('with-3d').checked;
+  }
+
+  function fileName(path) {
+    return String(path).split(/[\\/]/).pop();
+  }
+
   function updateAddButtons() {
+    const done = wants3d() ? state.added3dIds : state.addedIds;
     document.querySelectorAll('button[data-add]').forEach((button) => {
       const id = button.dataset.add;
-      const added = state.addedIds.has(id);
+      const added = done.has(id);
       const pending = state.pendingId === id;
       button.disabled = state.busy || added;
       button.textContent = added ? 'Added' : pending ? 'Adding...' : 'Add to library';
@@ -134,7 +147,9 @@
 
   function renderAdded(data) {
     state.addedIds.add(data.lcsc_id);
+    if (data.with_3d) state.added3dIds.add(data.lcsc_id);
     state.pendingId = null;
+    const hasModel = Boolean(data.step_path || data.placed_step_path);
 
     const item = el('li', 'added-item');
     const title = el('p', 'added-title');
@@ -145,6 +160,7 @@
         ? el('span', 'badge badge-basic', 'Sent to Fusion')
         : el('span', 'badge', 'Saved')
     );
+    if (hasModel) title.appendChild(el('span', 'badge badge-basic', '3D'));
     item.appendChild(title);
     item.appendChild(el('p', 'added-path', data.path));
 
@@ -153,6 +169,17 @@
       const warningList = el('ul', 'warnings');
       warnings.forEach((warning) => warningList.appendChild(el('li', null, warning)));
       item.appendChild(warningList);
+    }
+    if (data.with_3d && !hasModel) {
+      const missing = el('p', 'model-missing');
+      missing.appendChild(el('strong', null, 'No 3D model. '));
+      missing.appendChild(
+        document.createTextNode(
+          'A 3D model was requested but none was produced for this part, so only the symbol and footprint were saved.' +
+            (warnings.length > 0 ? ' The reason is in the warnings above.' : '')
+        )
+      );
+      item.appendChild(missing);
     }
 
     const details = el('details');
@@ -171,12 +198,28 @@
     folderButton.dataset.folder = data.path;
     actions.appendChild(folderButton);
     item.appendChild(actions);
+    if (hasModel) item.appendChild(buildModelHelp(data));
 
     const list = $('added-list');
     list.insertBefore(item, list.firstChild);
     while (list.children.length > MAX_SAVED_ITEMS) list.removeChild(list.lastChild);
     $('added-section').hidden = false;
     updateAddButtons();
+  }
+
+  // Fixed text lives in the <template> of index.html, only the file names are inserted here.
+  function buildModelHelp(data) {
+    const help = $('model-template').content.cloneNode(true);
+    const fill = (selector, path) => {
+      const node = help.querySelector(selector);
+      if (node) node.textContent = path ? fileName(path) : '';
+    };
+    fill('.model-pick', data.placed_step_path || data.step_path);
+    fill('.model-placed', data.placed_step_path);
+    fill('.model-raw', data.step_path);
+    if (!data.placed_step_path) help.querySelector('.model-placed-row').remove();
+    if (!data.step_path) help.querySelector('.model-raw-row').remove();
+    return help;
   }
 
   // Messages from Python --------------------------------------------------------------------
@@ -266,7 +309,7 @@
     clearError();
     state.pendingId = lcscId;
     updateAddButtons();
-    send(TO_PYTHON.ADD, { lcsc_id: lcscId });
+    send(TO_PYTHON.ADD, { lcsc_id: lcscId, with_3d: wants3d() });
   }
 
   // Bridge discovery (Fusion injects `adsk`; a plain browser gets the mock) --------------------
@@ -325,6 +368,7 @@
       requestSearch($('query').value);
     });
     $('error-dismiss').addEventListener('click', clearError);
+    $('with-3d').addEventListener('change', updateAddButtons);
     $('results-body').addEventListener('click', (event) => {
       const button = event.target.closest('button[data-add]');
       if (button && !button.disabled) requestAdd(button.dataset.add);

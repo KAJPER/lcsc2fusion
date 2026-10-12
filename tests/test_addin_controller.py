@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import dataclasses
+import inspect
 import json
 import subprocess
 import sys
 import textwrap
+import types
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,6 +27,8 @@ from controller import (
     ACTION_RESULTS,
     ACTION_SEARCH,
     ACTION_STATUS,
+    ADD_REQUEST_FIELDS,
+    ADDED_FIELDS,
     GENERIC_ERROR_TEXT,
     MANUAL_STEPS,
     AddedPart,
@@ -34,7 +39,7 @@ from controller import (
 )
 
 from lcsc2fusion.errors import ConversionError, NetworkError, PartNotFoundError, RateLimitedError
-from lcsc2fusion.model import SearchResult
+from lcsc2fusion.model import ModelFiles, SearchResult
 
 T = TypeVar("T")
 
@@ -65,6 +70,8 @@ class FakeService:
     def __init__(self, out_check: Callable[[Path], None] | None = None) -> None:
         self.search_calls: list[tuple[str, int]] = []
         self.add_calls: list[tuple[str, Path]] = []
+        self.add_3d_flags: list[bool] = []
+        self.produce_models = True  # with_3d requested: write the STEP files unless False
         self.search_results: list[SearchResult] = [RP2040, RESISTOR]
         self.search_error: Exception | None = None
         self.add_error: Exception | None = None
@@ -77,13 +84,27 @@ class FakeService:
             raise self.search_error
         return list(self.search_results)
 
-    def add_part(self, lcsc_id: str, out_dir: Path) -> AddedPart:
+    def add_part(self, lcsc_id: str, out_dir: Path, with_3d: bool = False) -> AddedPart:
         self.add_calls.append((lcsc_id, out_dir))
+        self.add_3d_flags.append(with_3d)
         if self.add_error is not None:
             raise self.add_error
         path = out_dir / f"{lcsc_id}.lbr"
         path.write_text("<eagle/>", encoding="utf-8")
-        return AddedPart(path=path, mpn=self.add_mpn, warnings=self.add_warnings)
+        step: Path | None = None
+        placed: Path | None = None
+        if with_3d and self.produce_models:
+            step = out_dir / f"{lcsc_id}.step"
+            placed = out_dir / f"{lcsc_id}.placed.step"
+            step.write_text("ISO-10303-21;", encoding="utf-8")
+            placed.write_text("ISO-10303-21;", encoding="utf-8")
+        return AddedPart(
+            path=path,
+            mpn=self.add_mpn,
+            warnings=self.add_warnings,
+            step_path=step,
+            placed_step_path=placed,
+        )
 
 
 class FakeImporter:
@@ -222,6 +243,12 @@ def test_action_constants_are_unique_and_complete() -> None:
     assert len(set(everything)) == len(everything)
 
 
+def test_payload_field_constants_are_unique() -> None:
+    assert ADD_REQUEST_FIELDS == ("lcsc_id", "with_3d")
+    assert len(set(ADDED_FIELDS)) == len(ADDED_FIELDS)
+    assert {"step_path", "placed_step_path", "with_3d"} <= set(ADDED_FIELDS)
+
+
 # ready ---------------------------------------------------------------------------------------
 
 
@@ -354,6 +381,11 @@ def test_add_saves_reports_and_never_opens_automatically(h: Harness) -> None:
     assert h.controller.busy is False
 
 
+def test_added_message_has_exactly_the_documented_fields(h: Harness) -> None:
+    call(h, ACTION_ADD, {"lcsc_id": "C2040"})
+    assert set(h.sink.last(ACTION_ADDED)) == set(ADDED_FIELDS)
+
+
 def test_add_without_warnings_reports_ok(h: Harness) -> None:
     call(h, ACTION_ADD, {"lcsc_id": "C2040"})
     assert h.sink.last(ACTION_ADDED)["warnings"] == []
@@ -399,6 +431,120 @@ def test_add_rejects_invalid_id(h: Harness, payload: dict[str, Any]) -> None:
     )
     assert h.service.add_calls == []
     assert not h.out_dir.exists()
+
+
+# add with 3D ---------------------------------------------------------------------------------
+
+
+def test_add_without_with_3d_means_no_3d(h: Harness) -> None:
+    assert call(h, ACTION_ADD, {"lcsc_id": "C2040"}) == "OK"
+    assert h.service.add_3d_flags == [False]
+    added = h.sink.last(ACTION_ADDED)
+    assert added["with_3d"] is False
+    assert added["step_path"] is None
+    assert added["placed_step_path"] is None
+    first_status = h.sink.of(ACTION_STATUS)[0]["text"]
+    assert first_status == "Downloading C2040 and building the library..."
+
+
+def test_add_with_3d_false_is_accepted(h: Harness) -> None:
+    assert call(h, ACTION_ADD, {"lcsc_id": "C2040", "with_3d": False}) == "OK"
+    assert h.service.add_3d_flags == [False]
+    assert h.sink.last(ACTION_ADDED)["with_3d"] is False
+
+
+def test_add_with_3d_is_passed_to_the_service_and_reports_both_files(h: Harness) -> None:
+    assert call(h, ACTION_ADD, {"lcsc_id": "C25804", "with_3d": True}) == "OK"
+    assert h.service.add_3d_flags == [True]
+    assert h.service.add_calls == [("C25804", h.out_dir)]
+    added = h.sink.last(ACTION_ADDED)
+    assert added["with_3d"] is True
+    assert added["step_path"] == str(h.out_dir / "C25804.step")
+    assert added["placed_step_path"] == str(h.out_dir / "C25804.placed.step")
+    assert added["opened"] is False
+    assert MANUAL_STEPS in added["instructions"]
+    assert "3D model" in h.sink.of(ACTION_STATUS)[0]["text"]
+    status = h.sink.of(ACTION_STATUS)[-1]
+    assert status["level"] == "ok"
+    assert "3D model" in status["text"]
+    assert h.importer.opened == []  # 3D does not change the "never opens by itself" rule
+
+
+def test_add_with_3d_keeps_warnings_and_reports_them(h: Harness) -> None:
+    h.service.add_warnings = ("C25804: model sits 0.2 mm off the pads",)
+    call(h, ACTION_ADD, {"lcsc_id": "C25804", "with_3d": True})
+    added = h.sink.last(ACTION_ADDED)
+    assert added["warnings"] == ["C25804: model sits 0.2 mm off the pads"]
+    assert added["placed_step_path"] is not None
+    assert h.sink.of(ACTION_STATUS)[-1]["level"] == "warn"
+
+
+def test_add_with_3d_but_no_model_produced_warns_and_has_no_paths(h: Harness) -> None:
+    h.service.produce_models = False
+    h.service.add_warnings = ("C476261: the part has no 3D model on EasyEDA",)
+    assert call(h, ACTION_ADD, {"lcsc_id": "C476261", "with_3d": True}) == "OK"
+    added = h.sink.last(ACTION_ADDED)
+    assert added["with_3d"] is True  # requested, so the palette can say it is missing
+    assert added["step_path"] is None
+    assert added["placed_step_path"] is None
+    assert added["warnings"] == ["C476261: the part has no 3D model on EasyEDA"]
+    assert h.sink.of(ACTION_ERROR) == []
+    status = h.sink.of(ACTION_STATUS)[-1]
+    assert status["level"] == "warn"
+    assert "without a 3D model" in status["text"]
+    assert (h.out_dir / "C476261.lbr").is_file()  # the library is still written
+
+
+@pytest.mark.parametrize("value", ["true", "yes", "", 1, 0, 1.0, None, [], [True], {}, {"a": 1}])
+def test_add_rejects_non_boolean_with_3d(h: Harness, value: Any) -> None:
+    assert call(h, ACTION_ADD, {"lcsc_id": "C2040", "with_3d": value}) == "ERROR"
+    assert h.sink.actions() == [ACTION_ERROR]
+    assert "with_3d" in h.sink.last(ACTION_ERROR)["message"]
+    assert h.service.add_calls == []
+    assert not h.out_dir.exists()
+    assert h.controller.busy is False
+
+
+def test_invalid_id_is_reported_before_with_3d(h: Harness) -> None:
+    assert call(h, ACTION_ADD, {"lcsc_id": "nope", "with_3d": "maybe"}) == "ERROR"
+    assert "not a valid LCSC part number" in h.sink.last(ACTION_ERROR)["message"]
+
+
+def test_open_folder_accepts_the_step_files_of_a_3d_add(h: Harness) -> None:
+    call(h, ACTION_ADD, {"lcsc_id": "C25804", "with_3d": True})
+    added = h.sink.last(ACTION_ADDED)
+    for key in ("path", "step_path", "placed_step_path"):
+        assert call(h, ACTION_OPEN_FOLDER, {"path": added[key]}) == "OK"
+    assert h.opened_folders == [h.out_dir] * 3
+
+
+def test_open_folder_refuses_a_step_file_outside_the_output_directory(
+    h: Harness, tmp_path: Path
+) -> None:
+    h.out_dir.mkdir()
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    stray = outside / "C1.placed.step"
+    stray.write_text("ISO-10303-21;", encoding="utf-8")
+    assert call(h, ACTION_OPEN_FOLDER, {"path": str(stray)}) == "ERROR"
+    assert "outside" in h.sink.last(ACTION_ERROR)["message"]
+    assert h.opened_folders == []
+
+
+def test_added_part_defaults_to_no_3d_files() -> None:
+    part = AddedPart(path=Path("x.lbr"), mpn="")
+    assert part.step_path is None
+    assert part.placed_step_path is None
+
+
+def test_second_add_with_3d_while_busy_is_refused(tmp_path: Path) -> None:
+    deferred = DeferredRunner()
+    harness = make_harness(tmp_path, runner=deferred)
+    assert call(harness, ACTION_ADD, {"lcsc_id": "C25804", "with_3d": True}) == "OK"
+    assert call(harness, ACTION_ADD, {"lcsc_id": "C2040", "with_3d": True}) == "BUSY"
+    deferred.finish()
+    assert harness.service.add_3d_flags == [True]
+    assert harness.sink.last(ACTION_ADDED)["lcsc_id"] == "C25804"
 
 
 # busy handling -------------------------------------------------------------------------------
@@ -715,41 +861,141 @@ def test_job_result_unwrap() -> None:
 # core_service and import hygiene -------------------------------------------------------------
 
 
-def test_core_service_maps_conversion_result(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    service_module = pytest.importorskip("lcsc2fusion.service")
-    import core_service
+class FakeServiceModule(types.ModuleType):
+    """Stands in for `lcsc2fusion.service`: records how the adapter calls it."""
 
-    captured: dict[str, Any] = {}
+    def __init__(self, models: tuple[ModelFiles, ...] | None = ()) -> None:
+        super().__init__("lcsc2fusion.service")
+        self.convert_calls: list[tuple[list[str], Path, dict[str, Any]]] = []
+        self.search_calls: list[tuple[str, int, Any]] = []
+        self.models = models  # None: the result has no `models` attribute at all
+        self.warnings: tuple[str, ...] = ("C2040: something",)
 
-    def fake_convert(ids: list[str], out_dir: Path, *, client: Any = None) -> Any:
-        captured.update(ids=ids, out_dir=out_dir, client=client)
+    def convert_parts(self, ids: list[str], out_dir: Path, **kwargs: Any) -> Any:
+        self.convert_calls.append((ids, out_dir, kwargs))
         part = SimpleNamespace(mpn="RP2040")
-        return SimpleNamespace(
-            path=out_dir / "C2040.lbr", parts=(part,), warnings=("C2040: something",)
-        )
+        result = SimpleNamespace(path=out_dir / "C2040.lbr", parts=(part,), warnings=self.warnings)
+        if self.models is not None:
+            result.models = self.models
+        return result
 
-    def fake_search(query: str, limit: int, client: Any = None) -> list[SearchResult]:
-        captured.update(query=query, limit=limit, search_client=client)
+    def search(self, query: str, limit: int, client: Any = None) -> list[SearchResult]:
+        self.search_calls.append((query, limit, client))
         return [RP2040]
 
-    monkeypatch.setattr(service_module, "convert_parts", fake_convert)
-    monkeypatch.setattr(service_module, "search", fake_search)
+
+def install_fake_service(monkeypatch: pytest.MonkeyPatch, fake: FakeServiceModule) -> Any:
+    """Make `from lcsc2fusion import service` resolve to `fake` (sys.modules alone is not enough
+    when the real submodule is already attached to the package)."""
+    import lcsc2fusion
+
+    monkeypatch.setitem(sys.modules, "lcsc2fusion.service", fake)
+    monkeypatch.setattr(lcsc2fusion, "service", fake, raising=False)
+    import core_service
+
+    return core_service
+
+
+def model_files(tmp_path: Path, lcsc_id: str = "C2040", *warnings: str) -> ModelFiles:
+    return ModelFiles(
+        lcsc_id=lcsc_id,
+        step_path=tmp_path / f"{lcsc_id}.step",
+        placed_step_path=tmp_path / f"{lcsc_id}.placed.step",
+        info_path=tmp_path / f"{lcsc_id}.3d.json",
+        warnings=warnings,
+    )
+
+
+def test_core_service_without_3d_passes_with_3d_false_and_ignores_models(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake = FakeServiceModule(models=None)  # result has no `models`: it must not be read
+    core_service = install_fake_service(monkeypatch, fake)
     marker = object()
     service = core_service.CorePartService(client=marker)  # type: ignore[arg-type]
 
     part = service.add_part("C2040", tmp_path)
+
     assert part == AddedPart(
         path=tmp_path / "C2040.lbr", mpn="RP2040", warnings=("C2040: something",)
     )
-    assert captured["ids"] == ["C2040"]
-    assert captured["client"] is marker
+    assert part.step_path is None
+    assert part.placed_step_path is None
+    assert fake.convert_calls == [(["C2040"], tmp_path, {"client": marker, "with_3d": False})]
 
     assert service.search("RP2040", 5) == [RP2040]
-    assert captured["query"] == "RP2040"
-    assert captured["limit"] == 5
-    assert captured["search_client"] is marker
+    assert fake.search_calls == [("RP2040", 5, marker)]
+
+
+def test_core_service_with_3d_maps_the_matching_model_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    other = model_files(tmp_path, "C1")
+    wanted = model_files(tmp_path, "C2040", "model sits 0.2 mm off", "C2040 STEP is 3 MB")
+    second_match = model_files(tmp_path, "C2040", "must be ignored")
+    fake = FakeServiceModule(models=(other, wanted, second_match))
+    core_service = install_fake_service(monkeypatch, fake)
+    marker = object()
+    service = core_service.CorePartService(client=marker)  # type: ignore[arg-type]
+
+    part = service.add_part("C2040", tmp_path, with_3d=True)
+
+    assert fake.convert_calls == [(["C2040"], tmp_path, {"client": marker, "with_3d": True})]
+    assert part.path == tmp_path / "C2040.lbr"
+    assert part.mpn == "RP2040"
+    assert part.step_path == tmp_path / "C2040.step"
+    assert part.placed_step_path == tmp_path / "C2040.placed.step"
+    assert part.warnings == (
+        "C2040: something",
+        "C2040: model sits 0.2 mm off",
+        "C2040: C2040 STEP is 3 MB",
+    )
+
+
+def test_core_service_with_3d_does_not_repeat_a_warning_the_core_already_reported(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake = FakeServiceModule(models=(model_files(tmp_path, "C2040", "something"),))
+    core_service = install_fake_service(monkeypatch, fake)
+    part = core_service.CorePartService(client=object()).add_part("C2040", tmp_path, with_3d=True)
+    assert part.warnings == ("C2040: something",)
+
+
+def test_core_service_with_3d_and_no_model_leaves_the_paths_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake = FakeServiceModule(models=(model_files(tmp_path, "C1"),))  # nothing for C2040
+    fake.warnings = ("C2040: no 3D model on EasyEDA for this part",)
+    core_service = install_fake_service(monkeypatch, fake)
+    part = core_service.CorePartService(client=object()).add_part("C2040", tmp_path, with_3d=True)
+    assert part.step_path is None
+    assert part.placed_step_path is None
+    assert part.warnings == ("C2040: no 3D model on EasyEDA for this part",)
+
+    fake.models = ()
+    part = core_service.CorePartService(client=object()).add_part("C2040", tmp_path, with_3d=True)
+    assert part.placed_step_path is None
+
+
+def test_core_service_matches_the_model_by_id_ignoring_case(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake = FakeServiceModule(models=(model_files(tmp_path, "c2040"),))
+    core_service = install_fake_service(monkeypatch, fake)
+    part = core_service.CorePartService(client=object()).add_part("C2040", tmp_path, with_3d=True)
+    assert part.placed_step_path == tmp_path / "c2040.placed.step"
+
+
+def test_core_with_3d_contract_when_the_core_provides_it() -> None:
+    """Checks the real core against the contract the add-in codes to; skipped until it lands."""
+    service_module = pytest.importorskip("lcsc2fusion.service")
+    parameter = inspect.signature(service_module.convert_parts).parameters.get("with_3d")
+    if parameter is None:
+        pytest.skip("core convert_parts has no with_3d yet")
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is False
+    fields = {f.name for f in dataclasses.fields(service_module.ConversionResult)}
+    assert "models" in fields
 
 
 def test_controller_and_core_service_import_neither_adsk_nor_the_core_service_module() -> None:

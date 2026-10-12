@@ -7,9 +7,12 @@ import hashlib
 import importlib.util
 import json
 import re
+import shutil
+import subprocess
 import sys
 import zipfile
 from collections.abc import Iterator
+from html.parser import HTMLParser
 from pathlib import Path
 from types import ModuleType
 
@@ -40,6 +43,43 @@ def build_addin() -> Iterator[ModuleType]:
     spec.loader.exec_module(module)
     yield module
     del sys.modules[spec.name]
+
+
+class _ElementCollector(HTMLParser):
+    """Records start tags (with attributes) and the text directly inside each <label>."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.tags: list[tuple[str, dict[str, str | None]]] = []
+        self.label_texts: list[str] = []
+        self.label_children: list[list[str]] = []
+        self._in_label = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.tags.append((tag, dict(attrs)))
+        if tag == "label":
+            self._in_label = True
+            self.label_texts.append("")
+            self.label_children.append([])
+        elif self._in_label:
+            self.label_children[-1].append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "label":
+            self._in_label = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_label:
+            self.label_texts[-1] += data
+
+    def find(self, element_id: str) -> tuple[str, dict[str, str | None]] | None:
+        return next((t for t in self.tags if t[1].get("id") == element_id), None)
+
+
+def parse_html(name: str = "index.html") -> _ElementCollector:
+    collector = _ElementCollector()
+    collector.feed((PALETTE_DIR / name).read_text(encoding="utf-8"))
+    return collector
 
 
 def js_action_pairs(source: str, name: str) -> dict[str, str]:
@@ -157,6 +197,30 @@ def test_palette_offers_the_open_in_fusion_button() -> None:
     assert "TO_PYTHON.OPEN_FOLDER" in source
 
 
+def test_js_add_request_carries_exactly_the_controller_fields() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    match = re.search(r"send\(TO_PYTHON\.ADD, \{([^}]*)\}\)", source)
+    assert match is not None, "send(TO_PYTHON.ADD, {...}) not found in app.js"
+    keys = {part.split(":")[0].strip() for part in match.group(1).split(",") if part.strip()}
+    assert keys == set(controller.ADD_REQUEST_FIELDS)
+    assert "with_3d: wants3d()" in match.group(1)
+
+
+def test_js_reads_every_field_of_the_added_message() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    for field in controller.ADDED_FIELDS:
+        assert re.search(rf"\bdata\.{field}\b", source), f"app.js never reads data.{field}"
+
+
+def test_mock_added_message_has_every_field_and_both_3d_outcomes_in_the_source() -> None:
+    mock = (PALETTE_DIR / "mock-bridge.js").read_text(encoding="utf-8")
+    block = mock[mock.index("deliver('added', {") :]
+    block = block[: block.index("});")]
+    for field in controller.ADDED_FIELDS:
+        assert re.search(rf"\b{field}:", block), f"mock added message lacks {field}"
+    assert "null" in block  # the "3D requested but not produced" case sends null paths
+
+
 def test_mock_handles_every_page_to_python_action() -> None:
     mock = (PALETTE_DIR / "mock-bridge.js").read_text(encoding="utf-8")
     handled = set(re.findall(r"case '([a-z_]+)':", mock))
@@ -170,6 +234,52 @@ def test_js_follows_the_documented_bridge_contract() -> None:
     assert "return 'OK'" in source
     assert "innerHTML" not in source
     assert "eval(" not in source
+
+
+MOCK_SCRIPT = """
+global.window = {};
+require(process.argv[1]);
+const sent = [];
+const bridge = window.LcscMock.install((action, data) => sent.push([action, data]));
+const cases = [['C25804', true], ['C2913202', true], ['C25804', false], ['C2913202', false]];
+for (const [id, with3d] of cases) {
+  bridge.fusionSendData('add', JSON.stringify({ lcsc_id: id, with_3d: with3d }));
+}
+setTimeout(() => {
+  const added = sent.filter(([action]) => action === 'added');
+  console.log(JSON.stringify(added.map(([, data]) => data)));
+}, 1500);
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_mock_bridge_shows_3d_produced_and_3d_unavailable() -> None:
+    completed = subprocess.run(
+        [str(shutil.which("node")), "-e", MOCK_SCRIPT, str(PALETTE_DIR / "mock-bridge.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    produced, unavailable, plain, plain_no_model = json.loads(completed.stdout)
+    for message in (produced, unavailable, plain, plain_no_model):
+        assert set(message) == set(controller.ADDED_FIELDS)
+
+    assert produced["with_3d"] is True
+    assert produced["step_path"].endswith("C25804.step")
+    assert produced["placed_step_path"].endswith("C25804.placed.step")
+
+    assert unavailable["with_3d"] is True
+    assert unavailable["step_path"] is None
+    assert unavailable["placed_step_path"] is None
+    assert any("3D model" in warning for warning in unavailable["warnings"])
+
+    for message in (plain, plain_no_model):
+        assert message["with_3d"] is False
+        assert message["step_path"] is None
+        assert message["placed_step_path"] is None
+        assert not any("3D" in warning for warning in message["warnings"])
 
 
 def test_mock_is_inert_in_fusion() -> None:
@@ -216,6 +326,90 @@ def test_html_has_the_required_controls_and_accessibility_hooks() -> None:
     assert "<table" in html
     for column in ("LCSC", "MPN", "Type", "Manufacturer", "Package", "Description"):
         assert f">{column}</th>" in html
+
+
+def test_with_3d_checkbox_has_a_label_and_is_off_by_default() -> None:
+    page = parse_html()
+    found = page.find("with-3d")
+    assert found is not None, "checkbox #with-3d is missing"
+    tag, attrs = found
+    assert tag == "input"
+    assert attrs["type"] == "checkbox"
+    assert "checked" not in attrs  # opt-in
+    label = next(a for t, a in page.tags if t == "label" and a.get("for") == "with-3d")
+    assert label is not None
+    index = [a.get("for") for t, a in page.tags if t == "label"].index("with-3d")
+    assert "Include 3D model (STEP)" in " ".join(page.label_texts[index].split())
+    assert "input" in page.label_children[index]  # the input sits inside its own label
+    describedby = attrs["aria-describedby"]
+    assert describedby is not None
+    assert page.find(describedby) is not None
+    # it belongs to the search form, next to the search field
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    form = html[html.index('<form id="search-form"') : html.index("</form>")]
+    assert 'id="with-3d"' in form
+    assert 'id="query"' in form
+
+
+def test_palette_remembers_the_3d_choice_without_browser_storage() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    assert "localStorage" not in source
+    assert "sessionStorage" not in source
+    assert "indexedDB" not in source
+
+
+def test_every_element_id_used_by_app_js_exists_in_the_html() -> None:
+    source = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    used = set(re.findall(r"\$\('([A-Za-z0-9_-]+)'\)", source))
+    assert {"with-3d", "model-template"} <= used
+    page = parse_html()
+    missing = sorted(name for name in used if page.find(name) is None)
+    assert missing == []
+
+
+def test_3d_instructions_use_the_official_fusion_steps() -> None:
+    html = (PALETTE_DIR / "index.html").read_text(encoding="utf-8")
+    template = html[html.index('<template id="model-template">') : html.index("</template>")]
+    steps = re.search(r'<ol class="model-steps">(.*?)</ol>', template, re.DOTALL)
+    assert steps is not None
+    items = [
+        " ".join(re.sub(r"<[^>]+>", "", item).split())
+        for item in re.findall(r"<li>(.*?)</li>", steps.group(1), re.DOTALL)
+    ]
+    assert len(items) == 5
+    assert "Open the library in Fusion Electronics" in items[0]
+    assert "save it to a project" in items[0]
+    assert "Content Manager" in items[1]
+    assert "Footprints tab" in items[1]
+    assert "right click the footprint" in items[1]
+    assert '"Attach Existing 3D Model"' in items[1]
+    assert '"Select from my computer..."' in items[2]
+    assert "placed STEP file" in items[2]
+    assert 'class="model-pick"' in template  # the file name goes here
+    assert "Name the package and press OK" in items[3]
+    assert "edit the package to adjust the alignment" in items[4]
+    assert "File &gt; Save" in template
+    for selector in ("model-placed", "model-raw", "model-placed-row", "model-raw-row"):
+        assert f'"{selector}"' in template or f" {selector}" in template
+    assert (
+        "Model data: JLCEDA/EasyEDA Official Library, https://easyeda.com . Personal use only."
+        in template
+    )
+
+
+def test_3d_ui_pieces_have_styles() -> None:
+    css = (PALETTE_DIR / "style.css").read_text(encoding="utf-8")
+    for selector in (
+        ".model-help",
+        ".model-steps",
+        ".model-files",
+        ".model-missing",
+        "label.check",
+    ):
+        assert selector in css, selector
+    app = (PALETTE_DIR / "app.js").read_text(encoding="utf-8")
+    assert "model-missing" in app  # the "requested but not produced" warning line
+    assert "buildModelHelp" in app
 
 
 def test_css_supports_both_color_schemes() -> None:

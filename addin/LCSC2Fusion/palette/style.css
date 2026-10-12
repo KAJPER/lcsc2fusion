@@ -135,6 +135,27 @@ input[type="search"] {
   border-radius: 4px;
 }
 
+.option-row {
+  margin-top: 8px;
+}
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+label.check input {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 button {
   font: inherit;
   padding: 6px 12px;
@@ -409,6 +430,60 @@ button.link {
 }
 
 .added-item details p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+/* 3D model: result of "Include 3D model (STEP)" ------------------------------------------- */
+
+.model-missing {
+  margin: 6px 0;
+  padding: 6px 8px;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn);
+  border-radius: 3px;
+}
+
+.added-item .model-help {
+  margin: 8px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.model-steps {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.model-steps li {
+  margin-bottom: 3px;
+  overflow-wrap: anywhere;
+}
+
+.model-files {
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-files li {
+  margin-bottom: 2px;
+}
+
+.model-file-kind {
+  display: inline-block;
+  min-width: 11em;
+  color: var(--muted);
+}
+
+.model-help code {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.added-item .model-help .model-note {
   margin-top: 4px;
   color: var(--muted);
 }
