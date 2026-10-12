@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 
 from lcsc2fusion.constants import Layer
 
@@ -182,6 +183,36 @@ class Symbol:
 
 
 @dataclass(frozen=True)
+class Model3D:
+    """Placement of an EasyEDA 3D model relative to the package, in millimetres, Z up.
+
+    The STEP file is not centred on the package origin. A consumer applies, to a model point p
+    with `c` the XY centre of the model bounding box and `zmin` its lowest Z:
+    `q_xy = Rz(rotation_deg[2]) * (p_xy - c) + offset_mm` and `q_z = p_z - zmin + bottom_z_mm`.
+    The parser is the only place that converts from EasyEDA units (see parser/model3d.py).
+    """
+
+    uuid: str
+    name: str
+    offset_mm: tuple[float, float]  # where the bbox centre goes (Y up, package origin = 0,0)
+    bottom_z_mm: float  # world Z of the lowest point of the model
+    rotation_deg: tuple[float, float, float]  # (rx, ry, rz), only rz is applied
+    native_size_mm: tuple[float, float]  # unrotated X and Y size of the model
+    placement_source: str  # "c_origin" or "outline_centre" (when c_origin is stale)
+
+
+@dataclass(frozen=True)
+class ModelFiles:
+    """Files written next to a library for one part when 3D output is requested."""
+
+    lcsc_id: str
+    step_path: Path  # raw STEP, byte for byte as downloaded
+    placed_step_path: Path  # same model transformed into the package frame
+    info_path: Path  # <id>.3d.json with placement and attribution
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Part:
     """One LCSC part: one symbol per gate (multi-unit parts have several) and one package."""
 
@@ -196,6 +227,7 @@ class Part:
     source_uuid: str = ""
     attributes: tuple[tuple[str, str], ...] = ()
     warnings: tuple[str, ...] = ()
+    model3d: Model3D | None = None
 
 
 @dataclass(frozen=True)

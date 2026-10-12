@@ -31,3 +31,7 @@ class ConversionError(LcscError):
 
 class LintError(LcscError):
     """The generated library failed the Fusion-compatibility lint."""
+
+
+class ModelError(LcscError):
+    """A 3D model (STEP) is missing, malformed or cannot be transformed."""
