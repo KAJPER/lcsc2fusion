@@ -24,7 +24,10 @@ include = ["lcsc2fusion*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-markers = ["real: needs real EasyEDA fixtures in tests/fixtures/real (local only)"]
+markers = [
+    "real: needs real EasyEDA fixtures in tests/fixtures/real (local only)",
+    "slow: builds the whole release (and the setup exe on Windows); deselect with -m 'not slow'",
+]
 
 [tool.ruff]
 line-length = 100

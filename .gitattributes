@@ -1,0 +1,7 @@
+# Windows scripts must never be checked out with LF line ends: cmd.exe mis-parses labels and
+# multi line blocks in LF batch files. The installer scripts carry a UTF-8 BOM, which git keeps as
+# content (scripts/build_release.py writes CRLF and the BOM again when it packs them).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+installer/*.txt text eol=crlf
