@@ -241,13 +241,19 @@ pole „Sprawdzaj aktualizacje raz dziennie” i przycisk „Sprawdź teraz” (
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-settings-dark-pl.png">
-<img src="docs/img/ui-settings-light-pl.png" width="400" alt="Panel Ustawienia z motywem i językiem">
+<img src="docs/img/ui-settings-light-pl.png" width="400" alt="Panel Ustawienia z motywem, językiem i grupą Aktualizacje">
 </picture></p>
 
 ### 7. Aktualizacje
 
 Okno informuje, gdy na GitHubie jest nowsze wydanie. Tylko informuje: dodatek sam niczego nie pobiera, nie
 instaluje ani nie uruchamia.
+
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-update-dark-pl.png">
+<img src="docs/img/ui-update-light-pl.png" width="400" alt="Powiadomienie o aktualizacji nad polem wyszukiwania: Dostępna jest wersja 0.2.0 (masz 0.1.0), z elementami Pobierz instalator, Co nowego i Ukryj oraz kroki aktualizacji">
+</picture></p>
+<p align="center"><sub>Dane przykładowe: numery wersji są ilustracyjne.</sub></p>
 
 - **Kiedy sprawdza.** Gdy otwiera się okno, najwyżej raz dziennie, a po nieudanej próbie nie wcześniej niż po 6
   godzinach. Nie sprawdza w tle, gdy Fusion działa bez okna. „Sprawdź teraz” w Ustawieniach pyta od razu.

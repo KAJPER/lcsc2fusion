@@ -240,13 +240,19 @@ holds the checkbox "Check for updates once a day" and the button "Check now" (se
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-settings-dark-en.png">
-<img src="docs/img/ui-settings-light-en.png" width="400" alt="The Settings panel with Theme and Language">
+<img src="docs/img/ui-settings-light-en.png" width="400" alt="The Settings panel with Theme, Language and the Updates group">
 </picture></p>
 
 ### 7. Updates
 
 The window tells you when a newer release is on GitHub. It only tells you: the add-in never downloads, installs
 or starts anything by itself.
+
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-update-dark-en.png">
+<img src="docs/img/ui-update-light-en.png" width="400" alt="The update notice above the search field: Version 0.2.0 is available (you have 0.1.0), with Download installer, What is new and Dismiss, and the steps to update">
+</picture></p>
+<p align="center"><sub>Example data: the version numbers are illustrative.</sub></p>
 
 - **When it checks.** When the window opens, at most once a day, and not again for 6 hours after a failed
   attempt. It does not check in the background while Fusion runs without the window. "Check now" in Settings asks
