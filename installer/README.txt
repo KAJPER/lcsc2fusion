@@ -29,8 +29,20 @@ What the installer does
     and puts the old version back if anything fails;
   - touches nothing else: other add-ins, Fusion itself and the registry stay as they are.
 
+Signed releases
+  A release can be signed with a code signing certificate. To check: right click the setup exe,
+  Properties, tab Digital Signatures; or in PowerShell: Get-AuthenticodeSignature <file>
+  (Status must be Valid and the signer must be the publisher you expect). Windows then shows the
+  publisher name instead of "Unknown publisher" in its security prompt, and install.ps1 and
+  uninstall.ps1 in this zip carry the same signature. A file that was changed after signing has
+  the status HashMismatch: do not run it. The .bat files cannot carry a signature; they are plain
+  text that only starts the scripts. A new signature can still trigger SmartScreen for a while,
+  until the file has built a reputation. A release without a Digital Signatures tab is unsigned:
+  read the next section.
+
 Windows warnings
-  These files are not signed with a code signing certificate. Windows SmartScreen may say
+  In an unsigned release these files are not signed with a code signing certificate. Windows
+  SmartScreen may say
   "Windows protected your PC" (click More info, Run anyway), and a browser may warn about the
   download. The scripts are plain text: open Install-LCSC2Fusion.bat, install.ps1 and
   uninstall.ps1 in Notepad and read them before you run them. The checksums of the release files
@@ -88,8 +100,20 @@ Co robi instalator
     a w razie błędu przywraca starą wersję;
   - niczego innego nie rusza: inne dodatki, sam Fusion i rejestr zostają bez zmian.
 
+Podpisane wydania
+  Wydanie może być podpisane certyfikatem do podpisywania kodu. Sprawdzisz to tak: kliknij exe
+  prawym przyciskiem, Właściwości, karta Podpisy cyfrowe; albo w PowerShellu:
+  Get-AuthenticodeSignature <plik> (Status musi być Valid, a podpisujący musi być wydawcą,
+  którego oczekujesz). Windows pokazuje wtedy w oknie zabezpieczeń nazwę wydawcy zamiast
+  "Nieznany wydawca", a install.ps1 i uninstall.ps1 w tym zipie mają ten sam podpis. Plik
+  zmieniony po podpisaniu ma status HashMismatch: nie uruchamiaj go. Pliki .bat nie mogą mieć
+  podpisu; to zwykły tekst, który tylko uruchamia skrypty. Nowy podpis może jeszcze przez jakiś
+  czas wywoływać SmartScreen, aż plik zdobędzie reputację. Wydanie bez karty Podpisy cyfrowe
+  jest niepodpisane: przeczytaj następną sekcję.
+
 Ostrzeżenia Windows
-  Te pliki nie są podpisane certyfikatem. Windows SmartScreen może napisać "System Windows
+  W wydaniu niepodpisanym te pliki nie są podpisane certyfikatem. Windows SmartScreen może
+  napisać "System Windows
   ochronił ten komputer" (kliknij Więcej informacji, Uruchom mimo to), a przeglądarka może
   ostrzegać przed pobraniem. Skrypty to zwykły tekst: otwórz Install-LCSC2Fusion.bat,
   install.ps1 i uninstall.ps1 w Notatniku i przeczytaj je przed uruchomieniem. Sumy kontrolne

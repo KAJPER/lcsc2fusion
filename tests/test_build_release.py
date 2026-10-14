@@ -415,6 +415,59 @@ def test_building_twice_gives_identical_zips(br: ModuleType, tmp_path: Path) -> 
     assert len(digests[0]) == 3
 
 
+def test_an_unsigned_build_is_not_changed_by_the_signing_support(
+    br: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without --sign: same names, same bytes twice, and no signature anywhere."""
+    builds = []
+    for run in ("a", "b"):
+        out = tmp_path / run
+        assert br.main(["--out", str(out), "--no-exe"]) == 0
+        builds.append({p.name: p.read_bytes() for p in sorted(out.iterdir())})
+    assert "(signed)" not in capsys.readouterr().out
+    assert builds[0] == builds[1]  # every byte, the checksum list included
+    assert sorted(builds[0]) == [
+        f"LCSC2Fusion-{VERSION}-addin.zip",
+        f"LCSC2Fusion-{VERSION}-installer.zip",
+        "SHA256SUMS.txt",
+    ]
+    installer = tmp_path / "installer.zip"
+    installer.write_bytes(builds[0][f"LCSC2Fusion-{VERSION}-installer.zip"])
+    members = zip_members(installer)
+    for name in br.SIGNED_SCRIPTS:
+        assert members[name] == br.read_installer_file(ROOT, name)  # exactly the repository text
+        assert b"SIG # Begin signature block" not in members[name]
+
+
+@WINDOWS_ONLY
+@pytest.mark.slow
+def test_an_unsigned_build_with_the_setup_exe_has_the_same_names_and_no_signature(
+    br: ModuleType, tmp_path: Path
+) -> None:
+    if br.find_iexpress() is None:
+        pytest.skip("IExpress is not available")
+    sign_release = br._load_sign_release()
+    builds = []
+    for run in ("a", "b"):
+        out = tmp_path / run
+        assert br.main(["--out", str(out)]) == 0
+        builds.append(out)
+    names = sorted(p.name for p in builds[0].iterdir())
+    assert names == sorted(p.name for p in builds[1].iterdir())
+    assert names == [
+        f"LCSC2Fusion-{VERSION}-addin.zip",
+        f"LCSC2Fusion-{VERSION}-installer.zip",
+        f"LCSC2Fusion-Setup-{VERSION}.exe",
+        "SHA256SUMS.txt",
+    ]
+    for name in names[:2]:  # the zips are byte identical, the IExpress exe never was
+        assert (builds[0] / name).read_bytes() == (builds[1] / name).read_bytes()
+    for out in builds:
+        exe = out / f"LCSC2Fusion-Setup-{VERSION}.exe"
+        assert br._is_pe_file(exe)
+        assert sign_release.signature_digest_oid(exe) is None  # no certificate table: unsigned
+
+
 def test_an_lf_checkout_still_gives_crlf_and_bom_in_the_zip(br: ModuleType, tmp_path: Path) -> None:
     root = copy_sources(tmp_path / "src", lf_installer=True)
     assert b"\r\n" not in (root / "installer" / "install.ps1").read_bytes()

@@ -1,6 +1,7 @@
 """Build the files of a GitHub release (stdlib only).
 
     python scripts/build_release.py [--out DIR] [--no-exe] [--check-tag vX.Y.Z]
+    python scripts/build_release.py --sign --sign-thumbprint HEX [--out DIR] [signing options]
 
 Assets written to the output folder (default `dist/release`), `<ver>` is the version:
 
@@ -18,7 +19,17 @@ The version must be identical in pyproject.toml, lcsc2fusion/__init__.py and the
 1), together with `--out` or `--no-exe` it checks and then builds. Both zips are deterministic:
 sorted members, fixed timestamps and permissions (byte identical for the same sources and the same
 zlib). The installer text files are written with CRLF line ends, the .ps1 and README.txt with a
-UTF-8 BOM, whatever the checkout looks like.
+UTF-8 BOM, whatever the checkout looks like. The setup exe made by IExpress is not part of that
+guarantee: it differs from one build to the next, as it always did.
+
+--sign (Windows only) signs with Authenticode, see scripts/sign_release.py and RELEASING.md,
+"Code signing". The order keeps everything consistent: install.ps1 and uninstall.ps1 (copies in a
+temporary folder, never the files of the repository) are signed first, then they are zipped into
+the installer zip, the setup exe is built from that zip, the exe is signed, and SHA256SUMS.txt is
+written over the final files. The plain add-in zip is not signed (Authenticode does not apply to a
+zip, SHA256SUMS.txt covers it). Every signature is checked right after it was made. Any failure
+fails the build and nothing is written to the output folder: a build with --sign never produces
+unsigned files.
 """
 
 from __future__ import annotations
@@ -40,6 +51,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import Protocol
 
 ADDIN_NAME = "LCSC2Fusion"
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +65,7 @@ INSTALLER_ROOT_FILES = (
     "uninstall.ps1",
     "README.txt",
 )
+SIGNED_SCRIPTS = tuple(name for name in INSTALLER_ROOT_FILES if name.endswith(".ps1"))
 BOOTSTRAP_FILE = "bootstrap.cmd"  # only inside the setup exe, not in the installer zip
 PAYLOAD_LIST = "payload.sha256"
 SUMS_FILE = "SHA256SUMS.txt"
@@ -120,6 +133,13 @@ SourceFiles0={source_dir}\\
 
 class ReleaseError(Exception):
     """The release cannot be built. The message says what to fix."""
+
+
+class FileSigner(Protocol):
+    """What the build needs from a signer (scripts/sign_release.py provides the real one)."""
+
+    def sign(self, path: Path, root: Path) -> object:
+        """Sign the plain file `path` below `root` in place, or raise."""
 
 
 @dataclass(frozen=True)
@@ -240,17 +260,44 @@ def write_deterministic_zip(
 
 
 def build_installer_zip(
-    root: Path, addin_folder: Path, addin_files: tuple[str, ...], zip_path: Path
+    root: Path,
+    addin_folder: Path,
+    addin_files: tuple[str, ...],
+    zip_path: Path,
+    overrides: dict[str, bytes] | None = None,
 ) -> dict[str, bytes]:
-    """The release root layout, zipped. Returns the members (name to bytes)."""
+    """The release root layout, zipped. Returns the members (name to bytes).
+
+    `overrides` replaces installer root files by other bytes (the signed scripts). The checksum
+    list covers the add-in files only, so it does not change."""
     build_addin = _load_build_addin()
     payload = {name: (addin_folder / name).read_bytes() for name in addin_files}
     members = {f"{ADDIN_NAME}/{name}": data for name, data in payload.items()}
     for name in INSTALLER_ROOT_FILES:
         members[name] = read_installer_file(root, name)
+    for name, data in (overrides or {}).items():
+        if name not in INSTALLER_ROOT_FILES:
+            raise ReleaseError(f"{name} is not a file of the installer zip root.")
+        members[name] = data
     members[PAYLOAD_LIST] = payload_checksums(payload).encode("ascii")
     write_deterministic_zip(zip_path, members, build_addin)
     return members
+
+
+def sign_installer_scripts(root: Path, work: Path, signer: FileSigner) -> dict[str, bytes]:
+    """Sign copies of install.ps1 and uninstall.ps1 in `work` and return their signed bytes.
+    The files of the repository are only read."""
+    work.mkdir(parents=True, exist_ok=True)
+    signed: dict[str, bytes] = {}
+    for name in SIGNED_SCRIPTS:
+        copy = work / name
+        copy.write_bytes(read_installer_file(root, name))  # the same bytes the zip would hold
+        signer.sign(copy, work)
+        data = copy.read_bytes()
+        if not data.startswith(UTF8_BOM) or data.replace(b"\r\n", b"").count(b"\n"):
+            raise ReleaseError(f"Signing changed the text format of {name} (BOM or CRLF lost).")
+        signed[name] = data
+    return signed
 
 
 # Setup exe (IExpress) ------------------------------------------------------------------------
@@ -389,6 +436,21 @@ def _load_build_addin() -> ModuleType:
     return module
 
 
+def _load_sign_release() -> ModuleType:
+    """scripts/sign_release.py, loaded by path (once). Nothing is signed without --sign."""
+    name = "lcsc2fusion_sign_release"
+    loaded = sys.modules.get(name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name("sign_release.py"))
+    if spec is None or spec.loader is None:
+        raise ReleaseError("Cannot load scripts/sign_release.py.")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def asset_names(version: str) -> dict[str, str]:
     return {
         "addin": f"{ADDIN_NAME}-{version}-addin.zip",
@@ -407,35 +469,94 @@ def _describe(path: Path) -> Asset:
     )
 
 
-def build_release(root: Path, out: Path, *, want_exe: bool = True) -> list[Asset]:
-    """Check the version, build everything into `out` and return the assets (sums file last)."""
+def build_release(
+    root: Path, out: Path, *, want_exe: bool = True, signer: FileSigner | None = None
+) -> list[Asset]:
+    """Check the version, build everything into `out` and return the assets (sums file last).
+
+    All files are made in a temporary folder and copied to `out` only when every step worked, so
+    a failure (above all a failed signature) leaves no new file behind. With a `signer` the
+    order is: sign the installer scripts, zip them, build the exe from that zip, sign the exe,
+    write the checksums over the final files."""
     version = check_versions(read_versions(root))
     names = asset_names(version)
     iexpress = find_iexpress() if want_exe else None
+    if signer is not None and want_exe and iexpress is None:
+        raise ReleaseError(
+            "Signing needs the setup exe, and IExpress was not found (it is part of Windows). "
+            "Use --no-exe to sign the scripts of the installer zip only."
+        )
     out.mkdir(parents=True, exist_ok=True)
-    for name in names.values():  # old assets of the same names must not survive
-        (out / name).unlink(missing_ok=True)
 
     build_addin = _load_build_addin()
     with tempfile.TemporaryDirectory(prefix="lcsc2fusion-release-") as temp:
+        stage = Path(temp) / "stage"
+        stage.mkdir()
         try:
             result = build_addin.build(root=root, dist=Path(temp) / "dist")
         except build_addin.BuildError as exc:
             raise ReleaseError(f"Building the add-in failed: {exc}") from exc
-        addin_zip = out / names["addin"]
-        shutil.copyfile(result.zip_path, addin_zip)
-        installer_zip = out / names["installer"]
-        build_installer_zip(root, result.folder, result.files, installer_zip)
-    assets = [_describe(addin_zip), _describe(installer_zip)]
-    if want_exe and iexpress is not None:
-        exe = out / names["exe"]
-        build_setup_exe(root, installer_zip, exe, version, iexpress)
-        assets.append(_describe(exe))
-    assets.sort(key=lambda asset: asset.name)
+        shutil.copyfile(result.zip_path, stage / names["addin"])
+        signed_scripts = (
+            sign_installer_scripts(root, Path(temp) / "signing", signer) if signer else None
+        )
+        installer_zip = stage / names["installer"]
+        build_installer_zip(root, result.folder, result.files, installer_zip, signed_scripts)
+        built = [names["addin"], names["installer"]]
+        if want_exe and iexpress is not None:
+            exe = stage / names["exe"]
+            build_setup_exe(root, installer_zip, exe, version, iexpress)
+            if signer is not None:
+                signer.sign(exe, stage)
+            built.append(names["exe"])
+        for name in names.values():  # old assets of the same names must not survive
+            (out / name).unlink(missing_ok=True)
+        for name in built:
+            shutil.copyfile(stage / name, out / name)
+    assets = sorted((_describe(out / name) for name in built), key=lambda asset: asset.name)
     sums = out / names["sums"]
     sums.write_bytes("".join(f"{a.sha256}  {a.name}\n" for a in assets).encode("ascii"))
     assets.append(_describe(sums))
     return assets
+
+
+def uncommitted_changes_warning(root: Path, version: str) -> str | None:
+    """A warning when the files about to be signed may not be the tagged release: the working
+    tree has changes, or HEAD does not carry the tag v<version>. None when all is well or when
+    git is not available (a source archive has no .git)."""
+    git = shutil.which("git")
+    if git is None or not (root / ".git").exists():
+        return None
+    try:
+        status = subprocess.run(
+            [git, "-C", str(root), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        tags = subprocess.run(
+            [git, "-C", str(root), "tag", "--points-at", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if status.returncode != 0 or tags.returncode != 0:
+        return None
+    problems = []
+    if status.stdout.strip():
+        problems.append("the working tree has uncommitted changes")
+    if f"v{version}" not in tags.stdout.split():
+        problems.append(f"HEAD is not tagged v{version}")
+    if not problems:
+        return None
+    return (
+        "WARNING: " + " and ".join(problems) + ". A signature says 'this is the release': sign "
+        f"files built from a clean checkout of the tag (git switch --detach v{version})."
+    )
 
 
 def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
@@ -443,7 +564,18 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
     parser.add_argument("--out", type=Path, default=None, help="output folder (dist/release)")
     parser.add_argument("--no-exe", action="store_true", help="do not build the setup exe")
     parser.add_argument("--check-tag", metavar="TAG", help="require TAG to equal v<version>")
+    parser.add_argument(
+        "--sign",
+        action="store_true",
+        help="sign the installer scripts and the setup exe with Authenticode (Windows)",
+    )
+    sign_release = _load_sign_release()
+    sign_release.add_signing_arguments(parser)
     args = parser.parse_args(argv)
+    try:
+        config = sign_release.config_from_args(args)
+    except sign_release.SigningError as exc:
+        parser.error(str(exc))
     try:
         version = check_versions(read_versions(root))
         if args.check_tag is not None:
@@ -451,20 +583,26 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
             print(
                 f"Version {version} is the same in all three places; tag {args.check_tag} matches."
             )
-            if args.out is None and not args.no_exe:
+            if args.out is None and not args.no_exe and config is None:
                 return 0
         out = args.out if args.out is not None else root / "dist" / "release"
         want_exe = not args.no_exe
         if want_exe and find_iexpress() is None:
             print("note: no setup exe (IExpress is only available on Windows).")
-        assets = build_release(root, out, want_exe=want_exe)
-    except ReleaseError as exc:
+        signer = None
+        if config is not None:
+            warning = uncommitted_changes_warning(root, version)
+            if warning is not None:
+                print(warning, file=sys.stderr)
+            signer = sign_release.create_signer(config)
+        assets = build_release(root, out, want_exe=want_exe, signer=signer)
+    except (ReleaseError, sign_release.SigningError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    print(f"Release {version} in {out}:")
+    print(f"Release {version} in {out}{' (signed)' if signer is not None else ''}:")
     for asset in assets:
         print(f"  {asset.name:<40} {asset.size / 1024:9.1f} KiB")
     return 0

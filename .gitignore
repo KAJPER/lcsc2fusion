@@ -20,3 +20,6 @@ docs/test_library/
 *.key
 .env
 .env.*
+*.pfx
+*.p12
+dist/release-signed/
