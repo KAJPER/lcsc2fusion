@@ -1,0 +1,44 @@
+{
+  "url": "https://api.github.com/repos/KAJPER/lcsc2fusion/releases/412476910",
+  "html_url": "https://github.com/KAJPER/lcsc2fusion/releases/tag/v0.1.0",
+  "id": 412476910,
+  "tag_name": "v0.1.0",
+  "target_commitish": "main",
+  "name": "LCSC2Fusion 0.1.0",
+  "draft": false,
+  "prerelease": false,
+  "immutable": false,
+  "created_at": "2026-10-14T08:07:18Z",
+  "published_at": "2026-10-14T08:10:56Z",
+  "assets": [
+    {
+      "name": "LCSC2Fusion-0.1.0-addin.zip",
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 262001,
+      "browser_download_url": "https://github.com/KAJPER/lcsc2fusion/releases/download/v0.1.0/LCSC2Fusion-0.1.0-addin.zip"
+    },
+    {
+      "name": "LCSC2Fusion-0.1.0-installer.zip",
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 282650,
+      "browser_download_url": "https://github.com/KAJPER/lcsc2fusion/releases/download/v0.1.0/LCSC2Fusion-0.1.0-installer.zip"
+    },
+    {
+      "name": "LCSC2Fusion-Setup-0.1.0.exe",
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 462848,
+      "browser_download_url": "https://github.com/KAJPER/lcsc2fusion/releases/download/v0.1.0/LCSC2Fusion-Setup-0.1.0.exe"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "content_type": "text/plain; charset=utf-8",
+      "state": "uploaded",
+      "size": 286,
+      "browser_download_url": "https://github.com/KAJPER/lcsc2fusion/releases/download/v0.1.0/SHA256SUMS.txt"
+    }
+  ],
+  "body": "(release notes trimmed from this fixture)"
+}

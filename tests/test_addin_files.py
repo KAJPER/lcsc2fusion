@@ -483,8 +483,12 @@ def test_html_references_existing_local_files_only() -> None:
 
 
 LCSC_URL_PREFIX = "https://www.lcsc.com/"
-# Scripts that may name LCSC pages: the prefix constant of app.js and the sample links of the mock.
-# They are only ever link targets (href); nothing is fetched from them.
+# The update notice links to the release page and the installer of our own GitHub project, and
+# to nothing else on GitHub.
+RELEASES_URL_PREFIX = "https://github.com/KAJPER/lcsc2fusion/releases/"
+LINK_TARGET_PREFIXES = (LCSC_URL_PREFIX, RELEASES_URL_PREFIX)
+# Scripts that may name LCSC pages and releases: the prefix constants of app.js and the sample
+# links of the mock. They are only ever link targets (href); nothing is fetched from them.
 FILES_WITH_LCSC_LINKS = ("app.js", "mock-bridge.js")
 
 
@@ -492,7 +496,10 @@ def test_no_external_urls_in_scripts_and_styles() -> None:
     for name in ("app.js", "mock-bridge.js", "http-bridge.js", "style.css"):
         text = (PALETTE_DIR / name).read_text(encoding="utf-8")
         for url in re.findall(r"https?://[^\s'\"`)]*", text):
-            assert name in FILES_WITH_LCSC_LINKS and url.startswith(LCSC_URL_PREFIX), (name, url)
+            assert name in FILES_WITH_LCSC_LINKS and url.startswith(LINK_TARGET_PREFIXES), (
+                name,
+                url,
+            )
         assert "@import" not in text
     app = js_code("app.js")
     for call in (
@@ -1088,6 +1095,10 @@ CONTRAST_PAIRS = [
     ("accent-border", "surface", 3.0),
     ("focus", "bg", 3.0),
     ("focus", "surface", 3.0),
+    # the update notice: a tinted box with a hairline accent border, the download link looks like
+    # the primary button inside it (white on the accent is covered above)
+    ("accent-border", "accent-soft", 3.0),
+    ("focus", "accent-soft", 3.0),
 ]
 
 

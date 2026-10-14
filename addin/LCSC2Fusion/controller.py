@@ -17,6 +17,14 @@ Palette to Python actions (`INCOMING_ACTIONS`), payload is a JSON object:
     open_folder  {path}            show the folder holding a saved library
     open_library {path}            ask Fusion to open a saved .lbr as a separate library
                                    (the fallback; answers with a status)
+    check_update {force}           look for a newer release on GitHub now; `force` is an optional
+                                   bool (default false). Without it the check runs only when the
+                                   automatic schedule says it is due; with it (the "Check now"
+                                   button) the 24 hour limit is skipped, but two forced checks
+                                   less than 60 s apart are answered from the cache
+    dismiss_update {tag}           hide the "new version" banner for this release tag ("v1.2.3")
+                                   until a newer release appears
+    set_update_check {enabled}     turn the automatic once a day check on or off (required bool)
 
 Python to palette actions (`OUTGOING_ACTIONS`):
     status   {level: info|ok|warn|error, text}
@@ -32,6 +40,22 @@ Python to palette actions (`OUTGOING_ACTIONS`):
                                    the end of one hand-off (always sent, also on failure);
                                    `three_d` is none|started|failed|skipped. Progress of the
                                    hand-off arrives as `status` messages in between.
+    update   {state, current, latest, release_url, installer_url, checked_at, enabled, dismissed}
+                                   what is known about newer releases. `state` is one of
+                                   available|current|error|disabled|checking. `current` is the
+                                   running version ("0.1.0"). `latest` is the newest stable release
+                                   ("0.2.0") or null when nothing is known. `release_url` and
+                                   `installer_url` are built by the add-in from the validated
+                                   version (never copied from GitHub); `installer_url` is null
+                                   unless the release lists the installer file. `checked_at` is
+                                   the epoch time of the last attempt, or null. `enabled` is the
+                                   once a day check. `dismissed` is true for "available" when the
+                                   user hid this version. The message carries codes only: the page
+                                   words everything (see update_service.py for the state rules).
+                                   Sent on `ready` from the cache (no network), around every
+                                   check ("checking", then the result) and after dismiss_update
+                                   and set_update_check. The check runs in the background: it does
+                                   not set `busy`, so it never makes a search or an add fail.
 
 Everything the controller depends on is a Protocol, so tests use plain fakes and the Fusion
 specific implementations live in `fusion_adapter.py`. All methods run on Fusion's main thread;
@@ -63,7 +87,10 @@ from pathlib import Path
 from typing import Any, Generic, Protocol, TypeVar, cast
 
 from fusion_library_flow import LIBRARY_NAME, FlowRequest, FlowResult
+from update_check import CheckResult, parse_tag
+from update_service import UpdateView
 
+from lcsc2fusion import __version__
 from lcsc2fusion.errors import LcscError
 from lcsc2fusion.links import lcsc_product_url
 from lcsc2fusion.model import SearchResult
@@ -74,6 +101,9 @@ ACTION_ADD = "add"
 ACTION_OPEN_FOLDER = "open_folder"
 ACTION_OPEN_LIBRARY = "open_library"
 ACTION_ADD_TO_FUSION = "add_to_fusion"
+ACTION_CHECK_UPDATE = "check_update"
+ACTION_DISMISS_UPDATE = "dismiss_update"
+ACTION_SET_UPDATE_CHECK = "set_update_check"
 # Not sent by our page: on the Qt browser Fusion answers every `sendInfoToHTML` with this event,
 # data being the return value of the page's fusionJavaScriptHandler. It is only an acknowledgement.
 ACTION_RESPONSE = "response"
@@ -84,6 +114,7 @@ ACTION_ADDED = "added"
 ACTION_BUSY = "busy"
 ACTION_ERROR = "error"
 ACTION_FUSION_DONE = "fusion_done"
+ACTION_UPDATE = "update"
 
 # Payload fields, checked against app.js and mock-bridge.js by the tests.
 RESULT_FIELDS = (
@@ -100,6 +131,9 @@ RESULT_FIELDS = (
 )
 ADD_REQUEST_FIELDS = ("lcsc_id", "with_3d", "fusion")
 ADD_TO_FUSION_REQUEST_FIELDS = ("lcsc_id",)
+CHECK_UPDATE_REQUEST_FIELDS = ("force",)
+DISMISS_UPDATE_REQUEST_FIELDS = ("tag",)
+SET_UPDATE_CHECK_REQUEST_FIELDS = ("enabled",)
 ADDED_FIELDS = (
     "lcsc_id",
     "path",
@@ -122,6 +156,17 @@ FUSION_DONE_FIELDS = (
     "message",
     "warnings",
 )
+UPDATE_FIELDS = (
+    "state",
+    "current",
+    "latest",
+    "release_url",
+    "installer_url",
+    "checked_at",
+    "enabled",
+    "dismissed",
+)
+UPDATE_STATES = ("available", "current", "error", "disabled", "checking")
 
 INCOMING_ACTIONS = (
     ACTION_READY,
@@ -130,6 +175,9 @@ INCOMING_ACTIONS = (
     ACTION_OPEN_FOLDER,
     ACTION_OPEN_LIBRARY,
     ACTION_ADD_TO_FUSION,
+    ACTION_CHECK_UPDATE,
+    ACTION_DISMISS_UPDATE,
+    ACTION_SET_UPDATE_CHECK,
 )
 OUTGOING_ACTIONS = (
     ACTION_STATUS,
@@ -138,6 +186,7 @@ OUTGOING_ACTIONS = (
     ACTION_BUSY,
     ACTION_ERROR,
     ACTION_FUSION_DONE,
+    ACTION_UPDATE,
 )
 
 # The button captions, also used in the texts below and checked against app.js by the tests.
@@ -238,6 +287,29 @@ class PaletteSink(Protocol):
     def send(self, action: str, data: str) -> None: ...
 
 
+class UpdateCheckService(Protocol):
+    """The update check as the controller uses it (`UpdateService` in update_service.py).
+
+    All methods run on the main thread except `fetch_latest`, which is the job handed to the
+    `JobRunner`. `begin_check` says whether a check must start now (and marks it as running);
+    `finish_check` or `abort_check` must follow, whatever happened to the job.
+    """
+
+    def view(self) -> UpdateView: ...
+
+    def begin_check(self, force: bool) -> bool: ...
+
+    def fetch_latest(self) -> CheckResult: ...
+
+    def finish_check(self, result: CheckResult) -> UpdateView: ...
+
+    def abort_check(self) -> UpdateView: ...
+
+    def dismiss(self, tag: str) -> UpdateView: ...
+
+    def set_enabled(self, enabled: bool) -> UpdateView: ...
+
+
 class JobRunner(Protocol):
     def run(self, fn: Callable[[], T], on_done: Callable[[JobResult[T]], None]) -> None:
         """Run `fn` off the main thread, then call `on_done(result)` on the main thread."""
@@ -333,6 +405,7 @@ class Controller:
         folder_opener: FolderOpener = open_folder_in_os,
         library: LibraryAdder | None = None,
         defer: Defer | None = None,
+        update_service: UpdateCheckService | None = None,
     ) -> None:
         self._service = service
         self._importer = importer
@@ -343,6 +416,7 @@ class Controller:
         self._folder_opener = folder_opener
         self._library = library
         self._defer = defer
+        self._updates = update_service
         self._busy = False  # a background job (search, add) is running
         self._fusion_pending = False  # a hand-off is queued or running (cleared in `finally`)
         self._added: dict[str, _AddedRecord] = {}
@@ -353,6 +427,9 @@ class Controller:
             ACTION_OPEN_FOLDER: self._on_open_folder,
             ACTION_OPEN_LIBRARY: self._on_open_library,
             ACTION_ADD_TO_FUSION: self._on_add_to_fusion,
+            ACTION_CHECK_UPDATE: self._on_check_update,
+            ACTION_DISMISS_UPDATE: self._on_dismiss_update,
+            ACTION_SET_UPDATE_CHECK: self._on_set_update_check,
         }
 
     @property
@@ -400,6 +477,12 @@ class Controller:
     def _on_ready(self, payload: dict[str, Any]) -> None:
         self._send(ACTION_BUSY, {"value": self.busy})
         self._status(Level.INFO, f"Ready. Libraries are saved to {self._out_dir}")
+        if self._updates is not None:  # nothing to say about updates without the service
+            try:
+                self._send_update(self._updates.view())  # from the cache, no network
+                self._start_update_check(force=False, answer=False)
+            except Exception:  # boundary: the update notice is optional, never an error box
+                self._log("The update notice failed:\n" + traceback.format_exc())
 
     def _on_search(self, payload: dict[str, Any]) -> None:
         query = _require_query(payload)
@@ -462,6 +545,76 @@ class Controller:
             raise _BadRequest(f"Library file does not exist: {path}")
         level, text = describe_open_outcome(self._open_in_fusion(path), path.name)
         self._status(level, text)
+
+    # Update notice -------------------------------------------------------------------------
+    #
+    # The check is NOT a job in the sense of `_start_job`: it does not set `busy`, so it can never
+    # make a search or an add fail with BUSY, and a search that is running does not delay it. The
+    # runner starts a worker per call, so both can be in flight at once.
+
+    def _on_check_update(self, payload: dict[str, Any]) -> None:
+        self._start_update_check(force=_optional_bool(payload, "force"), answer=True)
+
+    def _on_dismiss_update(self, payload: dict[str, Any]) -> None:
+        tag = payload.get("tag")
+        if not isinstance(tag, str) or parse_tag(tag) is None:
+            raise _BadRequest("Invalid request: tag must be a release tag such as v1.2.3.")
+        service = self._updates
+        self._send_update(service.dismiss(tag) if service is not None else _unavailable_update())
+
+    def _on_set_update_check(self, payload: dict[str, Any]) -> None:
+        enabled = _required_bool(payload, "enabled")
+        service = self._updates
+        if service is None:
+            self._send_update(_unavailable_update())
+            return
+        self._send_update(service.set_enabled(enabled))
+        if enabled:  # switching it on checks at once when a check is due
+            self._start_update_check(force=False, answer=False)
+
+    def _start_update_check(self, *, force: bool, answer: bool) -> None:
+        """Start the lookup in the background when it is due (or forced).
+
+        `answer` says the page asked for it: then exactly one `update` message comes back even when
+        nothing starts. Otherwise (automatic) nothing is sent when nothing starts.
+        """
+        service = self._updates
+        if service is None:
+            if answer:
+                self._send_update(_unavailable_update())
+            return
+        if not service.begin_check(force):
+            if answer:
+                self._send_update(service.view())
+            return
+        try:
+            self._send_update(service.view())  # "checking"
+            self._runner.run(service.fetch_latest, self._finish_update_check)
+        except Exception:  # boundary: the check must be marked as over, whatever failed
+            self._log("Could not start the update check:\n" + traceback.format_exc())
+            self._send_update_guarded(service.abort_check)
+
+    def _finish_update_check(self, result: JobResult[CheckResult]) -> None:
+        """Runs on the main thread when the worker is done. Never raises."""
+        service = self._updates
+        if service is None:
+            return
+        try:
+            view = service.finish_check(result.unwrap())
+        except Exception:  # boundary: runs from a Fusion event, must not escape
+            self._log("The update check failed:\n" + traceback.format_exc())
+            self._send_update_guarded(service.abort_check)
+            return
+        self._send_guarded(ACTION_UPDATE, view.to_message())
+
+    def _send_update_guarded(self, make_view: Callable[[], UpdateView]) -> None:
+        try:
+            self._send_guarded(ACTION_UPDATE, make_view().to_message())
+        except Exception:  # boundary: see above
+            self._log("Could not report the update check:\n" + traceback.format_exc())
+
+    def _send_update(self, view: UpdateView) -> None:
+        self._send(ACTION_UPDATE, view.to_message())
 
     def _inside_out_dir(self, path: Path) -> bool:
         return path.resolve().is_relative_to(self._out_dir.resolve())
@@ -705,6 +858,28 @@ def _optional_bool(payload: dict[str, Any], key: str) -> bool:
     if not isinstance(value, bool):
         raise _BadRequest(f"Invalid request: {key} must be true or false.")
     return value
+
+
+def _required_bool(payload: dict[str, Any], key: str) -> bool:
+    """Like `_optional_bool`, but a missing key is an error: absent must never mean False here."""
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise _BadRequest(f"Invalid request: {key} must be true or false.")
+    return value
+
+
+def _unavailable_update() -> UpdateView:
+    """The `update` message of a session without the update check (the old palette mode)."""
+    return UpdateView(
+        state="disabled",
+        current=__version__,
+        latest=None,
+        release_url=None,
+        installer_url=None,
+        checked_at=None,
+        enabled=False,
+        dismissed=False,
+    )
 
 
 def _failed_result(message: str) -> FlowResult:

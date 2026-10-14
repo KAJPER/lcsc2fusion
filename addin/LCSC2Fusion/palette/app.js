@@ -26,6 +26,9 @@
     OPEN_FOLDER: 'open_folder',
     OPEN_LIBRARY: 'open_library',
     ADD_TO_FUSION: 'add_to_fusion',
+    CHECK_UPDATE: 'check_update',
+    DISMISS_UPDATE: 'dismiss_update',
+    SET_UPDATE_CHECK: 'set_update_check',
   });
 
   const FROM_PYTHON = Object.freeze({
@@ -35,6 +38,7 @@
     BUSY: 'busy',
     ERROR: 'error',
     FUSION_DONE: 'fusion_done',
+    UPDATE: 'update',
   });
 
   const LEVEL_KEYS = Object.freeze({
@@ -61,6 +65,21 @@
   const DATASHEET_DOMAINS = Object.freeze(['lcsc.com', 'jlcpcb.com', 'easyeda.com']);
   const MAX_URL_LENGTH = 2048;
 
+  // The update notice. Python builds both URLs from a version it validated; the page checks them
+  // again and accepts exactly these two shapes for the version it was told about, nothing else.
+  // The release text of GitHub never reaches the page: only version numbers and our own texts.
+  const UPDATE_STATES = Object.freeze(['available', 'current', 'error', 'disabled', 'checking']);
+  const VERSION_PATTERN = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
+  const RELEASES_URL = 'https://github.com/KAJPER/lcsc2fusion/releases/';
+  const RELEASE_URL_PREFIX = RELEASES_URL + 'tag/v';
+  const INSTALLER_URL_PREFIX = RELEASES_URL + 'download/v';
+  const INSTALLER_FILE_PREFIX = '/LCSC2Fusion-Setup-';
+  const INSTALLER_FILE_SUFFIX = '.exe';
+  const MAX_CURRENT_LENGTH = 40;
+  // A check that has not ended after this long is given up on, so that the button never stays
+  // disabled for good when an answer of Python got lost (the real timeout is 8 seconds).
+  const UPDATE_GUARD_MS = 45000;
+
   // The "Include 3D model" and "Add to the Fusion library" choices live in the checkboxes only, so
   // they last as long as the palette page does and nothing is written to browser storage. A part
   // added without 3D can be added again with 3D, but not twice in the same mode.
@@ -76,6 +95,19 @@
   // same hits in order, so the rows can be drawn again after a language switch.
   //
   // `status` and `error` hold a text descriptor, { key, params } or { raw } (see `describe`).
+  //
+  // The update notice keeps (see applyUpdate):
+  //   update               the last `update` message whose state is available, current or disabled
+  //                        (the source of the banner); an `error` or `checking` never replaces it
+  //   updateChecking       a `checking` message came and no result yet; it only overlays the button
+  //   manualUpdateCheck    "Check now" was pressed and the answer is not in yet
+  //   updateLine           what the result line under the button reports after a manual check:
+  //                        null (nothing yet), 'result' (the last `update`) or 'error'
+  //   updateHiddenFor      the version whose Dismiss was pressed, until Python confirms or refuses
+  //   updateEnabled        the once a day check, as the last message said
+  //   updateCheckedAt      epoch seconds of the last attempt, or null
+  //   updateGuard          timer that gives up on a check that never ends
+  // Only these values are stored, never rendered text, so a language switch can write it again.
   const state = {
     busy: false,
     pendingId: null,
@@ -92,6 +124,15 @@
     added3dIds: new Set(),
     fusion: new Map(),
     bridge: null,
+    update: null,
+    updateChecking: false,
+    manualUpdateCheck: false,
+    updateLine: null,
+    updateHiddenFor: null,
+    updateEnabled: true,
+    updateCheckedAt: null,
+    updateGuard: null,
+    updateBannerKey: '',
   };
 
   // The parts of a saved library card that change later, kept off the DOM nodes themselves.
@@ -131,6 +172,14 @@
     if (params) node.setAttribute('data-i18n-params', JSON.stringify(params));
     node.removeAttribute('data-msg');
     node.textContent = t(key, params);
+  }
+
+  // An empty node that no longer holds a key (a language switch must not bring a text back).
+  function clearText(node) {
+    node.removeAttribute('data-i18n');
+    node.removeAttribute('data-i18n-params');
+    node.removeAttribute('data-msg');
+    node.textContent = '';
   }
 
   // Text of a node from a message of Python (English), translated for display.
@@ -192,6 +241,30 @@
     const host = parsed.hostname.toLowerCase();
     const known = DATASHEET_DOMAINS.some((domain) => host === domain || host.endsWith('.' + domain));
     return known ? parsed.href : '';
+  }
+
+  // The version the update notice talks about: X.Y.Z without leading zeros, or ''.
+  function updateVersion(latest) {
+    return typeof latest === 'string' && VERSION_PATTERN.test(latest) ? latest : '';
+  }
+
+  // The release page of `latest`, exactly as Python builds it, or '' (no link). Anything else
+  // (another host or scheme, a port, userinfo, a query, a fragment, a trailing slash, a different
+  // version, a wrong tag shape) is refused: the URL must equal the one built from `latest`.
+  function updateReleaseUrl(latest, url) {
+    const version = updateVersion(latest);
+    if (!version || typeof url !== 'string') return '';
+    return url === RELEASE_URL_PREFIX + version ? url : '';
+  }
+
+  // The installer of `latest`: the release download URL with the one asset name, both versions
+  // equal to `latest`, or ''.
+  function updateInstallerUrl(latest, url) {
+    const version = updateVersion(latest);
+    if (!version || typeof url !== 'string') return '';
+    const expected =
+      INSTALLER_URL_PREFIX + version + INSTALLER_FILE_PREFIX + version + INSTALLER_FILE_SUFFIX;
+    return url === expected ? url : '';
   }
 
   // An anchor to a page in the browser. `href` must already have passed a check above. The
@@ -713,6 +786,184 @@
     refreshFusion(data.lcsc_id);
   }
 
+  // Update notice ------------------------------------------------------------------------------
+
+  // What the banner shows, or null when it is hidden: the last known message says "available",
+  // the user did not hide exactly this version, and the version is a real X.Y.Z.
+  function updateBannerInfo() {
+    const update = state.update;
+    if (!update || update.state !== 'available' || update.dismissed) return null;
+    const latest = updateVersion(update.latest);
+    if (!latest || state.updateHiddenFor === latest) return null;
+    return {
+      latest: latest,
+      current: update.current,
+      release: updateReleaseUrl(latest, update.release_url),
+      installer: updateInstallerUrl(latest, update.installer_url),
+    };
+  }
+
+  function renderUpdateBanner() {
+    const banner = $('update-banner');
+    const info = updateBannerInfo();
+    if (!info) {
+      banner.hidden = true;
+      state.updateBannerKey = '';
+      return;
+    }
+    // The links are rebuilt only when what they hold changes, so a message that changes nothing
+    // (a "checking" overlay) never takes the keyboard focus away from them.
+    const key = [info.latest, info.current, info.release, info.installer].join('|');
+    if (key !== state.updateBannerKey) {
+      state.updateBannerKey = key;
+      const actions = $('update-actions');
+      const dismiss = $('update-dismiss');
+      actions.querySelectorAll('a').forEach((link) => link.remove());
+      const download = externalLink(
+        'update-download',
+        info.installer,
+        { 'aria-label': 'update.downloadLabel', title: 'update.downloadTitle' },
+        { latest: info.latest }
+      );
+      if (download) {
+        setText(download, 'update.download');
+        actions.insertBefore(download, dismiss);
+      }
+      const notes = externalLink(
+        'update-notes',
+        info.release,
+        { 'aria-label': 'update.notesLabel', title: 'update.notesTitle' },
+        { latest: info.latest }
+      );
+      if (notes) {
+        setText(notes, 'update.notes');
+        actions.insertBefore(notes, dismiss);
+      }
+      setText($('update-text'), 'update.banner', {
+        latest: info.latest,
+        current: info.current || '?',
+      });
+      setText($('update-hint'), info.installer ? 'update.hint' : 'update.hintNoInstaller');
+    }
+    banner.hidden = false;
+  }
+
+  // The text under the "Check now" button as a descriptor, or null for no line. It is shown only
+  // after the user pressed the button; a result of the automatic check is not reported here.
+  function updateResultText() {
+    if (state.manualUpdateCheck) return textKey('update.checking');
+    if (state.updateChecking) return null;
+    if (state.updateLine === 'error') return textKey('update.result.error');
+    const update = state.update;
+    if (state.updateLine !== 'result' || !update) return null;
+    if (update.state === 'current') {
+      return textKey('update.result.current', { current: update.current || '?' });
+    }
+    if (update.state === 'available') {
+      return textKey('update.result.available', { latest: updateVersion(update.latest) || '?' });
+    }
+    return null; // disabled: nothing special
+  }
+
+  function formatCheckedAt(seconds) {
+    const date = new Date(seconds * 1000);
+    if (Number.isNaN(date.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat(I18n.getLanguage(), {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
+    } catch (err) {
+      return date.toLocaleString();
+    }
+  }
+
+  function renderUpdateSettings() {
+    const busy = state.updateChecking || state.manualUpdateCheck;
+    const button = $('update-check');
+    button.disabled = busy;
+    setText(button, busy ? 'update.checking' : 'update.checkNow');
+    $('update-enabled').checked = state.updateEnabled;
+
+    const line = $('update-result');
+    const result = updateResultText();
+    if (result) setText(line, result.key, result.params);
+    else clearText(line);
+    line.classList.toggle('update-result-error', Boolean(result) && state.updateLine === 'error');
+    // The button already says "Checking..." to the eye; the line says it to a screen reader.
+    line.classList.toggle('sr-only', state.manualUpdateCheck);
+
+    const checked = $('update-checked');
+    const when = state.updateCheckedAt === null ? '' : formatCheckedAt(state.updateCheckedAt);
+    if (when) setText(checked, 'update.lastChecked', { when: when });
+    else clearText(checked);
+    checked.hidden = !when;
+  }
+
+  function renderUpdate() {
+    renderUpdateBanner();
+    renderUpdateSettings();
+  }
+
+  function disarmUpdateGuard() {
+    clearTimeout(state.updateGuard);
+    state.updateGuard = null;
+  }
+
+  // While a check runs the guard counts down; it ends the check on the page only (what the user
+  // sees), a late answer of Python is applied as usual.
+  function armUpdateGuard() {
+    disarmUpdateGuard();
+    state.updateGuard = setTimeout(() => {
+      state.updateGuard = null;
+      if (!state.updateChecking && !state.manualUpdateCheck) return;
+      if (state.manualUpdateCheck) state.updateLine = 'error';
+      state.updateChecking = false;
+      state.manualUpdateCheck = false;
+      renderUpdateSettings();
+    }, UPDATE_GUARD_MS);
+  }
+
+  // One `update` message of Python (see the state rules in controller.py). A "checking" only
+  // overlays; an "error" is reported only to the user who asked for the check and never hides
+  // a banner that is already shown; the other three replace what the banner is built from.
+  function applyUpdate(data) {
+    if (UPDATE_STATES.indexOf(data.state) < 0) return;
+    if (typeof data.enabled === 'boolean') state.updateEnabled = data.enabled;
+    const checkedAt = data.checked_at;
+    const validTime = typeof checkedAt === 'number' && Number.isFinite(checkedAt) && checkedAt > 0;
+    state.updateCheckedAt = validTime ? checkedAt : null;
+    if (data.state === 'checking') {
+      state.updateChecking = true;
+      armUpdateGuard();
+    } else if (data.state === 'error') {
+      state.updateChecking = false;
+      disarmUpdateGuard();
+      if (state.manualUpdateCheck) {
+        state.manualUpdateCheck = false;
+        state.updateLine = 'error';
+      }
+    } else {
+      state.updateChecking = false;
+      disarmUpdateGuard();
+      const current = data.current;
+      const shortEnough = typeof current === 'string' && current.length <= MAX_CURRENT_LENGTH;
+      state.update = {
+        state: data.state,
+        current: shortEnough ? current : '',
+        latest: typeof data.latest === 'string' ? data.latest : null,
+        release_url: data.release_url,
+        installer_url: data.installer_url,
+        dismissed: data.dismissed === true,
+      };
+      if (state.manualUpdateCheck) {
+        state.manualUpdateCheck = false;
+        state.updateLine = 'result';
+      }
+    }
+    renderUpdate();
+  }
+
   // Messages from Python --------------------------------------------------------------------
 
   function handleMessage(action, rawData) {
@@ -741,6 +992,9 @@
         break;
       case FROM_PYTHON.FUSION_DONE:
         applyFusionDone(data);
+        break;
+      case FROM_PYTHON.UPDATE:
+        applyUpdate(data);
         break;
       default:
         return 'Unexpected action: ' + action;
@@ -834,6 +1088,54 @@
     });
   }
 
+  // Update notice: the three requests. A reply that is not "OK" means Python did not take the
+  // request, so the page goes back to what it knew before. The answer itself is an `update` message.
+
+  function refused(reply) {
+    return reply === null || reply === 'ERROR' || reply === 'BUSY';
+  }
+
+  function requestUpdateCheck() {
+    if (state.manualUpdateCheck || state.updateChecking) return;
+    state.manualUpdateCheck = true;
+    armUpdateGuard();
+    renderUpdateSettings();
+    send(TO_PYTHON.CHECK_UPDATE, { force: true }).then((reply) => {
+      if (!refused(reply) || !state.manualUpdateCheck) return;
+      disarmUpdateGuard();
+      state.manualUpdateCheck = false;
+      state.updateLine = 'error';
+      renderUpdateSettings();
+    });
+  }
+
+  function dismissUpdate() {
+    const info = updateBannerInfo();
+    if (!info) return;
+    const hadFocus = $('update-banner').contains(document.activeElement);
+    state.updateHiddenFor = info.latest;
+    renderUpdateBanner();
+    if (hadFocus) $('query').focus(); // the focused button just went away
+    send(TO_PYTHON.DISMISS_UPDATE, { tag: 'v' + info.latest }).then((reply) => {
+      if (!refused(reply) || state.updateHiddenFor !== info.latest) return;
+      state.updateHiddenFor = null;
+      renderUpdateBanner();
+    });
+  }
+
+  function setUpdateCheck(enabled) {
+    const before = state.updateEnabled;
+    state.updateEnabled = enabled; // the box already shows it; the answer confirms
+    // Changing the setting closes the answer to the last "Check now": that line is old news now.
+    state.updateLine = null;
+    renderUpdateSettings();
+    send(TO_PYTHON.SET_UPDATE_CHECK, { enabled: enabled }).then((reply) => {
+      if (!refused(reply)) return;
+      state.updateEnabled = before; // Python did not take it: the box goes back
+      renderUpdateSettings();
+    });
+  }
+
   // Bridge discovery (Fusion injects `adsk`; a plain browser gets the mock) --------------------
 
   function realBridge() {
@@ -882,9 +1184,14 @@
     });
   }
 
-  // Read only hook for the tests: the two checks that decide whether a link is shown at all.
+  // Read only hook for the tests: the checks that decide whether a link is shown at all.
   Object.defineProperty(window, '__lcscPalette', {
-    value: Object.freeze({ lcscProductUrl: lcscProductUrl, datasheetUrl: datasheetUrl }),
+    value: Object.freeze({
+      lcscProductUrl: lcscProductUrl,
+      datasheetUrl: datasheetUrl,
+      updateReleaseUrl: updateReleaseUrl,
+      updateInstallerUrl: updateInstallerUrl,
+    }),
   });
 
   // Settings: theme and language ----------------------------------------------------------------
@@ -895,6 +1202,7 @@
     I18n.apply(document);
     renderStatus();
     renderError();
+    renderUpdate();
     if (state.hasResults) drawResultRows();
     showResultsView();
     refreshAllFusion(false);
@@ -980,6 +1288,11 @@
       requestSearch($('query').value);
     });
     $('error-dismiss').addEventListener('click', clearError);
+    $('update-check').addEventListener('click', requestUpdateCheck);
+    $('update-dismiss').addEventListener('click', dismissUpdate);
+    $('update-enabled').addEventListener('change', (event) => {
+      setUpdateCheck(event.target.checked);
+    });
     $('with-3d').addEventListener('change', updateAddButtons);
     $('results-body').addEventListener('click', (event) => {
       const button = event.target.closest('button[data-add]');

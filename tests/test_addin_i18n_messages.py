@@ -1051,6 +1051,10 @@ def controller_scenarios(root: Path, seen: Seen, reasons: Sequence[str]) -> None
         env.call("add", payload)
     env.call("add_to_fusion", {"lcsc_id": "C9"})
     env.call("add_to_fusion", {"lcsc_id": "nope"})
+    for payload in ({}, {"tag": 5}, {"tag": "v01.2.3"}, {"tag": "1.2.3"}):
+        env.call("dismiss_update", payload)  # the one Python sentence of the update notice
+    for payload in ({}, {"enabled": "yes"}):
+        env.call("set_update_check", payload)
     for error in (
         PartNotFoundError("EasyEDA has no data for C1 (HTTP 404)."),
         OSError("[WinError 5] Access is denied"),
@@ -1290,6 +1294,14 @@ PAIRS: tuple[tuple[str, str], ...] = (
     ("Found 5 part(s) for 'x'.", "Znaleziono 5 części dla 'x'."),
     ("Found 22 part(s) for 'x'.", "Znaleziono 22 części dla 'x'."),
     ("Searching for 'C2040'...", "Wyszukiwanie 'C2040'..."),
+    (
+        "Invalid request: tag must be a release tag such as v1.2.3.",
+        "Nieprawidłowe żądanie: tag musi być tagiem wydania, na przykład v1.2.3.",
+    ),
+    (
+        "Invalid request: enabled must be true or false.",
+        "Nieprawidłowe żądanie: enabled musi mieć wartość true albo false.",
+    ),
     (
         "No parts found for 'zzz'. Try an LCSC number such as C2040 or fewer words.",
         "Nie znaleziono części dla 'zzz'. Spróbuj podać numer LCSC, np. C2040, albo użyj "
@@ -1726,6 +1738,8 @@ RUNTIME_ANCHORS: tuple[str, ...] = (
     "The search text is too long",
     "The search text contains unsupported characters.",
     "Invalid request: with_3d must be true or false.",
+    "Invalid request: tag must be a release tag such as v1.2.3.",
+    "Invalid request: enabled must be true or false.",
     "is not a valid LCSC part number.",
     "Unknown palette action ",
     "Another request is still running. Please wait for it.",

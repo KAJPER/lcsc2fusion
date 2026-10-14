@@ -7,6 +7,36 @@ notes of its GitHub release by `scripts/release_notes.py`, so keep every entry u
 
 ## [Unreleased]
 
+### Added
+
+- Update notice. When the window opens, the add-in asks GitHub whether a newer stable release exists: one
+  HTTPS request to `api.github.com` for the latest release of `KAJPER/lcsc2fusion`, at most once a day and not
+  again for 6 hours after a failed attempt. If there is a newer one, a banner above the search field says
+  "Version X is available (you have Y)." with a "Download installer" link (the installer file of that release),
+  a "What is new" link (the release page) and a "Dismiss" button that hides the notice until a still newer
+  version appears. The banner also lists the steps: run the installer, then in Fusion press Shift+S, open
+  Add-Ins, select LCSC2Fusion, press Stop, then Run.
+- Settings, Updates: a checkbox "Check for updates once a day" (off means no automatic request at all) and a
+  "Check now" button that asks at once and says whether you have the latest version, a newer one is available
+  or the check failed. The group also shows when the last check was. The choice and the last result are kept in
+  `%LOCALAPPDATA%\LCSC2Fusion\update.json`.
+- Privacy of the check: the request carries only the version of the add-in in the User-Agent header, with no
+  account, token, cookie or machine id. GitHub sees your IP address, like any web server you contact. The
+  release text is never shown. Offline, or behind a proxy that blocks `api.github.com`, the automatic check
+  silently does nothing; the system proxy settings are used.
+- The add-in never updates itself: nothing is downloaded or run automatically. You run the installer, which
+  upgrades in place and keeps your data, and then Stop and Run the add-in in Fusion.
+- English and Polish texts for the update notice and the new settings.
+- Release files can now be code signed by the maintainer on his own PC (`scripts/build_release.py --sign`, `scripts/sign_release.py verify` and `upload`), so that Windows can show the publisher name instead of "Unknown publisher". Releases stay unsigned until a certificate is in use.
+
+### Security
+
+- The answer from GitHub is treated as untrusted. Only the tag, the draft and pre-release flags and the names
+  of the attached files are read. The links are built by the add-in from a validated version number (the
+  installer link only when the release lists that exact installer file) and the page checks them again against
+  exact prefixes before they become `href` attributes. The response is capped at 256 KiB, certificates are
+  verified, redirects stay on the same host and an older or equal version is never offered.
+
 ## [0.1.0] - 2026-10-14
 
 First public release. Confirmed by hand in Fusion on Windows: generated libraries import cleanly, the

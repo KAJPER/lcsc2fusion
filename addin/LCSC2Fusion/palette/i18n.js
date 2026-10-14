@@ -154,6 +154,28 @@
       'bridge.stopped': 'LCSC2Fusion was stopped in Fusion. You can close this window.',
       'bridge.requestFailed':
         'The request to Fusion failed. Check that Fusion is running, then try again.',
+      'update.banner': 'Version {latest} is available (you have {current}).',
+      'update.download': 'Download installer',
+      'update.downloadLabel': 'Download installer for version {latest}',
+      'update.downloadTitle': 'Download LCSC2Fusion {latest} (opens in your browser)',
+      'update.notes': 'What is new',
+      'update.notesLabel': 'What is new in version {latest}',
+      'update.notesTitle': 'Open the release page of version {latest} (opens in your browser)',
+      'update.dismiss': 'Dismiss',
+      'update.dismissTitle': 'Hide this notice until a newer version appears',
+      'update.hint':
+        'To update: run the downloaded installer, then in Fusion press Shift+S, open Add-Ins, select LCSC2Fusion, press Stop, then Run.',
+      'update.hintNoInstaller':
+        'To update: download the installer from the release page and run it, then in Fusion press Shift+S, open Add-Ins, select LCSC2Fusion, press Stop, then Run.',
+      'update.group': 'Updates',
+      'update.setting': 'Check for updates once a day',
+      'update.privacy': 'Asks api.github.com for the latest release. Nothing about you is sent.',
+      'update.checkNow': 'Check now',
+      'update.checking': 'Checking...',
+      'update.lastChecked': 'Last check: {when}',
+      'update.result.current': 'You have the latest version ({current}).',
+      'update.result.available': 'Version {latest} is available.',
+      'update.result.error': 'Could not check for updates. Try again later.',
     },
 
     pl: {
@@ -278,6 +300,28 @@
       'bridge.stopped': 'LCSC2Fusion został zatrzymany we Fusion. Możesz zamknąć to okno.',
       'bridge.requestFailed':
         'Żądanie do Fusion nie powiodło się. Sprawdź, czy Fusion jest uruchomiony, i spróbuj ponownie.',
+      'update.banner': 'Dostępna jest wersja {latest} (masz {current}).',
+      'update.download': 'Pobierz instalator',
+      'update.downloadLabel': 'Pobierz instalator wersji {latest}',
+      'update.downloadTitle': 'Pobierz instalator LCSC2Fusion {latest} (otworzy się w przeglądarce)',
+      'update.notes': 'Co nowego',
+      'update.notesLabel': 'Co nowego w wersji {latest}',
+      'update.notesTitle': 'Otwórz stronę wydania wersji {latest} (otworzy się w przeglądarce)',
+      'update.dismiss': 'Ukryj',
+      'update.dismissTitle': 'Ukryj to powiadomienie do czasu wydania nowszej wersji',
+      'update.hint':
+        'Aby zaktualizować: uruchom pobrany instalator, a potem we Fusion naciśnij Shift+S, otwórz kartę Add-Ins, wybierz LCSC2Fusion, kliknij Stop, a następnie Run.',
+      'update.hintNoInstaller':
+        'Aby zaktualizować: pobierz instalator ze strony wydania i uruchom go, a potem we Fusion naciśnij Shift+S, otwórz kartę Add-Ins, wybierz LCSC2Fusion, kliknij Stop, a następnie Run.',
+      'update.group': 'Aktualizacje',
+      'update.setting': 'Sprawdzaj aktualizacje raz dziennie',
+      'update.privacy': 'Pyta api.github.com o najnowsze wydanie. Nic o Tobie nie jest wysyłane.',
+      'update.checkNow': 'Sprawdź teraz',
+      'update.checking': 'Sprawdzanie...',
+      'update.lastChecked': 'Ostatnie sprawdzenie: {when}',
+      'update.result.current': 'Masz najnowszą wersję ({current}).',
+      'update.result.available': 'Dostępna jest wersja {latest}.',
+      'update.result.error': 'Nie udało się sprawdzić aktualizacji. Spróbuj ponownie później.',
     },
   };
 
@@ -416,6 +460,10 @@
     {
       re: /^Invalid request: (?<key>\w+) must be true or false\.$/,
       pl: 'Nieprawidłowe żądanie: {key} musi mieć wartość true albo false.',
+    },
+    {
+      re: /^Invalid request: tag must be a release tag such as v1\.2\.3\.$/,
+      pl: 'Nieprawidłowe żądanie: tag musi być tagiem wydania, na przykład v1.2.3.',
     },
     {
       re: /^(?<value>.+) is not a valid LCSC part number\. Use the letter C followed by digits, for example C2040\.$/,

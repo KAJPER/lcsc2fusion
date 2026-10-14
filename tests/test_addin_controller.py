@@ -22,6 +22,8 @@ from controller import (
     ACTION_ADD_TO_FUSION,
     ACTION_ADDED,
     ACTION_BUSY,
+    ACTION_CHECK_UPDATE,
+    ACTION_DISMISS_UPDATE,
     ACTION_ERROR,
     ACTION_FUSION_DONE,
     ACTION_OPEN_FOLDER,
@@ -29,7 +31,9 @@ from controller import (
     ACTION_READY,
     ACTION_RESULTS,
     ACTION_SEARCH,
+    ACTION_SET_UPDATE_CHECK,
     ACTION_STATUS,
+    ACTION_UPDATE,
     ADD_REQUEST_FIELDS,
     ADD_TO_FUSION_REQUEST_FIELDS,
     ADDED_FIELDS,
@@ -310,6 +314,9 @@ def test_action_constants_are_unique_and_complete() -> None:
         ACTION_OPEN_FOLDER,
         ACTION_OPEN_LIBRARY,
         ACTION_ADD_TO_FUSION,
+        ACTION_CHECK_UPDATE,
+        ACTION_DISMISS_UPDATE,
+        ACTION_SET_UPDATE_CHECK,
     )
     assert controller.OUTGOING_ACTIONS == (
         ACTION_STATUS,
@@ -318,6 +325,7 @@ def test_action_constants_are_unique_and_complete() -> None:
         ACTION_BUSY,
         ACTION_ERROR,
         ACTION_FUSION_DONE,
+        ACTION_UPDATE,
     )
     everything = controller.INCOMING_ACTIONS + controller.OUTGOING_ACTIONS
     assert len(set(everything)) == len(everything)
@@ -326,6 +334,10 @@ def test_action_constants_are_unique_and_complete() -> None:
 def test_payload_field_constants_are_unique() -> None:
     assert ADD_REQUEST_FIELDS == ("lcsc_id", "with_3d", "fusion")
     assert ADD_TO_FUSION_REQUEST_FIELDS == ("lcsc_id",)
+    assert controller.CHECK_UPDATE_REQUEST_FIELDS == ("force",)
+    assert controller.DISMISS_UPDATE_REQUEST_FIELDS == ("tag",)
+    assert controller.SET_UPDATE_CHECK_REQUEST_FIELDS == ("enabled",)
+    assert len(set(controller.UPDATE_FIELDS)) == len(controller.UPDATE_FIELDS)
     assert len(set(ADDED_FIELDS)) == len(ADDED_FIELDS)
     assert len(set(FUSION_DONE_FIELDS)) == len(FUSION_DONE_FIELDS)
     assert {"step_path", "placed_step_path", "with_3d"} <= set(ADDED_FIELDS)

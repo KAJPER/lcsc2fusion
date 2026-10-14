@@ -47,6 +47,16 @@ def isolated_api_file(
     return path
 
 
+@pytest.fixture(autouse=True)
+def isolated_state_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> Path:
+    """state.json and update.json of every started add-in go here, not to the real profile."""
+    path = tmp_path_factory.mktemp("state") / "state.json"
+    monkeypatch.setenv("LCSC2FUSION_STATE", str(path))
+    return path
+
+
 def wait_until(condition: Callable[[], bool], timeout_s: float = 5.0) -> None:
     deadline = time.monotonic() + timeout_s
     while not condition():
@@ -790,7 +800,14 @@ def test_dispatch_runs_controller_actions_on_the_main_thread_and_publishes_to_th
     worker.join(5)
 
     assert replies == ["OK"]
-    assert [action for action, _ in stack.hub.published] == ["busy", "status"]
+    # `ready` also reports the update notice: the cached state, then "checking" (the lookup runs on
+    # a worker thread, and the conftest guard makes it fail quietly instead of reaching GitHub)
+    published = stack.hub.published
+    assert [action for action, _ in published] == ["busy", "status", "update", "update"]
+    assert [json.loads(data)["state"] for action, data in published if action == "update"] == [
+        "current",
+        "checking",
+    ]
     addin.stop()
 
 
@@ -1805,10 +1822,16 @@ def test_end_to_end_with_the_real_transport_hub_and_window(
         assert json.loads(reply.read()) == {"reply": "OK"}
         conn.close()
 
-        received = stream.wait_for(2)
-        assert [event["action"] for event in received] == ["busy", "status"]
+        received = stream.wait_for(4)[:4]
+        assert [event["action"] for event in received] == ["busy", "status", "update", "update"]
         assert json.loads(received[0]["data"]) == {"value": False}
         assert json.loads(received[1]["data"])["level"] == "info"
+        # the update notice: the cached state, then "checking" (the lookup itself is blocked by the
+        # conftest guard and ends quietly as an error message later)
+        assert [json.loads(event["data"])["state"] for event in received[2:]] == [
+            "current",
+            "checking",
+        ]
         assert handled_on == [loop.ident]  # the controller ran on the main thread, not an HTTP one
 
         # A second click on the button while the page is connected only focuses the window.

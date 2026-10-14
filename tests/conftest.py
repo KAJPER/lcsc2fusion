@@ -11,9 +11,12 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import urllib.error
+import urllib.request
 import warnings
 from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -56,3 +59,25 @@ def adsk_stubs() -> Iterator[Path]:
     for name in list(sys.modules):
         if name == "adsk" or name.startswith("adsk.") or name == "fusion_adapter":
             del sys.modules[name]
+
+
+GITHUB_HOSTS = frozenset({"api.github.com", "github.com"})
+
+
+@pytest.fixture(autouse=True)
+def no_github_from_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test may reach GitHub: the update notice would otherwise ask the real API.
+
+    Any urllib opener that is asked for a GitHub URL fails like an offline machine would. Other
+    hosts (the tests' own 127.0.0.1 servers) are not touched. The update code is tested with a fake
+    `Fetch`, see tests/test_addin_update_check.py.
+    """
+    original = urllib.request.OpenerDirector.open
+
+    def guarded(self: urllib.request.OpenerDirector, fullurl: object, *args: object, **kw: object):  # type: ignore[no-untyped-def]
+        url = fullurl.full_url if isinstance(fullurl, urllib.request.Request) else str(fullurl)
+        if urlsplit(url).hostname in GITHUB_HOSTS:
+            raise urllib.error.URLError("blocked: tests never reach GitHub")
+        return original(self, fullurl, *args, **kw)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", guarded)

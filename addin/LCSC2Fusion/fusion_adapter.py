@@ -60,6 +60,7 @@ from fusion_library_flow import (
 from http_transport import HttpTransport, Hub, HubSink
 from library_registry import StateStore
 from local_api import DiscoveryPublisher, JobTracker, LocalApi, TeeSink
+from update_service import UpdateService, UpdateStore, default_update_path
 
 T = TypeVar("T")
 
@@ -1308,6 +1309,7 @@ class AddinApp:
             self._log,
             library=library,
             defer=self._dispatcher.post,
+            update_service=UpdateService(UpdateStore(default_update_path()), log=self._log),
         )
         self._dispatcher.set_handler(controller.handle)
         token = secrets.token_urlsafe(LOCAL_API_TOKEN_BYTES)  # before the transport: it checks it

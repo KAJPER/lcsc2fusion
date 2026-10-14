@@ -343,6 +343,10 @@ def test_the_state_driven_nodes_of_the_page_have_no_static_key() -> None:
         "results-heading",
         "results-count",
         "conn-banner",
+        "update-text",  # the update notice and its result lines are written from state too
+        "update-hint",
+        "update-result",
+        "update-checked",
     ):
         found = page.find(element_id)
         assert found is not None, element_id
@@ -489,6 +493,7 @@ def test_the_retranslation_redraws_what_a_switch_must_not_lose() -> None:
         "I18n.apply(document)",
         "renderStatus()",
         "renderError()",
+        "renderUpdate()",  # the update notice and the Updates group of the settings
         "drawResultRows()",
         "showResultsView()",
         "refreshAllFusion(false)",  # false: a switch does not reopen help the user closed

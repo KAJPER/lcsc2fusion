@@ -16,6 +16,20 @@
  *
  * The status texts are the English sentences of controller.py (a query in Python repr quotes), so
  * the page translates them like the real ones and the Polish interface can be inspected here too.
+ *
+ * The update notice is chosen by the query of the page URL (index.html?update=available):
+ *   update=current                nothing newer (the default)
+ *   update=available              version 0.2.0 with its installer link
+ *   update=available-noinstaller  the release lists no installer, so only the release link shows
+ *   update=dismissed              0.2.0 exists but the user already hid it (no banner)
+ *   update=disabled               the once a day check is off
+ *   update=checking               0.2.0 is known and a check is running that never ends
+ *   update=error                  0.2.0 is known and the automatic check just failed (silent)
+ *   update_after=<one of these>   what the "Check now" button ends with after "checking" (by default
+ *                                 the same as update; "checking" never ends; "error" only with a manual
+ *                                 press shows its line)
+ * The messages carry every field of controller.UPDATE_FIELDS. Dismiss and the checkbox are answered
+ * with an `update` message like the controller does; a bad tag or flag is refused with an error.
  */
 (function () {
   'use strict';
@@ -95,6 +109,36 @@
   const LIBRARY_NAME = 'LCSC2Fusion Library';
   const FAILS_FIRST_ID = 'C2913202';
   const BROKEN_3D_ID = 'C14663';
+
+  // The update notice. The URLs are built like the ones Python builds from a validated version.
+  const RELEASES_URL = 'https://github.com/KAJPER/lcsc2fusion/releases/';
+  const MOCK_CURRENT = '0.1.0';
+  const MOCK_LATEST = '0.2.0';
+  const UPDATE_KINDS = [
+    'available',
+    'available-noinstaller',
+    'current',
+    'error',
+    'disabled',
+    'checking',
+    'dismissed',
+  ];
+  const RELEASE_TAG = /^v(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
+
+  // A query parameter of the page URL that names an update kind, else `fallback`. There is no
+  // `location` under Node, and a file URL may carry no query at all.
+  function updateKindParam(name, fallback) {
+    try {
+      const search =
+        typeof location !== 'undefined' && location && typeof location.search === 'string'
+          ? location.search
+          : '';
+      const value = new URLSearchParams(search).get(name);
+      return UPDATE_KINDS.indexOf(value) >= 0 ? value : fallback;
+    } catch (err) {
+      return fallback;
+    }
+  }
 
   function install(deliver) {
     const later = (ms, fn) => setTimeout(fn, ms);
@@ -278,13 +322,102 @@
       }
     }
 
+    // Update notice: what the mock knows. `known` is the kind of the last result (the cached
+    // knowledge Python would send again); an error or a running check is never cached.
+    const scenario = updateKindParam('update', 'current');
+    const settings = { enabled: scenario !== 'disabled' };
+    let known = scenario === 'current' || scenario === 'disabled' ? 'current' : scenario;
+    if (known === 'error' || known === 'checking') known = 'available';
+    const resultAfterPress = updateKindParam(
+      'update_after',
+      scenario === 'disabled' ? 'current' : scenario
+    );
+    let hiddenVersion = scenario === 'dismissed' ? MOCK_LATEST : null;
+    let checkedAt = Date.now() / 1000 - 7200;
+
+    // One `update` message with every field of controller.UPDATE_FIELDS.
+    function updateMessage(kind) {
+      const newer =
+        kind === 'available' || kind === 'available-noinstaller' || kind === 'dismissed';
+      const version = newer ? MOCK_LATEST : kind === 'current' ? MOCK_CURRENT : null;
+      const urls = version !== null;
+      return {
+        state: newer ? 'available' : kind,
+        current: MOCK_CURRENT,
+        latest: version,
+        release_url: urls ? RELEASES_URL + 'tag/v' + version : null,
+        installer_url:
+          urls && kind !== 'available-noinstaller'
+            ? RELEASES_URL + 'download/v' + version + '/LCSC2Fusion-Setup-' + version + '.exe'
+            : null,
+        checked_at: checkedAt,
+        enabled: settings.enabled,
+        dismissed: newer && hiddenVersion === MOCK_LATEST,
+      };
+    }
+
+    function sendUpdate(kind) {
+      deliver('update', updateMessage(kind));
+    }
+
+    // `ready`: the cached knowledge, then (for error and checking) an automatic check.
+    function sendCachedUpdate() {
+      sendUpdate(settings.enabled ? known : 'disabled');
+      if (scenario === 'checking' || scenario === 'error') {
+        later(700, () => sendUpdate('checking'));
+        if (scenario === 'error') {
+          later(1500, () => {
+            checkedAt = Date.now() / 1000;
+            sendUpdate('error');
+          });
+        }
+      }
+    }
+
+    // "Check now": "checking" at once, the result a moment later (never, for update_after=checking).
+    function checkForUpdate() {
+      sendUpdate('checking');
+      if (resultAfterPress === 'checking') return;
+      later(900, () => {
+        checkedAt = Date.now() / 1000;
+        if (resultAfterPress !== 'error' && resultAfterPress !== 'disabled') known = resultAfterPress;
+        sendUpdate(resultAfterPress === 'disabled' ? 'current' : resultAfterPress);
+      });
+    }
+
+    // Like the controller: a bad request is an error message and the reply "ERROR".
+    function refuse(message) {
+      deliver('error', { message: message });
+      return 'ERROR';
+    }
+
+    function dismissUpdate(tag) {
+      if (typeof tag !== 'string' || !RELEASE_TAG.test(tag)) {
+        return refuse('Invalid request: tag must be a release tag such as v1.2.3.');
+      }
+      if (tag === 'v' + MOCK_LATEST) hiddenVersion = MOCK_LATEST;
+      sendUpdate(settings.enabled ? known : 'disabled');
+      return 'OK';
+    }
+
+    function setUpdateCheck(enabled) {
+      if (typeof enabled !== 'boolean') {
+        return refuse('Invalid request: enabled must be true or false.');
+      }
+      settings.enabled = enabled;
+      sendUpdate(enabled ? known : 'disabled');
+      return 'OK';
+    }
+
     return {
       fusionSendData: function (action, dataString) {
         const data = dataString ? JSON.parse(dataString) : {};
+        let reply = 'OK';
         switch (action) {
           case 'ready':
             deliver('busy', { value: false });
             deliver('status', { level: 'info', text: 'Ready. Libraries are saved to C:\\Users\\mock\\LCSC2Fusion\\libraries' });
+            sendCachedUpdate();
             break;
           case 'search':
             search(data.query);
@@ -301,10 +434,19 @@
           case 'open_folder':
             deliver('status', { level: 'info', text: 'Mock: would open ' + data.path });
             break;
+          case 'check_update':
+            checkForUpdate();
+            break;
+          case 'dismiss_update':
+            reply = dismissUpdate(data.tag);
+            break;
+          case 'set_update_check':
+            reply = setUpdateCheck(data.enabled);
+            break;
           default:
             deliver('error', { message: 'Mock: unknown action ' + action });
         }
-        return Promise.resolve('OK');
+        return Promise.resolve(reply);
       },
     };
   }

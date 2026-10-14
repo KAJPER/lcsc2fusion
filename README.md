@@ -19,7 +19,7 @@
 <p align="center"><b>English</b> | <a href="README.pl.md">Polski</a></p>
 
 <p align="center">
-  <a href="#install">Install</a> | <a href="#user-guide">User guide</a> | <a href="#troubleshooting">Troubleshooting</a> | <a href="#command-line">Command line</a> | <a href="#use-from-another-claude-mcp">Claude (MCP)</a> | <a href="#limitations-and-legal">Limitations and legal</a> | <a href="#development">Development</a>
+  <a href="#install">Install</a> | <a href="#user-guide">User guide</a> | <a href="#7-updates">Updates</a> | <a href="#troubleshooting">Troubleshooting</a> | <a href="#command-line">Command line</a> | <a href="#use-from-another-claude-mcp">Claude (MCP)</a> | <a href="#limitations-and-legal">Limitations and legal</a> | <a href="#development">Development</a>
 </p>
 
 <p align="center"><picture>
@@ -37,14 +37,15 @@ with a 3D model, that Fusion Electronics can use.
 - **One click into Fusion.** The part is converted and merged into one growing library, "LCSC2Fusion Library", in your active Fusion Hub project. No loose `.lbr` files to import by hand.
 - **3D on request.** Fusion opens its 3D package editor with the model already in place. You check it and press Finish.
 - **Light or dark, English or Polish.** The window is a normal Edge or Chrome window, so it stays open when Fusion switches environment.
+- **Tells you about updates.** When a newer release is out, the window says so and links the installer. It never downloads or installs anything by itself, and you can turn the check off.
 - **Also for scripts and for Claude.** `python -m lcsc2fusion` converts from a terminal, and an MCP server lets Claude add parts for you.
 
 > **Status.** Confirmed by hand in Fusion on Windows: generated libraries import cleanly, the accumulating
 > library in the Hub works, the 3D package editor opens with the model in place and the model lines up with the
 > footprint (see [DECISIONS.md](DECISIONS.md), D-027). The offline test suite (3900+ tests) covers the converter and
 > the add-in logic, and the window is also tested in a real browser. Not yet confirmed by hand in Fusion: the restyled
-> window with Settings and LCSC links, and the MCP server (checklist in [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)).
-> This is an unofficial tool, not affiliated with Autodesk, EasyEDA, JLCPCB or LCSC.
+> window with Settings and LCSC links, the update notice, and the MCP server (checklist in
+> [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)). This is an unofficial tool, not affiliated with Autodesk, EasyEDA, JLCPCB or LCSC.
 
 ## How it works
 
@@ -97,7 +98,7 @@ The hash must equal the line for that file in `SHA256SUMS.txt`.
 is reachable from other computers and no firewall prompt is expected. With "Run on Startup", Fusion only adds the
 buttons at start and the window opens on the first click. Stopping the add-in closes the window.
 
-**Update.** Download the newer installer and run it again, then Stop and Run the add-in in Fusion (or restart Fusion).
+**Update.** Download the newer installer and run it again, then Stop and Run the add-in in Fusion (or restart Fusion). The window tells you when a newer version is out, see [Updates](#7-updates).
 
 **Uninstall.** Run `Uninstall-LCSC2Fusion.bat` from the installer zip, or delete the folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. This removes only the add-in. Your own data stays: `%LOCALAPPDATA%\LCSC2Fusion` (the added parts, the window's profile) and the libraries in `C:\Users\<you>\LCSC2Fusion`. To delete `%LOCALAPPDATA%\LCSC2Fusion` too, run `Uninstall-LCSC2Fusion.bat -RemoveData` in a console (it asks first). Your `.lbr` files are never deleted by the uninstaller.
 
@@ -234,12 +235,37 @@ Every added part gets a card under "Saved libraries".
 
 The Settings button in the header opens a small panel. Theme: System (follows Windows), Light or Dark. Language:
 English or Polski. The first start takes the language of the window's browser. Both choices are remembered in
-the window's own browser profile and applied at once, without losing results or cards.
+the window's own browser profile and applied at once, without losing results or cards. A third group, Updates,
+holds the checkbox "Check for updates once a day" and the button "Check now" (see [Updates](#7-updates)).
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-settings-dark-en.png">
 <img src="docs/img/ui-settings-light-en.png" width="400" alt="The Settings panel with Theme and Language">
 </picture></p>
+
+### 7. Updates
+
+The window tells you when a newer release is on GitHub. It only tells you: the add-in never downloads, installs
+or starts anything by itself.
+
+- **When it checks.** When the window opens, at most once a day, and not again for 6 hours after a failed
+  attempt. It does not check in the background while Fusion runs without the window. "Check now" in Settings asks
+  at once.
+- **The banner.** Above the search field: "Version 0.2.0 is available (you have 0.1.0)." with "Download installer"
+  (a link to the installer file of that release), "What is new" (the release page) and "Dismiss" (hides the notice
+  until a newer version appears). Under it are the steps: run the installer, then in Fusion press Shift+S, open
+  Add-Ins, select LCSC2Fusion, press Stop, then Run. If the release has no installer file, the banner points to
+  the release page only.
+- **What is sent.** One HTTPS request to `api.github.com` asks for the latest release of `KAJPER/lcsc2fusion`. It
+  carries the version of the add-in in the User-Agent header (for example `LCSC2Fusion/0.1.0`) and nothing that
+  identifies you: no account, token, cookie or machine id. GitHub sees your IP address, like any web server you
+  contact. Nothing is downloaded or run by the add-in, and the release text is never shown: the add-in reads only
+  the version number and the names of the attached files, and builds the links itself.
+- **Turn it off.** Settings, Updates, untick "Check for updates once a day". The add-in then makes no automatic
+  request. Your choice and the last result are kept in `%LOCALAPPDATA%\LCSC2Fusion\update.json`.
+- **Limits.** Offline, or behind a proxy that blocks `api.github.com`, the automatic check silently does nothing.
+  Only "Check now" tells you: "Could not check for updates. Try again later." The system proxy settings are used.
+  Updating is always your step: the installer upgrades in place and keeps your data.
 
 ## Troubleshooting
 

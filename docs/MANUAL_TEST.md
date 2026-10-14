@@ -153,6 +153,26 @@ Okno i ustawienia:
   karcie lub oknie przeglądarki (sprawdź, że nie podmienia okna add-inu). Jeśli jest link "Datasheet", też działa.
 - [ ] Karta zapisanej części ma ten sam link do LCSC.
 
+Powiadomienie o aktualizacji (addin/README.md, sekcja Updates):
+- [ ] Settings, grupa Updates: pole "Check for updates once a day" jest zaznaczone, pod nim zdanie o api.github.com
+  i przycisk "Check now".
+- [ ] "Check now" przy aktualnej wersji pokazuje pod przyciskiem "You have the latest version (0.1.0)." i nie
+  pokazuje żadnego baneru nad polem wyszukiwania. Bez internetu ten sam przycisk pokazuje "Could not check for
+  updates. Try again later.", a samo okno nie pokazuje wtedy żadnego błędu.
+- [ ] Baner z zapisanego wyniku (bez nowego wydania na GitHubie): w oknie PowerShell wpisz poniższe (zapisuje
+  wymyślone wydanie v9.9.9, link do instalatora będzie martwy i to jest w porządku), potem Stop i Run add-inu.
+  W oknie ma być baner "Version 9.9.9 is available (you have 0.1.0)." z przyciskami "Download installer" i
+  "What is new" (oba otwierają nową kartę, okno add-inu zostaje) oraz "Dismiss". Po "Dismiss" baner znika i po
+  restarcie okna nie wraca. Na koniec usuń plik (`Remove-Item $p`), wtedy add-in zaczyna od ustawień domyślnych.
+- [ ] Odznaczone pole "Check for updates once a day" zostaje odznaczone po restarcie okna i nie pokazuje się żaden
+  baner. W logu Fusiona nie ma wtedy linii `Update check`.
+
+```
+$p = "$env:LOCALAPPDATA\LCSC2Fusion\update.json"
+$t = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+'{"version":1,"enabled":true,"last_checked_at":' + $t + ',"last_attempt_ok":true,"last_result":{"latest_tag":"v9.9.9","newer":true,"installer":true},"dismissed_tag":null}' | Set-Content -Path $p -Encoding ascii
+```
+
 MCP (drugi Claude używa narzędzia):
 - [ ] Add-in uruchomiony, plik `%LOCALAPPDATA%\LCSC2Fusion\api.json` istnieje (zawiera url, token i pid). Nie wklejaj
   go nikomu, token jest sekretem.

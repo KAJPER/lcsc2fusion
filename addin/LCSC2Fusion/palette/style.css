@@ -309,6 +309,109 @@ code {
   gap: 0 var(--sp-4);
 }
 
+/* The Updates group takes a row of its own under a hairline. It holds a checkbox with its note,
+   the "Check now" button with the line that answers it, and when the last check was. */
+.setting-rule {
+  flex: 1 1 100%;
+  height: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.setting-updates {
+  flex: 1 1 100%;
+}
+
+.update-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+.update-result {
+  min-width: 0;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.update-result-error {
+  color: var(--error);
+  font-weight: 500;
+}
+
+.update-checked {
+  margin-top: var(--sp-1);
+}
+
+/* Update notice: a calm tinted box above the search form, not an alert. The download is a link
+   that looks like the primary button (an anchor, because it leaves the window). ---------------- */
+
+.update-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-lg);
+}
+
+.update-text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.update-actions .update-dismiss {
+  margin-left: auto;
+}
+
+a.update-download,
+a.update-notes {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ctl);
+}
+
+a.update-download {
+  padding: 0 var(--sp-3);
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-md);
+  font-weight: 600;
+}
+
+a.update-download:hover {
+  background: var(--accent-hover);
+  text-decoration: none;
+}
+
+a.update-download:active {
+  background: var(--accent-active);
+}
+
+a.update-notes {
+  font-weight: 500;
+}
+
+a.update-download::after,
+a.update-notes::after {
+  content: "\2197";
+  margin-left: 4px;
+  font-family: var(--font);
+  font-size: var(--fs-xs);
+}
+
 /* Search ------------------------------------------------------------------------------------ */
 
 .search-form {

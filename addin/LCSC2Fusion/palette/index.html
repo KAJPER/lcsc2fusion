@@ -67,12 +67,40 @@
                are written in their own language and are not translated. -->
           <div id="language-options" class="setting-options"></div>
         </fieldset>
+        <hr class="setting-rule">
+        <!-- Update notice settings. The result line and the last check line are written by app.js
+             from state, so they carry no static key. -->
+        <fieldset class="setting-group setting-updates">
+          <legend data-i18n="update.group">Updates</legend>
+          <div class="option-row">
+            <label class="check" for="update-enabled">
+              <input id="update-enabled" name="update_check" type="checkbox" checked aria-describedby="update-privacy">
+              <span data-i18n="update.setting">Check for updates once a day</span>
+            </label>
+            <p id="update-privacy" class="hint" data-i18n="update.privacy">Asks api.github.com for the latest release. Nothing about you is sent.</p>
+          </div>
+          <div class="update-check-row">
+            <button id="update-check" type="button" class="small" aria-describedby="update-result" data-i18n="update.checkNow">Check now</button>
+            <p id="update-result" class="update-result" role="status"></p>
+          </div>
+          <p id="update-checked" class="hint update-checked" hidden></p>
+        </fieldset>
       </div>
     </section>
 
     <p id="mock-banner" class="mock-banner" data-i18n="mock.banner" hidden>
       Mock mode: this page is not running inside Fusion. The data below is fake.
     </p>
+
+    <!-- A newer release exists. app.js fills the text and the two links (only from URLs that pass
+         its own check) and shows the notice; nothing here is ever downloaded or run by the page. -->
+    <section id="update-banner" class="update-banner" role="status" hidden>
+      <p id="update-text" class="update-text"></p>
+      <div id="update-actions" class="update-actions">
+        <button id="update-dismiss" type="button" class="small update-dismiss" data-i18n="update.dismiss" data-i18n-attr="title:update.dismissTitle" title="Hide this notice until a newer version appears">Dismiss</button>
+      </div>
+      <p id="update-hint" class="hint update-hint"></p>
+    </section>
 
     <form id="search-form" class="search-form" role="search" autocomplete="off" novalidate>
       <label for="query" data-i18n="search.label">LCSC number or search phrase</label>

@@ -26,6 +26,8 @@ ADDIN_MODULES = (
     "http_transport",
     "local_api",
     "browser_window",
+    "update_check",
+    "update_service",
 )
 
 _app: Any = None  # fusion_adapter.AddinApp while the add-in runs

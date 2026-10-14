@@ -8,6 +8,7 @@ the Electronics editor), so a palette cannot survive that; the separate window d
 Status: the window architecture and the accumulating library were confirmed inside Fusion (gates 4 and 5,
 DECISIONS.md D-027). The restyled window, the settings, the LCSC links and the local API for the MCP server
 are covered by automated tests and a real browser, and still wait for gate 6 of `docs/MANUAL_TEST.md`.
+The update notice (see "Updates") is covered by automated tests only and has not been run inside Fusion.
 
 ## Layout
 
@@ -21,6 +22,10 @@ addin/LCSC2Fusion/            folder name == .py name == .manifest name (Fusion 
   local_api.py                job tracker and bearer token API for the MCP server, no adsk
   browser_window.py           finds Edge/Chrome, opens the app mode window, tracks and closes it
   library_registry.py         state file (library id, added parts, package fingerprints), no adsk
+  update_check.py             the GitHub release lookup of the update notice: one request, pure,
+                              standard library only, no adsk
+  update_service.py           update.json state file, the check schedule and the service the
+                              controller uses for the update notice, no adsk
   fusion_library_flow.py      accumulating library + 3D package sequence on a fake-able API, no adsk
   fusion_adapter.py           the ONLY module importing adsk: main thread dispatcher, buttons,
                               command, worker thread, show/stop of the window
@@ -71,7 +76,8 @@ Edge or Chrome --app (own profile)  <--HTTP-->  HttpTransport (thread in the add
 ## Settings: theme and language
 
 The "Settings" button in the header opens a small panel (a disclosure: `aria-expanded`, Escape
-closes it and returns the focus to the button) with two radio groups.
+closes it and returns the focus to the button) with two radio groups and a third group, Updates
+(see "Updates" below; that choice is kept by Python in `update.json`, not in `localStorage`).
 
 - Theme: System, Light, Dark. System follows the operating system (`prefers-color-scheme`). A forced
   choice puts `data-theme="light"` or `"dark"` on `<html>`; no attribute means System. `style.css`
@@ -340,6 +346,173 @@ window, from the HTTP request thread. A part added in the window is not tracked 
 follows jobs started through the API), but it makes `busy` true.
 Limitation: while an API job runs, an error message caused by a click in the window would also fail the
 API job, because both share the controller's one message stream. Leave the window alone meanwhile.
+
+## Updates
+
+The window tells the user when a newer GitHub release exists: the add-in checks, notifies and links the
+installer. It never downloads or runs anything (see "Possible one click update" below for why). The lookup
+is `update_check.py`, the schedule and `update.json` are `update_service.py`, the protocol is in
+`controller.py`, and the banner and the settings group are in `palette/index.html`, `app.js` and `i18n.js`.
+
+**Protocol, page to Python** (JSON object payloads like every action):
+
+- `check_update {force}`: `force` is an optional bool, default false. The "Check now" button sends
+  `{force: true}`.
+- `dismiss_update {tag}`: `tag` is required and must match
+  `^v(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$`, for example `v0.2.0`. Anything else is
+  answered with `ERROR` and the text `Invalid request: tag must be a release tag such as v1.2.3.`
+- `set_update_check {enabled}`: `enabled` is required and must be a real JSON boolean, else `ERROR` with
+  `Invalid request: enabled must be true or false.`
+
+All three answer `OK` or `ERROR` like the other actions, and never `BUSY`. Both error texts have entries in
+`MESSAGES` of `i18n.js`.
+
+**Protocol, Python to page:** one action `update`, exactly the fields of `controller.UPDATE_FIELDS`:
+
+| Field | Value |
+| --- | --- |
+| `state` | `available`, `current`, `error`, `disabled` or `checking` |
+| `current` | the running version, "0.1.0", without a leading v |
+| `latest` | the newest stable release, "0.2.0", or null when nothing is known (also null in `disabled`) |
+| `release_url` | `https://github.com/KAJPER/lcsc2fusion/releases/tag/v0.2.0`, or null |
+| `installer_url` | `https://github.com/KAJPER/lcsc2fusion/releases/download/v0.2.0/LCSC2Fusion-Setup-0.2.0.exe`, or null when the release does not list exactly that file |
+| `checked_at` | epoch seconds (float) of the last attempt, or null |
+| `enabled` | bool, the once a day check |
+| `dismissed` | bool, true only in state `available` when the user hid exactly this version |
+
+The message carries codes only: the page words everything and Python sends no free text for updates. The URLs
+are built by Python from a validated `X.Y.Z` and are set only while a newer version is known.
+
+When messages are sent:
+
+- `ready` (also after a reconnect of the page): one `update` from the cache (no network). If the automatic
+  check is due, a second `update` with state `checking` follows, and later the result.
+- `check_update`: when a network check starts, `update` with state `checking` at once and the result later
+  (`available`, `current` or `error`). When nothing starts (a check is already running, or a forced check came
+  less than 60 s after the previous attempt of this session) exactly one `update` follows, with the current
+  knowledge: `checking` while a check runs, else the cached result.
+- `dismiss_update` and `set_update_check`: one `update` after the change. Switching the check on also starts an
+  automatic check when one is due.
+
+State rules:
+
+- `disabled` is sent whenever the automatic check is off, except as the immediate result of a manual check made
+  while it is off (then `available`, `current` or `error`). In `disabled` the page shows no banner.
+- `error` is sent only as the result of a check that just failed. Cached knowledge (`ready`, dismiss, set)
+  never says `error`. The page shows a note for it only in answer to its own "Check now", and an `error` never
+  hides a banner that is already shown.
+- Nothing known yet, or nothing newer, is `current` (`latest` is null or not newer than `current`). A downgrade
+  is never offered.
+- A failed attempt keeps the last successful result, so a known newer version survives a flaky network.
+
+The check runs in the background and never sets `busy`, so it cannot make a search or an add fail. Only the
+network part (`UpdateService.fetch_latest`) runs on the controller's worker thread and touches no shared
+state. Everything else, including writing `update.json`, runs on Fusion's main thread, so the service needs no
+lock. A failed check is written to the add-in log as `Update check failed: <reason code>` (for example
+`network`, `timeout`, `tls`, `rate_limited`, `not_found`, `bad_tag`); the page never shows these codes.
+
+**Schedule and limits:**
+
+- Automatic check: when the window opens (`ready`), only if it is on and the last attempt is at least 24 hours
+  old, or at least 6 hours old when that attempt failed.
+- "Check now" (`force`) ignores both limits, but not the flood limit: two attempts of one session less than
+  60 s apart give no second request. The flood limit is counted in memory per add-in session.
+- One check at a time. Dismissing a version hides the banner until a newer release appears.
+- The request: one `GET https://api.github.com/repos/KAJPER/lcsc2fusion/releases/latest` with the headers
+  `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28` and
+  `User-Agent: LCSC2Fusion/<version>`. No token, cookie, account or machine identifier. Timeout 8 s (also for
+  reading the body), response cap 256 KiB, a compressed or larger answer is refused, certificate verification
+  on, at most 3 redirects and only to `https://api.github.com`, system proxy settings as any program. The
+  network sits behind an injectable `Fetch` callable, so the tests never use it.
+
+**State file.** `%LOCALAPPDATA%\LCSC2Fusion\update.json`, next to `state.json` and `api.json` (the same folder
+rules as `library_registry.default_state_path`), written atomically (temporary file in the same folder, then
+replace). Format:
+
+```
+{"version": 1, "enabled": true, "last_checked_at": 1760000000.0, "last_attempt_ok": true,
+ "last_result": {"latest_tag": "v0.2.0", "newer": true, "installer": true},
+ "dismissed_tag": null}
+```
+
+- `version`: the file format, 1. Another value means the file is not understood.
+- `enabled`: the once a day check, default true.
+- `last_checked_at`: epoch seconds of the last attempt, successful or not.
+- `last_attempt_ok`: whether that attempt succeeded. It selects the 24 or the 6 hour wait.
+- `last_result`: the outcome of the last successful check. `latest_tag` is the release tag, `newer` says it was
+  newer than the running version when found, `installer` says the release listed the installer file. The
+  window's view is recomputed from it against the running version at every start, so after an upgrade a
+  banner for the version you just installed disappears.
+- `dismissed_tag`: the tag the user hid. The banner is hidden only while it equals the tag of `last_result`.
+
+A missing file means the defaults (the check is on). A file that exists but is not understood (unreadable, not
+JSON, not an object, another `version`, an `enabled` that is not a boolean) counts as off, because the user's
+choice is unknown and a request is not something to guess about; the log says so and the user can switch the
+check on again in Settings. A bad field elsewhere falls back to its default and the rest is kept. When the
+file cannot be written the choice lasts until the add-in stops and the log says why.
+
+**Trust model.** The answer from GitHub is untrusted data:
+
+- Of the whole document only `tag_name`, `draft`, `prerelease` and the asset names are read. `draft` and
+  `prerelease` must both be false, and `tag_name` must be `v<number>.<number>.<number>` without leading zeros
+  and with at most 6 digits per part. The release text and every other field are never shown or interpreted,
+  and `html_url` and `browser_download_url` are not used.
+- The release page and installer URLs are built in `update_check.py` from the validated version. The installer
+  URL exists only when the release lists an asset named exactly `LCSC2Fusion-Setup-<version>.exe`.
+- The page validates again, with exact prefixes, in the spirit of `lcscProductUrl`: the release URL must equal
+  `https://github.com/KAJPER/lcsc2fusion/releases/tag/v<V>` and the installer URL
+  `https://github.com/KAJPER/lcsc2fusion/releases/download/v<V>/LCSC2Fusion-Setup-<V>.exe`, with `<V>` equal to
+  `latest` and of the shape `X.Y.Z` without leading zeros. Anything else (another scheme, host, port, userinfo,
+  query, fragment or path) gives no link. Anchors are built with DOM APIs only, with `target="_blank"` and
+  `rel="noopener noreferrer"`.
+
+**Page.** The banner (`role="status"`, above the search form) appears for state `available` when `dismissed`
+is false and `latest` is a valid version: "Version X is available (you have Y).", a "Download installer" link
+(only when the installer URL passes the check), "What is new" (the release page), "Dismiss" (sends
+`dismiss_update` and hides the banner at once) and a hint with the steps (run the installer, then Shift+S,
+Add-Ins, LCSC2Fusion, Stop, Run). Without an installer link the hint says to download the installer from the
+release page. The page keeps the last `available`, `current` or `disabled` message as the source of the banner,
+treats `checking` as an overlay that never hides it, and remembers whether the user pressed "Check now" so that
+only that press shows a result line.
+
+The Updates group of the Settings panel has the checkbox "Check for updates once a day" (shows `enabled`,
+sends `set_update_check` on change), the note "Asks api.github.com for the latest release. Nothing about you
+is sent." and the "Check now" button, disabled and labelled "Checking..." while a check runs. Under it a
+result line appears only after the button was pressed: "You have the latest version (X).", "Version X is
+available." or "Could not check for updates. Try again later." The line is rewritten on a language switch.
+A second line, "Last check: <date and time>", formats `checked_at` in the language of the window. All texts
+are in `i18n.js` in English and Polish.
+
+To see every state without Fusion, open `palette/index.html` in a browser and choose the state with the URL
+query `?update=available`, `available-noinstaller`, `current`, `error`, `disabled`, `checking` or `dismissed`
+(default `current`). `?update_after=` sets the result of a manual "Check now". The mock never runs inside
+Fusion.
+
+**Tests:** `tests/test_addin_update_check.py` (the lookup: tag, flags and asset rules, URLs, failure reasons,
+with a fake `Fetch`), `tests/test_addin_update_service.py` (schedule, `update.json`, the states of the view),
+`tests/test_addin_update_controller.py` (the three actions and the order of the `update` messages) and
+`tests/test_addin_update_ui.py` with its browser driver `tests/js/update_ui_browser.py` (banner, URL
+validation and the settings group in the page, in a real browser when Playwright is available). None of
+them touches the network: `tests/conftest.py` makes any urllib request to GitHub fail like an offline
+machine, so even a test that wires the real service cannot reach the API.
+
+## Possible one click update (design note, not implemented)
+
+Today the add-in only notifies. Releases are not code signed yet, and a self updater that downloads and runs
+code would let anyone who gets control of the GitHub account run code on every user's machine. A later one
+click update would need all of this, and none of it exists:
+
+1. Signed releases (Authenticode) and a pinned signer subject kept in the add-in.
+2. Verification of the downloaded installer with `Get-AuthenticodeSignature` before it is ever started: the
+   status must be Valid and the signer subject must be the exact pinned one, not just any valid signature.
+3. The `SHA256SUMS.txt` check of the same release as a second, independent check.
+4. Download only from the URL the add-in built itself, over HTTPS, into a fresh private temporary folder, with a
+   size cap and no redirect to another host.
+5. The user confirms in the window before anything is started.
+6. The installer is started detached after the add-in announced that it will stop. Every failure leaves the old
+   version untouched (the installer already installs atomically and keeps the user's data).
+
+There is no code for it.
 
 ## Window icon
 

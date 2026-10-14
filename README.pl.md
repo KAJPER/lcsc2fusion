@@ -19,7 +19,7 @@
 <p align="center"><a href="README.md">English</a> | <b>Polski</b></p>
 
 <p align="center">
-  <a href="#instalacja">Instalacja</a> | <a href="#instrukcja-obsługi">Instrukcja obsługi</a> | <a href="#rozwiązywanie-problemów">Rozwiązywanie problemów</a> | <a href="#wiersz-poleceń">Wiersz poleceń</a> | <a href="#użycie-z-innym-claude-mcp">Claude (MCP)</a> | <a href="#ograniczenia-i-kwestie-prawne">Ograniczenia i prawo</a> | <a href="#rozwój-projektu">Rozwój projektu</a>
+  <a href="#instalacja">Instalacja</a> | <a href="#instrukcja-obsługi">Instrukcja obsługi</a> | <a href="#7-aktualizacje">Aktualizacje</a> | <a href="#rozwiązywanie-problemów">Rozwiązywanie problemów</a> | <a href="#wiersz-poleceń">Wiersz poleceń</a> | <a href="#użycie-z-innym-claude-mcp">Claude (MCP)</a> | <a href="#ograniczenia-i-kwestie-prawne">Ograniczenia i prawo</a> | <a href="#rozwój-projektu">Rozwój projektu</a>
 </p>
 
 <p align="center"><picture>
@@ -37,15 +37,16 @@ z modelem 3D, której może użyć Fusion Electronics.
 - **Jedno kliknięcie do Fusion.** Część jest konwertowana i dołączana do jednej rosnącej biblioteki „LCSC2Fusion Library” w aktywnym projekcie Hub we Fusion. Żadnych luźnych plików `.lbr` do ręcznego importu.
 - **3D na życzenie.** Fusion otwiera edytor pakietu 3D z modelem już ustawionym na miejscu. Sprawdzasz go i klikasz Finish.
 - **Jasny lub ciemny motyw, polski lub angielski.** Okno to zwykłe okno Edge albo Chrome, więc zostaje otwarte, gdy Fusion przełącza środowisko.
+- **Informuje o aktualizacjach.** Gdy wyjdzie nowsze wydanie, okno o tym mówi i podaje link do instalatora. Samo niczego nie pobiera ani nie instaluje, a sprawdzanie możesz wyłączyć.
 - **Także dla skryptów i dla Claude.** `python -m lcsc2fusion` konwertuje z terminala, a serwer MCP pozwala Claude dodawać części za Ciebie.
 
 > **Stan projektu.** Potwierdzone ręcznie we Fusion na Windows: wygenerowane biblioteki importują się bez błędów,
 > zbiorcza biblioteka w Hubie działa, edytor pakietu 3D otwiera się z modelem na miejscu, a model pasuje do
 > footprintu (zob. [DECISIONS.md](DECISIONS.md), D-027). Testy offline (3900+) obejmują konwerter i logikę
 > dodatku, a okno jest dodatkowo testowane w prawdziwej przeglądarce. Jeszcze niepotwierdzone ręcznie we
-> Fusion: odświeżone okno z ustawieniami i linkami do LCSC oraz serwer MCP (lista kontrolna w
-> [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)). To narzędzie nieoficjalne, niepowiązane z Autodesk, EasyEDA,
-> JLCPCB ani LCSC.
+> Fusion: odświeżone okno z ustawieniami i linkami do LCSC, powiadomienie o aktualizacji oraz serwer MCP (lista
+> kontrolna w [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md)). To narzędzie nieoficjalne, niepowiązane z Autodesk,
+> EasyEDA, JLCPCB ani LCSC.
 
 ## Jak to działa
 
@@ -98,7 +99,7 @@ Skrót musi być taki sam jak w linii tego pliku w `SHA256SUMS.txt`.
 nic nie jest dostępne z innych komputerów i nie powinien pojawić się monit zapory. Z „Run on Startup” Fusion przy
 starcie tylko dodaje przyciski, a okno otwiera się przy pierwszym kliknięciu. Zatrzymanie dodatku zamyka okno.
 
-**Aktualizacja.** Pobierz nowszy instalator i uruchom go ponownie, potem Stop i Run dodatku we Fusion (albo uruchom Fusion od nowa).
+**Aktualizacja.** Pobierz nowszy instalator i uruchom go ponownie, potem Stop i Run dodatku we Fusion (albo uruchom Fusion od nowa). Okno informuje, gdy wyjdzie nowsza wersja, zob. [Aktualizacje](#7-aktualizacje).
 
 **Odinstalowanie.** Uruchom `Uninstall-LCSC2Fusion.bat` z zipa instalatora albo usuń folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. To usuwa tylko dodatek. Twoje dane zostają: `%LOCALAPPDATA%\LCSC2Fusion` (dodane części, profil okna) oraz biblioteki w `C:\Users\<ty>\LCSC2Fusion`. Aby usunąć też `%LOCALAPPDATA%\LCSC2Fusion`, uruchom w konsoli `Uninstall-LCSC2Fusion.bat -RemoveData` (najpierw zapyta). Pliki `.lbr` nigdy nie są usuwane przez dezinstalator.
 
@@ -235,12 +236,37 @@ Każda dodana część dostaje kartę w sekcji „Zapisane biblioteki”.
 
 Przycisk Ustawienia w nagłówku otwiera mały panel. Motyw: Systemowy (zgodny z Windows), Jasny lub Ciemny. Język:
 English lub Polski. Przy pierwszym starcie wybierany jest język przeglądarki okna. Oba wybory są pamiętane w
-profilu przeglądarki tego okna i działają od razu, bez utraty wyników i kart.
+profilu przeglądarki tego okna i działają od razu, bez utraty wyników i kart. Trzecia grupa, Aktualizacje, zawiera
+pole „Sprawdzaj aktualizacje raz dziennie” i przycisk „Sprawdź teraz” (zob. [Aktualizacje](#7-aktualizacje)).
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/img/ui-settings-dark-pl.png">
 <img src="docs/img/ui-settings-light-pl.png" width="400" alt="Panel Ustawienia z motywem i językiem">
 </picture></p>
+
+### 7. Aktualizacje
+
+Okno informuje, gdy na GitHubie jest nowsze wydanie. Tylko informuje: dodatek sam niczego nie pobiera, nie
+instaluje ani nie uruchamia.
+
+- **Kiedy sprawdza.** Gdy otwiera się okno, najwyżej raz dziennie, a po nieudanej próbie nie wcześniej niż po 6
+  godzinach. Nie sprawdza w tle, gdy Fusion działa bez okna. „Sprawdź teraz” w Ustawieniach pyta od razu.
+- **Powiadomienie.** Nad polem wyszukiwania: „Dostępna jest wersja 0.2.0 (masz 0.1.0).” z elementami „Pobierz
+  instalator” (link do pliku instalatora tego wydania), „Co nowego” (strona wydania) i „Ukryj” (chowa
+  powiadomienie do czasu pojawienia się nowszej wersji). Pod spodem są kroki: uruchom instalator, potem we Fusion
+  naciśnij Shift+S, otwórz kartę Add-Ins, wybierz LCSC2Fusion, kliknij Stop, a następnie Run. Jeśli wydanie nie ma
+  pliku instalatora, powiadomienie wskazuje tylko stronę wydania.
+- **Co jest wysyłane.** Jedno żądanie HTTPS do `api.github.com` o najnowsze wydanie `KAJPER/lcsc2fusion`.
+  Zawiera wersję dodatku w nagłówku User-Agent (na przykład `LCSC2Fusion/0.1.0`) i nic, co by Cię identyfikowało:
+  żadnego konta, tokenu, ciasteczka ani identyfikatora komputera. GitHub widzi Twój adres IP, tak jak każdy serwer
+  WWW, z którym się łączysz. Dodatek niczego nie pobiera ani nie uruchamia, a treść wydania nigdy nie jest pokazywana:
+  dodatek czyta tylko numer wersji i nazwy dołączonych plików, a linki buduje sam.
+- **Wyłączenie.** Ustawienia, Aktualizacje, odznacz „Sprawdzaj aktualizacje raz dziennie”. Dodatek nie wysyła
+  wtedy żadnych automatycznych żądań. Twój wybór i ostatni wynik są w `%LOCALAPPDATA%\LCSC2Fusion\update.json`.
+- **Ograniczenia.** Bez internetu albo za proxy, które blokuje `api.github.com`, automatyczne sprawdzanie po cichu
+  nic nie robi. Dopiero „Sprawdź teraz” pokazuje komunikat: „Nie udało się sprawdzić aktualizacji. Spróbuj
+  ponownie później.” Używane są systemowe ustawienia proxy. Aktualizacja zawsze jest Twoim krokiem: instalator
+  aktualizuje w miejscu i zachowuje Twoje dane.
 
 ## Rozwiązywanie problemów
 
