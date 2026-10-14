@@ -68,8 +68,44 @@ Requirements:
 
 - Autodesk Fusion with Electronics, signed in, with a Hub project. Tested on Windows. macOS is untested.
 - Edge or Chrome for the window (Edge ships with Windows). Without either, the page opens in your default browser.
-- Python 3.11 or newer, only to run the build script below (and the command line tool). The add-in itself runs on Fusion's own Python.
 - Internet access to EasyEDA and LCSC.
+- Python is not needed to use the add-in, it runs on Fusion's own Python. You need Python 3.11 or newer only for the command line tool, the MCP server and for building from source.
+
+### Install with the installer (recommended)
+
+**1. Download.** Open the [latest release](https://github.com/KAJPER/lcsc2fusion/releases/latest) and take one of these files:
+
+- `LCSC2Fusion-Setup-<version>.exe`: one file, just run it.
+- `LCSC2Fusion-<version>-installer.zip`: the same installer as readable scripts. Unzip it and double click `Install-LCSC2Fusion.bat`. If Windows marked the zip as blocked, right click it, Properties, Unblock, before unzipping.
+
+**2. Allow it to run.** The installer is not code signed, because signing certificates cost money and this is a small open source project. So Windows SmartScreen may say "Windows protected your PC" and name an "unknown publisher". Click "More info", then "Run anyway". Some antivirus programs are also wary of self extracting exe files. If yours is, use the zip: it holds plain scripts that you can read before you run them.
+
+**3. Install.** The installer checks its files against a checksum list and copies the add-in to `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`, replacing an older version. It works per user, needs no administrator rights, no network and no Python. The exe asks once and shows the result in a message box; its log is `%TEMP%\LCSC2Fusion-setup.log`.
+
+**4. Start the add-in.** Start Fusion: the add-in runs on startup and adds its button. If Fusion was already running, press Shift+S (or Utilities, Add-Ins, Scripts and Add-Ins), open the Add-Ins tab, select LCSC2Fusion and press Stop, then Run. The window opens at once. Later, LCSC2Fusion is in the Utilities tab, ADD-INS panel, of the Design, Schematic, Board and Library environments. Pressing the button while the window is open brings that window to the front.
+
+**Check the download (optional).** `SHA256SUMS.txt` on the release page lists the SHA-256 hash of every file. In PowerShell, in the folder with the download:
+
+```
+Get-FileHash .\LCSC2Fusion-Setup-<version>.exe -Algorithm SHA256
+```
+
+The hash must equal the line for that file in `SHA256SUMS.txt`.
+
+**First start.** A separate Edge or Chrome window without address bar opens, with its own private profile in
+`%LOCALAPPDATA%\LCSC2Fusion\browser-profile`. It talks to the add-in over `127.0.0.1` on a random port, so nothing
+is reachable from other computers and no firewall prompt is expected. With "Run on Startup", Fusion only adds the
+buttons at start and the window opens on the first click. Stopping the add-in closes the window.
+
+**Update.** Download the newer installer and run it again, then Stop and Run the add-in in Fusion (or restart Fusion).
+
+**Uninstall.** Run `Uninstall-LCSC2Fusion.bat` from the installer zip, or delete the folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. This removes only the add-in. Your own data stays: `%LOCALAPPDATA%\LCSC2Fusion` (the added parts, the window's profile) and the libraries in `C:\Users\<you>\LCSC2Fusion`. To delete `%LOCALAPPDATA%\LCSC2Fusion` too, run `Uninstall-LCSC2Fusion.bat -RemoveData` in a console (it asks first). Your `.lbr` files are never deleted by the uninstaller.
+
+**macOS.** The manifest allows it, but I have not run it there. Take `LCSC2Fusion-<version>-addin.zip` from the release, extract it and use the green plus in Scripts and Add-Ins to add the extracted folder, instead of guessing the Add-Ins folder.
+
+### Build from source (developers)
+
+Needs Python 3.11 or newer. The installer files are built from the same sources (maintainers: see [RELEASING.md](RELEASING.md)).
 
 **1. Get the code.**
 
@@ -95,25 +131,12 @@ this file exists: `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manif
 Expand-Archive -Path dist\LCSC2Fusion.zip -DestinationPath "$env:APPDATA\Autodesk\FusionAddins" -Force
 ```
 
-If Windows blocked a downloaded zip, right click it, Properties, Unblock, before extracting. Alternative: in
-Fusion use the green plus in Scripts and Add-Ins and pick the `dist/LCSC2Fusion` folder.
+Alternative: in Fusion use the green plus in Scripts and Add-Ins and pick the `dist/LCSC2Fusion` folder.
 
-**4. Run it in Fusion.** Press Shift+S (or Utilities, Add-Ins, Scripts and Add-Ins), open the Add-Ins tab, select
-LCSC2Fusion and press Run. Tick "Run on Startup" to have the button after every Fusion start. The window opens
-at once.
-
-**5. Find the button later.** LCSC2Fusion is in the Utilities tab, ADD-INS panel, of the Design, Schematic, Board
-and Library environments. Pressing it while the window is open brings that window to the front.
-
-**First start.** A separate Edge or Chrome window without address bar opens, with its own private profile in
-`%LOCALAPPDATA%\LCSC2Fusion\browser-profile`. It talks to the add-in over `127.0.0.1` on a random port, so nothing
-is reachable from other computers and no firewall prompt is expected. With "Run on Startup", Fusion only adds the
-buttons at start and the window opens on the first click. Stopping the add-in closes the window.
+**4. Run it in Fusion.** Press Shift+S, open the Add-Ins tab, select LCSC2Fusion and press Run. Tick "Run on
+Startup" to have the button after every Fusion start. The rest is as in "First start" above.
 
 **Update.** `git pull`, build again, extract over the old folder, then Stop and Run the add-in in Fusion.
-
-macOS: the manifest allows it, but I have not run it there. Use the green plus in Scripts and Add-Ins to add the
-extracted folder instead of guessing the folder.
 
 ## User guide
 
@@ -222,7 +245,8 @@ the window's own browser profile and applied at once, without losing results or 
 
 | Problem | What to do |
 | --- | --- |
-| LCSC2Fusion is not in the Add-Ins list. | Check that `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` exists (not one folder deeper). Unblock the zip before extracting. Or add `dist/LCSC2Fusion` with the green plus. Restart Fusion. |
+| Windows says "Windows protected your PC" when I run the installer. | The installer is not code signed. Choose "More info", then "Run anyway", or use the installer zip and read its scripts first. See Install. |
+| LCSC2Fusion is not in the Add-Ins list. | Run the installer again, or check that `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` exists (not one folder deeper). If you extracted a zip by hand, unblock it first (Properties, Unblock). Or add the folder with the green plus. Restart Fusion. |
 | The window does not open. | Run the add-in (Shift+S, Add-Ins). Press the toolbar button again. Stop and Run once. Look at the Text Commands window for lines starting with `[LCSC2Fusion]`. |
 | The button is missing in one environment. | The Text Commands window has `button: ... -> added, exists, missing or failed` lines per environment. Use the button in Design meanwhile. |
 | "The request failed." or "Lost the connection to Fusion." | The window cannot reach the add-in: Fusion was closed, the add-in stopped, or Fusion did not answer for a long time. Make sure Fusion runs and the add-in is started, then try again. A window left over from an earlier session can be closed. |
@@ -340,9 +364,13 @@ lcsc2fusion/            the core, no adsk import
   cli/                  command line
   mcp/                  MCP server for other Claudes
 addin/LCSC2Fusion/      Fusion add-in: manifest, adapter (the only adsk module), controller, window page
-scripts/                build_addin.py and helper scripts
+installer/              Windows installer scripts (install, uninstall)
+scripts/                build_addin.py, build_release.py and helper scripts
 tests/                  pytest, fixtures, golden files
 docs/                   RESEARCH.md, MANUAL_TEST.md, MCP.md, img/
+.github/workflows/      CI (ruff, mypy, pytest) and the release workflow
+CHANGELOG.md            what changed in each version
+RELEASING.md            how a release is made (for maintainers)
 ```
 
 ## Contributing
@@ -350,7 +378,8 @@ docs/                   RESEARCH.md, MANUAL_TEST.md, MCP.md, img/
 Issues and pull requests are welcome, especially reports from other Fusion versions and from macOS. Before a pull
 request run pytest, ruff and mypy (see Development), keep texts free of long dashes (a test checks it), do not add
 a dependency without a reason noted in [DECISIONS.md](DECISIONS.md), and never commit EasyEDA responses. Commit
-messages look like `fix: short description`.
+messages look like `fix: short description`. The same checks run on GitHub for every pull request. Changes users
+will notice go into [CHANGELOG.md](CHANGELOG.md) under "Unreleased".
 
 ## License
 

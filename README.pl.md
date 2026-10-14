@@ -69,8 +69,44 @@ Wymagania:
 
 - Autodesk Fusion z Electronics, zalogowany, z projektem w Hubie. Testowane na Windows. macOS nie był testowany.
 - Edge lub Chrome dla okna (Edge jest częścią Windows). Bez żadnej z nich strona otworzy się w domyślnej przeglądarce.
-- Python 3.11 lub nowszy, tylko do uruchomienia skryptu budującego poniżej (i narzędzia wiersza poleceń). Sam dodatek działa na Pythonie wbudowanym we Fusion.
 - Dostęp do internetu (EasyEDA i LCSC).
+- Python nie jest potrzebny do używania dodatku, działa on na Pythonie wbudowanym we Fusion. Python 3.11 lub nowszy jest potrzebny tylko do narzędzia wiersza poleceń, serwera MCP i budowania ze źródeł.
+
+### Instalacja instalatorem (zalecana)
+
+**1. Pobierz.** Otwórz [najnowsze wydanie](https://github.com/KAJPER/lcsc2fusion/releases/latest) i weź jeden z tych plików:
+
+- `LCSC2Fusion-Setup-<version>.exe`: jeden plik, wystarczy go uruchomić.
+- `LCSC2Fusion-<version>-installer.zip`: ten sam instalator w postaci czytelnych skryptów. Rozpakuj go i kliknij dwukrotnie `Install-LCSC2Fusion.bat`. Jeśli Windows oznaczył zip jako zablokowany, przed rozpakowaniem kliknij go prawym przyciskiem, Właściwości (Properties), Odblokuj (Unblock).
+
+**2. Zezwól na uruchomienie.** Instalator nie jest podpisany cyfrowo, bo certyfikaty do podpisywania kosztują, a to mały projekt open source. Dlatego Windows SmartScreen może napisać „System Windows ochronił ten komputer” i podać „nieznanego wydawcę”. Kliknij „Więcej informacji”, potem „Uruchom mimo to”. Niektóre programy antywirusowe są też podejrzliwe wobec samorozpakowujących się plików exe. Jeśli Twój tak reaguje, użyj zipa: zawiera zwykłe skrypty, które możesz przeczytać przed uruchomieniem.
+
+**3. Zainstaluj.** Instalator sprawdza swoje pliki z listą sum kontrolnych i kopiuje dodatek do `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`, zastępując starszą wersję. Działa dla bieżącego użytkownika, nie wymaga praw administratora, sieci ani Pythona. Exe pyta raz i pokazuje wynik w oknie komunikatu; jego log to `%TEMP%\LCSC2Fusion-setup.log`.
+
+**4. Uruchom dodatek.** Uruchom Fusion: dodatek startuje razem z nim i dodaje swój przycisk. Jeśli Fusion już działał, naciśnij Shift+S (albo Utilities, Add-Ins, Scripts and Add-Ins), otwórz kartę Add-Ins, zaznacz LCSC2Fusion i naciśnij Stop, potem Run. Okno otwiera się od razu. Później LCSC2Fusion jest na karcie Utilities, w panelu ADD-INS, w środowiskach Design, Schematic, Board i Library. Kliknięcie przycisku, gdy okno jest już otwarte, wysuwa to okno na wierzch.
+
+**Sprawdzenie pobranego pliku (opcjonalne).** `SHA256SUMS.txt` na stronie wydania zawiera skrót SHA-256 każdego pliku. W PowerShellu, w folderze z pobranym plikiem:
+
+```
+Get-FileHash .\LCSC2Fusion-Setup-<version>.exe -Algorithm SHA256
+```
+
+Skrót musi być taki sam jak w linii tego pliku w `SHA256SUMS.txt`.
+
+**Pierwszy start.** Otwiera się osobne okno Edge lub Chrome bez paska adresu, z własnym prywatnym profilem w
+`%LOCALAPPDATA%\LCSC2Fusion\browser-profile`. Rozmawia z dodatkiem przez `127.0.0.1` na losowym porcie, więc
+nic nie jest dostępne z innych komputerów i nie powinien pojawić się monit zapory. Z „Run on Startup” Fusion przy
+starcie tylko dodaje przyciski, a okno otwiera się przy pierwszym kliknięciu. Zatrzymanie dodatku zamyka okno.
+
+**Aktualizacja.** Pobierz nowszy instalator i uruchom go ponownie, potem Stop i Run dodatku we Fusion (albo uruchom Fusion od nowa).
+
+**Odinstalowanie.** Uruchom `Uninstall-LCSC2Fusion.bat` z zipa instalatora albo usuń folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. To usuwa tylko dodatek. Twoje dane zostają: `%LOCALAPPDATA%\LCSC2Fusion` (dodane części, profil okna) oraz biblioteki w `C:\Users\<ty>\LCSC2Fusion`. Aby usunąć też `%LOCALAPPDATA%\LCSC2Fusion`, uruchom w konsoli `Uninstall-LCSC2Fusion.bat -RemoveData` (najpierw zapyta). Pliki `.lbr` nigdy nie są usuwane przez dezinstalator.
+
+**macOS.** Manifest na to pozwala, ale nie uruchamiałem tego tam. Weź z wydania `LCSC2Fusion-<version>-addin.zip`, rozpakuj go i użyj zielonego plusa w Scripts and Add-Ins, aby dodać rozpakowany folder, zamiast zgadywać folder Add-Ins.
+
+### Budowanie ze źródeł (dla programistów)
+
+Wymaga Pythona 3.11 lub nowszego. Pliki instalatora powstają z tych samych źródeł (dla opiekunów projektu: zob. [RELEASING.md](RELEASING.md), po angielsku).
 
 **1. Pobierz kod.**
 
@@ -96,26 +132,12 @@ istniał plik `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest`
 Expand-Archive -Path dist\LCSC2Fusion.zip -DestinationPath "$env:APPDATA\Autodesk\FusionAddins" -Force
 ```
 
-Jeśli Windows zablokował pobrany zip, przed rozpakowaniem kliknij go prawym przyciskiem, Właściwości (Properties),
-Odblokuj (Unblock). Alternatywa: we Fusion użyj zielonego plusa w Scripts and Add-Ins i wskaż folder
-`dist/LCSC2Fusion`.
+Alternatywa: we Fusion użyj zielonego plusa w Scripts and Add-Ins i wskaż folder `dist/LCSC2Fusion`.
 
-**4. Uruchom we Fusion.** Naciśnij Shift+S (albo Utilities, Add-Ins, Scripts and Add-Ins), otwórz kartę Add-Ins,
-zaznacz LCSC2Fusion i naciśnij Run. Zaznacz „Run on Startup”, aby przycisk był po każdym starcie Fusion. Okno
-otwiera się od razu.
-
-**5. Gdzie jest przycisk później.** LCSC2Fusion jest na karcie Utilities, w panelu ADD-INS, w środowiskach Design,
-Schematic, Board i Library. Kliknięcie go, gdy okno jest już otwarte, wysuwa to okno na wierzch.
-
-**Pierwszy start.** Otwiera się osobne okno Edge lub Chrome bez paska adresu, z własnym prywatnym profilem w
-`%LOCALAPPDATA%\LCSC2Fusion\browser-profile`. Rozmawia z dodatkiem przez `127.0.0.1` na losowym porcie, więc
-nic nie jest dostępne z innych komputerów i nie powinien pojawić się monit zapory. Z „Run on Startup” Fusion przy
-starcie tylko dodaje przyciski, a okno otwiera się przy pierwszym kliknięciu. Zatrzymanie dodatku zamyka okno.
+**4. Uruchom we Fusion.** Naciśnij Shift+S, otwórz kartę Add-Ins, zaznacz LCSC2Fusion i naciśnij Run. Zaznacz
+„Run on Startup”, aby przycisk był po każdym starcie Fusion. Dalej jest tak, jak w „Pierwszy start” powyżej.
 
 **Aktualizacja.** `git pull`, zbuduj ponownie, rozpakuj na stary folder, potem Stop i Run dodatku we Fusion.
-
-macOS: manifest na to pozwala, ale nie uruchamiałem tego tam. Zamiast zgadywać folder, użyj zielonego plusa w
-Scripts and Add-Ins i dodaj rozpakowany folder.
 
 ## Instrukcja obsługi
 
@@ -224,7 +246,8 @@ profilu przeglądarki tego okna i działają od razu, bez utraty wyników i kart
 
 | Problem | Co zrobić |
 | --- | --- |
-| LCSC2Fusion nie ma na liście Add-Ins. | Sprawdź, czy istnieje `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` (a nie o folder głębiej). Odblokuj zip przed rozpakowaniem. Albo dodaj `dist/LCSC2Fusion` zielonym plusem. Uruchom Fusion ponownie. |
+| Windows pisze „System Windows ochronił ten komputer”, gdy uruchamiam instalator. | Instalator nie jest podpisany cyfrowo. Wybierz „Więcej informacji”, potem „Uruchom mimo to”, albo użyj zipa instalatora i najpierw przeczytaj jego skrypty. Zob. Instalacja. |
+| LCSC2Fusion nie ma na liście Add-Ins. | Uruchom instalator ponownie albo sprawdź, czy istnieje `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` (a nie o folder głębiej). Jeśli zip rozpakowałeś ręcznie, najpierw go odblokuj (Właściwości, Odblokuj). Albo dodaj folder zielonym plusem. Uruchom Fusion ponownie. |
 | Okno się nie otwiera. | Uruchom dodatek (Shift+S, Add-Ins). Naciśnij przycisk na pasku jeszcze raz. Zrób Stop i Run. Zajrzyj do okna Text Commands po linie zaczynające się od `[LCSC2Fusion]`. |
 | Przycisku brakuje w jednym środowisku. | Okno Text Commands zawiera linie `button: ... -> added, exists, missing lub failed` dla każdego środowiska. Na razie użyj przycisku w Design. |
 | „Żądanie nie powiodło się.” albo „Utracono połączenie z Fusion.” | Okno nie może połączyć się z dodatkiem: Fusion został zamknięty, dodatek zatrzymany albo Fusion długo nie odpowiadał. Upewnij się, że Fusion działa i dodatek jest uruchomiony, potem spróbuj ponownie. Okno z poprzedniej sesji można zamknąć. |
@@ -343,9 +366,13 @@ lcsc2fusion/            rdzeń, bez importu adsk
   cli/                  wiersz poleceń
   mcp/                  serwer MCP dla innych Claude
 addin/LCSC2Fusion/      dodatek Fusion: manifest, adapter (jedyny moduł z adsk), kontroler, strona okna
-scripts/                build_addin.py i skrypty pomocnicze
+installer/              skrypty instalatora dla Windows (instalacja, odinstalowanie)
+scripts/                build_addin.py, build_release.py i skrypty pomocnicze
 tests/                  pytest, fixture'y, pliki wzorcowe
 docs/                   RESEARCH.md, MANUAL_TEST.md, MCP.md, img/
+.github/workflows/      CI (ruff, mypy, pytest) i workflow wydania
+CHANGELOG.md            co zmieniło się w każdej wersji
+RELEASING.md            jak powstaje wydanie (dla opiekunów projektu)
 ```
 
 ## Współtworzenie
@@ -353,7 +380,9 @@ docs/                   RESEARCH.md, MANUAL_TEST.md, MCP.md, img/
 Zgłoszenia (issues) i pull requesty są mile widziane, zwłaszcza raporty z innych wersji Fusion i z macOS. Przed
 pull requestem uruchom pytest, ruff i mypy (zob. Rozwój projektu), nie używaj w tekstach długich myślników (pilnuje
 tego test), nie dodawaj zależności bez uzasadnienia zapisanego w [DECISIONS.md](DECISIONS.md) i nigdy nie commituj
-odpowiedzi EasyEDA. Komunikaty commitów wyglądają tak: `fix: short description`.
+odpowiedzi EasyEDA. Komunikaty commitów wyglądają tak: `fix: short description`. Te same kontrole działają na
+GitHubie dla każdego pull requesta. Zmiany zauważalne dla użytkowników trafiają do [CHANGELOG.md](CHANGELOG.md)
+(po angielsku) w sekcji „Unreleased”.
 
 ## Licencja
 

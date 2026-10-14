@@ -118,7 +118,16 @@ no text contains a dash character (the project rule: use a comma, colon or a wor
 
 ## Install
 
-Build the package (stdlib only), which copies the `lcsc2fusion/` core into the add-in folder:
+End users install from a release: download `LCSC2Fusion-Setup-<version>.exe` (or the installer zip, then
+double click `Install-LCSC2Fusion.bat`) from the
+[Releases page](https://github.com/KAJPER/lcsc2fusion/releases/latest). It copies the add-in to
+`%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion` for the current user, with no administrator rights and no
+Python. Fusion starts the add-in on its next launch; if Fusion is running, Stop and Run it in Scripts and
+Add-Ins (Shift+S). The plain `LCSC2Fusion-<version>-addin.zip` of the same release holds the add-in
+folder that the build below produces, for a manual install (also for macOS, untested). The files are built by
+`scripts/build_release.py` and published by the release workflow, see `RELEASING.md`.
+
+To build the package yourself (stdlib only), which copies the `lcsc2fusion/` core into the add-in folder:
 
 ```
 python scripts/build_addin.py

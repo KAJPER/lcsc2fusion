@@ -1,0 +1,151 @@
+# Release: build the Windows installer, the zips and SHA256SUMS.txt, then publish a GitHub release.
+#
+#   push of a tag v*   build, test, then the publish job creates the release
+#   workflow_dispatch  dry run: the same build and tests, the files are kept as workflow artifacts
+#                      and NOTHING is published (even when the run is started on a tag)
+#
+# Only first party actions (actions/*) and the GitHub CLI that the runner image ships are used,
+# no third party release action. The token is read only everywhere except the publish job.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per ref, and a running release is never cancelled half way.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and test
+    # Windows: the single file installer is made with IExpress, which only Windows has.
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            pyproject.toml
+      - name: Install the development requirements
+        run: pip install -r requirements-dev.txt
+
+      # A pushed tag is the release tag. A dry run uses v + the package version. Either way the value
+      # must look like v1.2.3 or v1.2.3-rc1, which also keeps odd characters of a tag name out of
+      # later steps. A hyphen after the numbers marks a pre-release.
+      - name: Resolve the tag and the version
+        id: resolve
+        run: |
+          $version = (python -c "import lcsc2fusion; print(lcsc2fusion.__version__)").Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $version) { throw 'Cannot read lcsc2fusion.__version__' }
+          if ($env:GITHUB_EVENT_NAME -eq 'push') { $tag = $env:GITHUB_REF_NAME } else { $tag = "v$version" }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Not a release tag like v1.2.3 or v1.2.3-rc1: $tag" }
+          if ($tag.Contains('-')) { $prerelease = 'true' } else { $prerelease = 'false' }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$($tag.Substring(1))"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "prerelease=$prerelease"
+          Add-Content -Path $env:GITHUB_ENV -Value "TAG=$tag"
+          Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($tag.Substring(1))"
+          Write-Host "tag $tag, package version $version, pre-release $prerelease"
+
+      # The tag must equal v + the version in pyproject.toml, lcsc2fusion/__init__.py and the manifest.
+      # On a dry run this checks that the three places agree with each other.
+      - name: Check the tag against the version
+        run: python scripts/build_release.py --check-tag $env:TAG
+
+      - name: Tests
+        run: python -m pytest -ra
+
+      - name: Build the release files
+        run: python scripts/build_release.py --out dist/release
+
+      - name: Verify SHA256SUMS.txt
+        run: python scripts/verify_checksums.py dist/release --version $env:VERSION
+
+      - name: Write the release notes
+        run: python scripts/release_notes.py $env:TAG --out dist/release-notes/release-notes.md
+
+      - name: Summary
+        run: |
+          if ($env:GITHUB_EVENT_NAME -eq 'push') { $mode = 'tag run, the publish job follows' } else { $mode = 'dry run, nothing is published' }
+          $summary = @("### Release files for $env:TAG", '', "Mode: $mode", '')
+          $summary += Get-ChildItem -File dist/release | ForEach-Object { "- $($_.Name) ($($_.Length) bytes)" }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+          $summary | ForEach-Object { Write-Host $_ }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: dist/release/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: dist/release-notes/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish the GitHub release
+    needs: build
+    # Only a pushed tag publishes. A manual run is a dry run, also when it is started on a tag.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The only write permission of the workflow. This job has no checkout and runs no repository
+    # code: it only downloads the files that the build job made and hands them to the GitHub CLI.
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: dist/release
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: dist/release-notes
+
+      # gh release create fails for an existing tag too; this check only gives a clearer message.
+      - name: Refuse to overwrite an existing release
+        shell: bash
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::A release for $TAG already exists. This workflow never overwrites one, see RELEASING.md."
+            exit 1
+          fi
+
+      # --verify-tag stops the command when the tag is not on GitHub. A version with a hyphen suffix
+      # (v0.2.0-rc1) is marked as a pre-release.
+      - name: Create the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--title "LCSC2Fusion $VERSION" --notes-file dist/release-notes/release-notes.md --verify-tag)
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
+          gh release create "$TAG" dist/release/* "${args[@]}"
