@@ -132,8 +132,10 @@ application/json` and `X-LCSC: 1`; no `Origin` header):
   returned only when they are plain `http` or `https` URLs.
 - Failures return a short message to the model. Stack traces go to stderr (the log of the MCP
   client), never into a tool result.
-- The server only talks to EasyEDA and JLCPCB through the existing client (disk cache, minimum
-  interval between requests, retry, fail fast after an HTTP 403 or 429) and to the local add-in.
+- The server only talks to EasyEDA, LCSC (the datasheet link lookup) and JLCPCB (free text search)
+  through the existing client (disk cache, minimum interval between requests, retry, fail fast after
+  an HTTP 403 or 429) and to the local add-in. The hosts and what each one receives are listed in
+  the Privacy section of the [README](../README.md).
   It starts no other network connection and runs no shell commands. Requests are handled one at
   a time, with socket timeouts of 20 s for EasyEDA, 10 s for pings and polls and 35 s for the
   add request.

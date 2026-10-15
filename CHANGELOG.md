@@ -28,6 +28,7 @@ notes of its GitHub release by `scripts/release_notes.py`, so keep every entry u
   upgrades in place and keeps your data, and then Stop and Run the add-in in Fusion.
 - English and Polish texts for the update notice and the new settings.
 - Release files can now be code signed by the maintainer on his own PC (`scripts/build_release.py --sign`, `scripts/sign_release.py verify` and `upload`), so that Windows can show the publisher name instead of "Unknown publisher". Releases stay unsigned until a certificate is in use.
+- README (English and Polish): a "Code signing policy" section (status: not signed yet, free signing from the SignPath Foundation is being applied for; roles of this one person project; what is signed and what is not; where signed files will come from; how to check a signature) and a "Privacy" section (every host the program contacts and what each receives, the files kept on your computer and how to delete them, how to turn off the update check). The notes of a release now link both sections.
 
 ### Security
 

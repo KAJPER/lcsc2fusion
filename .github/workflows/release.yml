@@ -4,8 +4,26 @@
 #   workflow_dispatch  dry run: the same build and tests, the files are kept as workflow artifacts
 #                      and NOTHING is published (even when the run is started on a tag)
 #
-# Only first party actions (actions/*) and the GitHub CLI that the runner image ships are used,
-# no third party release action. The token is read only everywhere except the publish job.
+# Only the workflow_dispatch and tag push triggers exist, so a pull request, a fork or a branch push
+# never runs this file, and no secret is ever handed to code from a pull request.
+#
+# Code signing with the SignPath Foundation is DORMANT. It switches on only when the repository
+# variable SIGNPATH_ORGANIZATION_ID is not empty (RELEASING.md, section "SignPath Foundation").
+# With that variable empty the sign and finalize jobs are skipped and the run is the unsigned
+# release it always was: build, then publish. With it set the jobs run in this order:
+#
+#   build     builds and tests (unchanged), uploads the artifact release-files
+#   sign      sends ONLY the setup exe to SignPath, waits for the approver, downloads the signed exe.
+#             The only job that sees the secret SIGNPATH_API_TOKEN, in one step. It has no checkout
+#             and runs no repository code.
+#   finalize  no secret. Swaps the signed exe into the release folder (only when it is the built
+#             exe plus a signature), rewrites SHA256SUMS.txt, checks the signature with Windows
+#             and the checksums, uploads the artifact release-files-signed
+#   publish   creates the release from release-files-signed (or from release-files when signing
+#             is off). Configured signing that failed or was skipped never publishes anything.
+#
+# Third party code: the SignPath action (pinned to a full commit SHA below) and nothing else. All
+# other actions are first party (actions/*) and the GitHub CLI that the runner image ships.
 name: Release
 
 on:
@@ -104,15 +122,215 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  sign:
+    name: Sign the setup exe (SignPath)
+    needs: build
+    # Skipped unless the repository variable SIGNPATH_ORGANIZATION_ID is set. A tag push signs with
+    # the release policy. A manual dry run signs only when SIGNPATH_DRY_RUN_POLICY_SLUG names a test
+    # signing policy, otherwise it skips signing exactly like an unconfigured repository.
+    if: >-
+      ${{
+      vars.SIGNPATH_ORGANIZATION_ID != ''
+      && (
+      (github.event_name == 'push' && github.ref_type == 'tag')
+      || (github.event_name == 'workflow_dispatch' && vars.SIGNPATH_DRY_RUN_POLICY_SLUG != '')
+      ) }}
+    runs-on: ubuntu-latest
+    # The approver has to answer inside the wait below (45 minutes), this leaves room around it.
+    timeout-minutes: 60
+    # contents: read for the artifact and the run details, actions: read because the SignPath action
+    # reads the run and downloads the artifact with this token (its documentation asks for read
+    # access to actions and contents). Nothing here writes to the repository, and no id-token is
+    # needed: SignPath is reached with its own API token.
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: unsigned-release
+
+      # Fails the job, and with it the release, before anything is sent when the repository is
+      # half configured. A tag push never falls back to the test signing policy.
+      - name: Check the SignPath settings and choose the signing policy
+        id: policy
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          RELEASE_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          DRY_RUN_POLICY: ${{ vars.SIGNPATH_DRY_RUN_POLICY_SLUG }}
+          CONFIGURATION_SLUG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          slug='^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$'
+          [[ "$ORGANIZATION_ID" =~ ^[A-Za-z0-9-]{8,64}$ ]] || fail "SIGNPATH_ORGANIZATION_ID is not a plausible SignPath organization id."
+          [ -n "$PROJECT_SLUG" ] || fail "SIGNPATH_PROJECT_SLUG is not set."
+          [[ "$PROJECT_SLUG" =~ $slug ]] || fail "SIGNPATH_PROJECT_SLUG is not a plausible slug."
+          if [ "$EVENT_NAME" = "push" ]; then
+            mode=release
+            policy="$RELEASE_POLICY"
+            variable=SIGNPATH_SIGNING_POLICY_SLUG
+          else
+            mode=test
+            policy="$DRY_RUN_POLICY"
+            variable=SIGNPATH_DRY_RUN_POLICY_SLUG
+          fi
+          [ -n "$policy" ] || fail "$variable is not set, so there is no signing policy for this run."
+          [[ "$policy" =~ $slug ]] || fail "$variable is not a plausible slug."
+          if [ -n "$CONFIGURATION_SLUG" ]; then
+            [[ "$CONFIGURATION_SLUG" =~ $slug ]] || fail "SIGNPATH_ARTIFACT_CONFIGURATION_SLUG is not a plausible slug."
+          fi
+          echo "policy=$policy" >> "$GITHUB_OUTPUT"
+          echo "Signing mode: $mode, policy: $policy, project: $PROJECT_SLUG"
+
+      # The exe that goes to SignPath must be the one the build job listed in SHA256SUMS.txt.
+      - name: Check the unsigned exe against SHA256SUMS.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          exe="LCSC2Fusion-Setup-${VERSION}.exe"
+          cd unsigned-release
+          listed="$(awk -v name="$exe" '{ n = $2; sub(/^\*/, "", n); if (n == name) print $1 }' SHA256SUMS.txt)"
+          actual="$(sha256sum "$exe" | awk '{ print $1 }')"
+          if [ -z "$listed" ] || [ "$listed" != "$actual" ]; then
+            echo "::error::$exe does not match SHA256SUMS.txt (listed '$listed', actual '$actual')."
+            exit 1
+          fi
+          echo "Sending $exe to SignPath, sha256 $actual"
+
+      # The artifact must come from this workflow run (SignPath checks that), and it holds the one
+      # file that the artifact configuration signs. upload-artifact zips it, so the configuration
+      # root is a zip file.
+      - name: Upload the unsigned exe for SignPath
+        id: upload-unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: setup-exe-unsigned
+          path: unsigned-release/LCSC2Fusion-Setup-${{ needs.build.outputs.version }}.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      # The only step that sees the secret, and only through this input. The step waits until the
+      # approver has released the signing request in the SignPath web UI, and it fails when the
+      # request is denied, rejected, cancelled or runs out of time. output-artifact-directory is
+      # what makes it download the signed file.
+      - name: Submit the signing request to SignPath
+        id: signpath
+        # signpath/github-action-submit-signing-request v3, the commit that the tags v3 and v3.0 point to
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ steps.policy.outputs.policy }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 2700
+          output-artifact-directory: signed
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: setup-exe-signed
+          path: signed/
+          if-no-files-found: error
+          retention-days: 30
+
+  finalize:
+    name: Check the signed exe and rewrite the checksums
+    needs: [build, sign]
+    # Only after a successful signing request. The skipped sign job of an unsigned run skips this too.
+    if: needs.sign.result == 'success'
+    # Windows: Get-AuthenticodeSignature, which says what Windows thinks of the signature.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    # No secret here, because this job runs code from the repository (checkout and python scripts).
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      EXE_NAME: LCSC2Fusion-Setup-${{ needs.build.outputs.version }}.exe
+      MODE: ${{ github.event_name == 'push' && 'release' || 'test' }}
+      SIGNPATH_EXPECTED_SIGNER_SUBJECT: ${{ vars.SIGNPATH_EXPECTED_SIGNER_SUBJECT }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: dist/release
+      - uses: actions/download-artifact@v8
+        with:
+          name: setup-exe-signed
+          path: dist/signed
+
+      # Refuses a file that is not the built exe plus a signature.
+      - name: Put the signed exe into the release folder
+        run: python scripts/release_checksums.py replace-exe dist/release "dist/signed/$env:EXE_NAME" --version $env:VERSION
+
+      # Only the exe may differ from the build, the zips must still be the files of the build job.
+      - name: Rewrite SHA256SUMS.txt
+        run: python scripts/release_checksums.py write dist/release --version $env:VERSION --only-changed $env:EXE_NAME
+
+      # Windows must call the signature valid, with a timestamp. On a tag run the signer must also
+      # contain SIGNPATH_EXPECTED_SIGNER_SUBJECT when that variable is set. A dry run with the test
+      # signing policy accepts the untrusted test root and nothing else.
+      - name: Verify the signature of the setup exe
+        run: python scripts/verify_signed_exe.py "dist/release/$env:EXE_NAME" --mode $env:MODE --expect-subject-env SIGNPATH_EXPECTED_SIGNER_SUBJECT
+
+      - name: Verify SHA256SUMS.txt
+        run: python scripts/verify_checksums.py dist/release --version $env:VERSION
+
+      - name: Summary
+        run: |
+          $summary = @("### Signed release files for $env:TAG", '', "Mode: $env:MODE", '')
+          $summary += Get-ChildItem -File dist/release | ForEach-Object { "- $($_.Name) ($($_.Length) bytes)" }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+          $summary | ForEach-Object { Write-Host $_ }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files-signed
+          path: dist/release/
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     name: Publish the GitHub release
-    needs: build
+    needs: [build, sign, finalize]
     # Only a pushed tag publishes. A manual run is a dry run, also when it is started on a tag.
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    # needs alone would skip this job whenever sign and finalize are skipped (an unsigned run), so
+    # the condition has a status function and lists every case that may publish:
+    #   signing ran and was verified     sign and finalize both succeeded
+    #   signing is not configured        both were skipped AND SIGNPATH_ORGANIZATION_ID is empty
+    # Everything else, above all a failed, cancelled or skipped signing while the variable is set,
+    # publishes nothing. !cancelled() is true for failed needs too, which the result checks catch.
+    if: >-
+      ${{
+      !cancelled()
+      && github.event_name == 'push'
+      && github.ref_type == 'tag'
+      && needs.build.result == 'success'
+      && (
+      (needs.sign.result == 'success' && needs.finalize.result == 'success')
+      || (needs.sign.result == 'skipped' && needs.finalize.result == 'skipped' && vars.SIGNPATH_ORGANIZATION_ID == '')
+      ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # The only write permission of the workflow. This job has no checkout and runs no repository
-    # code: it only downloads the files that the build job made and hands them to the GitHub CLI.
+    # code: it only downloads the files that the earlier jobs made and hands them to the GitHub CLI.
     permissions:
       contents: write
     env:
@@ -122,9 +340,10 @@ jobs:
       VERSION: ${{ needs.build.outputs.version }}
       PRERELEASE: ${{ needs.build.outputs.prerelease }}
     steps:
+      # The files with the signed exe when finalize ran, the files of the build job otherwise.
       - uses: actions/download-artifact@v8
         with:
-          name: release-files
+          name: ${{ needs.finalize.result == 'success' && 'release-files-signed' || 'release-files' }}
           path: dist/release
       - uses: actions/download-artifact@v8
         with:

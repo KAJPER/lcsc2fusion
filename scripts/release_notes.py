@@ -23,6 +23,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 REPOSITORY_URL = "https://github.com/KAJPER/lcsc2fusion"
+# GitHub anchors of the README sections that the footer links to (the heading text, lower case,
+# spaces as hyphens). tests/test_release_notes.py checks them against the real README headings.
+CODE_SIGNING_ANCHOR = "code-signing-policy"
+PRIVACY_ANCHOR = "privacy"
 
 # Semantic version with an optional pre-release part (`0.2.0-rc1`) and build metadata.
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\+[0-9A-Za-z.-]+)?$")
@@ -122,8 +126,14 @@ def footer(version: str) -> str:
     exe = f"LCSC2Fusion-Setup-{version}.exe"
     installer = f"LCSC2Fusion-{version}-installer.zip"
     addin = f"LCSC2Fusion-{version}-addin.zip"
+    policy_url = f"{REPOSITORY_URL}#{CODE_SIGNING_ANCHOR}"
+    privacy_url = f"{REPOSITORY_URL}#{PRIVACY_ANCHOR}"
     parts = [
         "## Downloads",
+        "",
+        "LCSC2Fusion is an open source (MIT) add-in for Autodesk Fusion Electronics: it searches "
+        "LCSC parts and puts their symbol, footprint and optional 3D model into your Fusion "
+        "library.",
         "",
         "Most people need only the first file.",
         "",
@@ -148,10 +158,14 @@ def footer(version: str) -> str:
         "",
         "## Windows warnings",
         "",
-        'The installer is not code signed, so Windows SmartScreen may say "unknown publisher": '
+        'The installer is not code signed yet, so Windows SmartScreen may say "unknown publisher": '
         'choose "More info", then "Run anyway". Some antivirus programs are also wary of self '
         "extracting exe files. The installer zip holds the same steps as plain scripts that you "
         "can read first.",
+        "",
+        f"The [Code signing policy]({policy_url}) in the README says what the status of code "
+        "signing is, who signs and approves releases, and how to check a signature. What the "
+        f"program sends over the network is listed under [Privacy]({privacy_url}).",
         "",
         "## Verify a download",
         "",

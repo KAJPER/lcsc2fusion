@@ -19,7 +19,7 @@
 <p align="center"><b>English</b> | <a href="README.pl.md">Polski</a></p>
 
 <p align="center">
-  <a href="#install">Install</a> | <a href="#user-guide">User guide</a> | <a href="#7-updates">Updates</a> | <a href="#troubleshooting">Troubleshooting</a> | <a href="#command-line">Command line</a> | <a href="#use-from-another-claude-mcp">Claude (MCP)</a> | <a href="#limitations-and-legal">Limitations and legal</a> | <a href="#development">Development</a>
+  <a href="#install">Install</a> | <a href="#user-guide">User guide</a> | <a href="#7-updates">Updates</a> | <a href="#troubleshooting">Troubleshooting</a> | <a href="#command-line">Command line</a> | <a href="#use-from-another-claude-mcp">Claude (MCP)</a> | <a href="#limitations-and-legal">Limitations and legal</a> | <a href="#code-signing-policy">Code signing policy</a> | <a href="#privacy">Privacy</a> | <a href="#development">Development</a>
 </p>
 
 <p align="center"><picture>
@@ -69,7 +69,7 @@ Requirements:
 
 - Autodesk Fusion with Electronics, signed in, with a Hub project. Tested on Windows. macOS is untested.
 - Edge or Chrome for the window (Edge ships with Windows). Without either, the page opens in your default browser.
-- Internet access to EasyEDA and LCSC.
+- Internet access to EasyEDA, LCSC and JLCPCB for the part data, and to GitHub for the optional update check. The exact hosts and what is sent are listed under [Privacy](#privacy).
 - Python is not needed to use the add-in, it runs on Fusion's own Python. You need Python 3.11 or newer only for the command line tool, the MCP server and for building from source.
 
 ### Install with the installer (recommended)
@@ -79,7 +79,7 @@ Requirements:
 - `LCSC2Fusion-Setup-<version>.exe`: one file, just run it.
 - `LCSC2Fusion-<version>-installer.zip`: the same installer as readable scripts. Unzip it and double click `Install-LCSC2Fusion.bat`. If Windows marked the zip as blocked, right click it, Properties, Unblock, before unzipping.
 
-**2. Allow it to run.** The installer is not code signed, because signing certificates cost money and this is a small open source project. So Windows SmartScreen may say "Windows protected your PC" and name an "unknown publisher". Click "More info", then "Run anyway". Some antivirus programs are also wary of self extracting exe files. If yours is, use the zip: it holds plain scripts that you can read before you run them.
+**2. Allow it to run.** The installer is not code signed yet, because signing certificates cost money and this is a small open source project (free signing is being applied for, see the [Code signing policy](#code-signing-policy)). So Windows SmartScreen may say "Windows protected your PC" and name an "unknown publisher". Click "More info", then "Run anyway". Some antivirus programs are also wary of self extracting exe files. If yours is, use the zip: it holds plain scripts that you can read before you run them.
 
 **3. Install.** The installer checks its files against a checksum list and copies the add-in to `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`, replacing an older version. It works per user, needs no administrator rights, no network and no Python. The exe asks once and shows the result in a message box; its log is `%TEMP%\LCSC2Fusion-setup.log`.
 
@@ -100,7 +100,7 @@ buttons at start and the window opens on the first click. Stopping the add-in cl
 
 **Update.** Download the newer installer and run it again, then Stop and Run the add-in in Fusion (or restart Fusion). The window tells you when a newer version is out, see [Updates](#7-updates).
 
-**Uninstall.** Run `Uninstall-LCSC2Fusion.bat` from the installer zip, or delete the folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. This removes only the add-in. Your own data stays: `%LOCALAPPDATA%\LCSC2Fusion` (the added parts, the window's profile) and the libraries in `C:\Users\<you>\LCSC2Fusion`. To delete `%LOCALAPPDATA%\LCSC2Fusion` too, run `Uninstall-LCSC2Fusion.bat -RemoveData` in a console (it asks first). Your `.lbr` files are never deleted by the uninstaller.
+**Uninstall.** Run `Uninstall-LCSC2Fusion.bat` from the installer zip, or delete the folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. This removes only the add-in. Your own data stays: `%LOCALAPPDATA%\LCSC2Fusion` (the list of added parts, the download cache, the update settings, the window's profile) and the libraries in `C:\Users\<you>\LCSC2Fusion`. [Privacy](#privacy) lists every file. To delete `%LOCALAPPDATA%\LCSC2Fusion` too, run `Uninstall-LCSC2Fusion.bat -RemoveData` in a console (it asks first). Your `.lbr` files are never deleted by the uninstaller.
 
 **macOS.** The manifest allows it, but I have not run it there. Take `LCSC2Fusion-<version>-addin.zip` from the release, extract it and use the green plus in Scripts and Add-Ins to add the extracted folder, instead of guessing the Add-Ins folder.
 
@@ -277,7 +277,7 @@ or starts anything by itself.
 
 | Problem | What to do |
 | --- | --- |
-| Windows says "Windows protected your PC" when I run the installer. | The installer is not code signed. Choose "More info", then "Run anyway", or use the installer zip and read its scripts first. See Install. |
+| Windows says "Windows protected your PC" when I run the installer. | The installer is not code signed yet. Choose "More info", then "Run anyway", or use the installer zip and read its scripts first. See Install and the [Code signing policy](#code-signing-policy). |
 | LCSC2Fusion is not in the Add-Ins list. | Run the installer again, or check that `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` exists (not one folder deeper). If you extracted a zip by hand, unblock it first (Properties, Unblock). Or add the folder with the green plus. Restart Fusion. |
 | The window does not open. | Run the add-in (Shift+S, Add-Ins). Press the toolbar button again. Stop and Run once. Look at the Text Commands window for lines starting with `[LCSC2Fusion]`. |
 | The button is missing in one environment. | The Text Commands window has `button: ... -> added, exists, missing or failed` lines per environment. Use the button in Design meanwhile. |
@@ -302,7 +302,7 @@ python -m lcsc2fusion C25804 --3d -o out/             # also download the 3D mod
 python -m lcsc2fusion --help                          # all options
 ```
 
-The default output folder is `out`. Responses are cached on disk for 7 days and requests are rate limited. Use
+The default output folder is `out`. Part responses are cached on disk for 7 days (see [Privacy](#privacy)) and requests are rate limited. Use
 `--no-cache` to refetch. The converter itself needs nothing but Python. `--render` needs matplotlib (`pip install -r requirements-dev.txt`
 in a virtual environment).
 
@@ -360,6 +360,69 @@ conversation are in [docs/MCP.md](docs/MCP.md). The terms below apply: do not us
   in Fusion. Check a generated footprint against the datasheet (`--render` helps) before ordering a board.
 - Fusion freezes for up to a minute while it merges a part, and the add-in handles one part at a time.
 - Autodesk, Fusion, EasyEDA, JLCPCB and LCSC are trademarks of their owners. This project is not affiliated with them.
+
+## Code signing policy
+
+**Status.** The release files are not code signed yet, so Windows shows "unknown publisher" for the installer (see [Install](#install)). The maintainer is applying for free code signing for open source projects from the [SignPath Foundation](https://signpath.org/). It is not granted yet. Once it is granted and a signed release is out, this section will say so, and until then nothing here claims that a signature exists. The rest of this section is the policy that will apply to signed releases.
+
+**Roles.** This is a one person project, so one person holds every role.
+
+| Role | Member | What it means |
+| --- | --- | --- |
+| Committers and reviewers | Kacper Popko ([@KAJPER](https://github.com/KAJPER)) | Changes the source code. Reviews every change that other people propose in a pull request before it is merged. |
+| Approvers | Kacper Popko ([@KAJPER](https://github.com/KAJPER)) | Approves each signing request by hand. Nothing is signed without that approval. |
+
+**What is signed.** Only files that this project builds from its own source. The file to sign is `LCSC2Fusion-Setup-<version>.exe`, because that is where Windows shows the publisher. Not signed: the scripts in `LCSC2Fusion-<version>-installer.zip` (`Install-LCSC2Fusion.bat` and the PowerShell scripts), `LCSC2Fusion-<version>-addin.zip`, the zip files as such (a zip cannot carry a signature) and `SHA256SUMS.txt`. Their integrity is checked with `SHA256SUMS.txt`, see [Install](#install).
+
+**Where signed files come from.** Only from the release workflow of this repository (`.github/workflows/release.yml`, started by a pushed `v*` tag, on GitHub hosted runners). It builds the files from the tagged source and sends the exe to SignPath, which checks that the file was built by that workflow from this repository before it signs. A signature from the Foundation's certificate is never made on the maintainer's own PC.
+
+**Publisher name.** Once signing is active, Windows will show "SignPath Foundation" as the publisher, because the certificate belongs to the Foundation and not to the maintainer.
+
+**How to check a signed file.** In PowerShell, in the folder with the download:
+
+```
+Get-AuthenticodeSignature .\LCSC2Fusion-Setup-<version>.exe | Format-List Status, SignerCertificate
+```
+
+`Status` must be `Valid` and the signer must be SignPath Foundation. In Explorer: right click the file, Properties, Digital Signatures, Details. A file changed after signing shows `HashMismatch`. The `SHA256SUMS.txt` check from [Install](#install) works for every release, signed or not.
+
+**What a signature does not do.** It gives the file a publisher name. It does not prove that the program has no bugs, and SmartScreen also judges the reputation of a file, so it may still warn for a while after the first signed release. Releases made before that stay unsigned.
+
+## Privacy
+
+LCSC2Fusion has no telemetry, no analytics, no advertising and no accounts, and the project runs no server. Nothing from your Fusion files or designs is ever sent anywhere. The program contacts only the hosts below, over HTTPS.
+
+**Who is contacted and what is sent.**
+
+| Host | Used for | What is sent |
+| --- | --- | --- |
+| `easyeda.com` | The symbol and footprint of a part, when you search by LCSC number or add a part | The LCSC number, for example `C2040`, and then the EasyEDA id that the answer names for it |
+| `modules.easyeda.com` | The 3D model, only with "Include 3D model (STEP)" or `--3d` | The id of the model (32 hexadecimal digits taken from the footprint), in the address |
+| `wmsc.lcsc.com` | The datasheet link, only when the EasyEDA data of the part has none | The LCSC number |
+| `jlcpcb.com` | Search by words instead of a number | The text you typed and the number of results wanted |
+| `api.github.com` | The optional update check, see [Updates](#7-updates) | Nothing from you: it asks for the latest release of `KAJPER/lcsc2fusion` |
+
+Every request carries a User-Agent header with the program name and version (`lcsc2fusion/0.1.0 (+https://github.com/KAJPER/lcsc2fusion)` for part data, `LCSC2Fusion/0.1.0` for the update check) and the usual headers of an HTTP client. The host sees your IP address, as any web server does. Nothing else is sent: no account, no cookie (the program sends none and keeps none), no token, no machine id, no Windows user name, no Fusion or Autodesk account. The system proxy settings are used.
+
+**Cache and limits.** Answers are kept on your disk, so repeating a lookup normally sends nothing: part data for 7 days, 3D models for 30 days, search results for 1 hour. Requests go out one at a time, at least half a second apart. The command line tool and the MCP server use the same client with the same hosts, cache and limits; the MCP server opens no other connection except to the add-in on your own computer.
+
+**What stays on your computer.**
+
+- `%LOCALAPPDATA%\LCSC2Fusion\cache`: the cached answers. They show which parts you looked up.
+- `%LOCALAPPDATA%\LCSC2Fusion\state.json`: the library and the parts the add-in has merged.
+- `%LOCALAPPDATA%\LCSC2Fusion\update.json`: whether the update check is on, when it last ran, the newest version seen and the version you dismissed.
+- `%LOCALAPPDATA%\LCSC2Fusion\api.json`: only while the add-in runs, the local address and a random token for the MCP server. It is removed when the add-in stops.
+- `%LOCALAPPDATA%\LCSC2Fusion\browser-profile`: the private browser profile of the window, which also holds your theme and language choice.
+- `C:\Users\<you>\LCSC2Fusion\libraries`: the `.lbr` files, and with 3D the STEP files and `.3d.json`.
+- `%TEMP%\LCSC2Fusion-setup.log`: the log of the exe installer.
+
+**Delete it.** `Uninstall-LCSC2Fusion.bat -RemoveData` (it asks first) removes `%LOCALAPPDATA%\LCSC2Fusion`, or delete that folder yourself; the cache alone can be deleted at any time and is filled again when needed. The libraries folder is never touched by the uninstaller. The "LCSC2Fusion Library" in your Hub project belongs to Fusion: delete it in Fusion.
+
+**Local only.** The window and the local API for the MCP server listen on `127.0.0.1` and send nothing out. The page loads nothing from the internet (its content security policy is `default-src 'self'`). A link to LCSC or to a datasheet opens in your browser only when you click it, and that site then sees your browser as any website does.
+
+**Turn off the update check.** Settings, Updates, untick "Check for updates once a day". The add-in then makes no automatic request; only the "Check now" button asks, when you press it. The installer makes no network connection at all.
+
+**Outside this project.** Fusion saves the library to your Hub project through its own connection to Autodesk, under Autodesk's terms. The window is an ordinary Edge or Chrome window, and what that browser sends to its maker is up to the browser. The MCP server hands search results and part data to the assistant you connected it to, and that assistant's provider treats them under its own policy. If you notice a request that this section does not list, that is a bug: please open an issue.
 
 ## Development
 

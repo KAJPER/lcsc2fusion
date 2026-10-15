@@ -2,17 +2,25 @@
 
 No YAML parser is installed (the project has no dependency for it), so the workflow files are read
 with small line based helpers that understand the subset of YAML these files use: block mappings
-indented by two spaces, flow lists in square brackets, and `run: |` block scalars. The workflows
-cannot be executed here, so these tests pin the properties that matter for safety and for
-consistency with the rest of the repository.
+indented by two spaces, flow lists in square brackets, `run: |` block scalars and `if: >-` folded
+scalars. The workflows cannot be executed here, and neither can the SignPath service be reached, so
+these tests pin the properties that matter for safety and for consistency with the rest of the
+repository. The job conditions are evaluated by a small interpreter of the GitHub expression subset
+that the release workflow uses, over every combination of trigger, repository variable and job
+outcome, with GitHub's scheduling rule for `needs` (a skipped need skips the job unless its `if`
+has a status function) built into the simulation.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import itertools
+import os
 import re
+import shutil
+import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -147,6 +155,208 @@ def run_blocks(text: str) -> list[str]:
 
 def prose(text: str) -> str:
     return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+
+
+def folded_scalar(lines: list[str], key: str, indent: int) -> str | None:
+    """The value of `key:` at `indent`: a one line scalar, or a `>-` block joined with spaces.
+
+    Only `>-` is accepted for a block: `>` keeps a trailing newline, and a condition of the form
+    `${{ ... }}` followed by a newline is a non empty string that GitHub treats as true."""
+    for number, line in enumerate(lines):
+        if not (is_code(line) and indent_of(line) == indent):
+            continue
+        match = re.match(rf"^ *{re.escape(key)}:\s*(.*?)\s*$", line)
+        if not match:
+            continue
+        value = match.group(1)
+        if value not in (">", ">+", ">-", "|", "|-", "|+"):
+            return value
+        assert value == ">-", f"{key}: must use >- for a block, found {value}"
+        body: list[str] = []
+        for follower in lines[number + 1 :]:
+            if follower.strip() and indent_of(follower) <= indent:
+                break
+            body.append(follower.strip())
+        return " ".join(part for part in body if part)
+    return None
+
+
+def needs_of(lines: list[str]) -> list[str]:
+    value = scalar(lines, "needs", 4)
+    if value is None:
+        return []
+    return flow_list(value) if value.startswith("[") else [value]
+
+
+def steps_of(lines: list[str]) -> list[str]:
+    """The text of every step of a job: the `- ` items at indent 6 under `steps:`."""
+    start = next(number for number, line in enumerate(lines) if line == "    steps:")
+    steps: list[list[str]] = []
+    for line in lines[start + 1 :]:
+        if re.match(r"^      - ", line):
+            steps.append([line])
+        elif steps:
+            steps[-1].append(line)
+    return ["\n".join(step) for step in steps]
+
+
+def step_named(lines: list[str], name: str) -> str:
+    found = [step for step in steps_of(lines) if f"name: {name}" in step]
+    assert len(found) == 1, name
+    return found[0]
+
+
+# GitHub expression subset -----------------------------------------------------------------------
+
+
+class _Text(str):
+    """A string that compares without regard to case, like GitHub's == and !=."""
+
+    def __eq__(self, other: object) -> bool:
+        return str.lower(self) == str(other).lower()
+
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+
+    __hash__ = str.__hash__
+
+
+_TOKEN = re.compile(
+    r"\s*(?:(?P<string>'[^']*')|(?P<op>&&|\|\||==|!=|!|\(|\))"
+    r"|(?P<call>[a-z]+\(\))|(?P<name>[A-Za-z_][A-Za-z0-9_.]*))"
+)
+_OPERATORS = {
+    "&&": " and ",
+    "||": " or ",
+    "!": " not ",
+    "==": " == ",
+    "!=": " != ",
+    "(": "(",
+    ")": ")",
+}
+STATUS_FUNCTION = re.compile(r"\b(?:always|cancelled|failure|success)\(\)")
+
+
+def expression_of(condition: str) -> str:
+    """The expression inside `${{ ... }}`, which must be the whole value with nothing around it:
+    leading or trailing text makes GitHub read the condition as a string, and a non empty
+    string is true."""
+    match = re.fullmatch(r"\$\{\{ (.+) \}\}", condition)
+    assert match, f"not exactly one ${{{{ ... }}}} expression: {condition!r}"
+    return match.group(1)
+
+
+def evaluate(expression: str, context: dict[str, str], *, cancelled: bool = False) -> bool:
+    """Evaluate the subset the release workflow uses: string literals, context names (an unset
+    name is the empty string), == != && || ! parentheses and cancelled()."""
+    parts: list[str] = []
+    position = 0
+    text = expression.strip()
+    while position < len(text):
+        match = _TOKEN.match(text, position)
+        assert match, f"cannot read the expression at {text[position:]!r}"
+        position = match.end()
+        if match.group("string") is not None:
+            parts.append(f"_Text({match.group('string')})")
+        elif match.group("op"):
+            parts.append(_OPERATORS[match.group("op")])
+        elif match.group("call"):
+            assert match.group("call") == "cancelled()", match.group("call")
+            parts.append("_cancelled")
+        else:
+            parts.append(f"_lookup({match.group('name')!r})")
+    namespace = {
+        "_Text": _Text,
+        "_cancelled": cancelled,
+        "_lookup": lambda name: _Text(context.get(name, "")),
+    }
+    return bool(eval("".join(parts), {"__builtins__": {}}, namespace))  # noqa: S307
+
+
+def simulate(
+    release: str,
+    *,
+    event: str,
+    ref_type: str,
+    variables: dict[str, str],
+    outcomes: dict[str, str],
+) -> dict[str, str]:
+    """The result of every job of the workflow, following GitHub's scheduling rules.
+
+    A job whose `if` has no status function only runs when all jobs it needs succeeded (so a
+    skipped need skips it); one with a status function (cancelled() and the like) is decided by its
+    expression alone. A job that runs ends as outcomes[job], default success. If any job is
+    cancelled, the whole run counts as cancelled for cancelled()."""
+    jobs = jobs_of(release)
+    run_is_cancelled = "cancelled" in outcomes.values()
+    results: dict[str, str] = {}
+    while len(results) < len(jobs):
+        progressed = False
+        for name, lines in jobs.items():
+            needs = needs_of(lines)
+            if name in results or any(need not in results for need in needs):
+                continue
+            progressed = True
+            condition = folded_scalar(lines, "if", 4)
+            needs_succeeded = all(results[need] == "success" for need in needs)
+            if condition is None:
+                runs = needs_succeeded
+            else:
+                context = {"github.event_name": event, "github.ref_type": ref_type}
+                context.update({f"vars.{key}": value for key, value in variables.items()})
+                context.update({f"needs.{need}.result": results[need] for need in needs})
+                expression = expression_of(condition) if condition.startswith("${{") else condition
+                wanted = evaluate(expression, context, cancelled=run_is_cancelled)
+                has_status_function = bool(STATUS_FUNCTION.search(condition))
+                runs = wanted if has_status_function else (needs_succeeded and wanted)
+            results[name] = outcomes.get(name, "success") if runs else "skipped"
+        assert progressed, "the needs of the jobs form a cycle or name a missing job"
+    return results
+
+
+def find_bash() -> str | None:
+    """A real bash for the shell steps: not the WSL launcher of Windows, which needs a distro."""
+    candidates = [shutil.which("bash")]
+    if sys.platform == "win32":
+        for base in (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432")):
+            if base:
+                candidates.append(str(Path(base) / "Git" / "bin" / "bash.exe"))
+    for candidate in candidates:
+        if not candidate or not Path(candidate).is_file():
+            continue
+        if any(part in candidate.lower() for part in ("system32", "windowsapps")):
+            continue
+        try:
+            probe = subprocess.run(
+                [candidate, "-c", "echo ok; command -v awk sha256sum"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if probe.returncode == 0 and probe.stdout.startswith("ok") and "sha256sum" in probe.stdout:
+            return candidate
+    return None
+
+
+def run_bash_step(
+    step: str, env: dict[str, str], cwd: Path, bash: str
+) -> subprocess.CompletedProcess[str]:
+    """Run the `run:` block of a workflow step with exactly the given extra environment."""
+    block = run_blocks(step)
+    assert len(block) == 1
+    script = "\n".join(line[10:] if line.startswith(" " * 10) else line for line in block[0].splitlines())
+    return subprocess.run(
+        [bash, "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        env={**os.environ, **env},
+        timeout=120,
+        check=False,
+    )
 
 
 @pytest.fixture(scope="module")

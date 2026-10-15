@@ -268,6 +268,51 @@ def test_footer_marks_a_prerelease_only_when_it_is_one(notes: ModuleType) -> Non
     assert "This is a pre-release" not in notes.footer("0.2.0")
 
 
+def github_anchor(heading: str) -> str:
+    """The anchor GitHub makes for a heading: lower case, punctuation dropped, spaces to hyphens."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+
+
+def readme_anchors() -> set[str]:
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    text = re.sub(r"^```.*?^```", "", text, flags=re.DOTALL | re.MULTILINE)
+    return {
+        github_anchor(match.group(1))
+        for match in re.finditer(r"^#{1,6}\s+(.*\S)\s*$", text, flags=re.MULTILINE)
+    }
+
+
+def test_footer_links_the_code_signing_policy_and_the_privacy_section(notes: ModuleType) -> None:
+    text = notes.footer("1.2.3")
+    assert "Code signing policy" in text
+    assert "(https://github.com/KAJPER/lcsc2fusion#code-signing-policy)" in text
+    assert "(https://github.com/KAJPER/lcsc2fusion#privacy)" in text
+
+
+def test_footer_links_point_at_real_readme_headings(notes: ModuleType) -> None:
+    text = notes.footer("1.2.3")
+    fragments = re.findall(r"\(https://github\.com/KAJPER/lcsc2fusion#([^)]+)\)", text)
+    assert {"code-signing-policy", "privacy", "limitations-and-legal"} <= set(fragments)
+    anchors = readme_anchors()
+    for fragment in fragments:
+        assert fragment in anchors, f"README.md has no heading for #{fragment}"
+
+
+def test_footer_says_what_the_program_is(notes: ModuleType) -> None:
+    text = notes.footer("1.2.3")
+    assert "open source (MIT) add-in for Autodesk Fusion Electronics" in text
+    assert "symbol, footprint and optional 3D model" in text
+
+
+def test_footer_does_not_claim_that_the_release_is_signed(notes: ModuleType) -> None:
+    # True today: nothing is signed. When signing goes live, change the footer (a signed release
+    # and an unsigned one cannot share this text) together with this test.
+    text = notes.footer("1.2.3")
+    assert "not code signed yet" in text
+    assert "SignPath" not in text
+    assert "Free code signing provided by" not in text
+
+
 def test_footer_has_no_long_dashes_and_no_double_hyphens_in_prose(notes: ModuleType) -> None:
     text = notes.footer("1.2.3")
     assert EM_DASH not in text and EN_DASH not in text

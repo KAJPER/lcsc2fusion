@@ -19,7 +19,7 @@
 <p align="center"><a href="README.md">English</a> | <b>Polski</b></p>
 
 <p align="center">
-  <a href="#instalacja">Instalacja</a> | <a href="#instrukcja-obsługi">Instrukcja obsługi</a> | <a href="#7-aktualizacje">Aktualizacje</a> | <a href="#rozwiązywanie-problemów">Rozwiązywanie problemów</a> | <a href="#wiersz-poleceń">Wiersz poleceń</a> | <a href="#użycie-z-innym-claude-mcp">Claude (MCP)</a> | <a href="#ograniczenia-i-kwestie-prawne">Ograniczenia i prawo</a> | <a href="#rozwój-projektu">Rozwój projektu</a>
+  <a href="#instalacja">Instalacja</a> | <a href="#instrukcja-obsługi">Instrukcja obsługi</a> | <a href="#7-aktualizacje">Aktualizacje</a> | <a href="#rozwiązywanie-problemów">Rozwiązywanie problemów</a> | <a href="#wiersz-poleceń">Wiersz poleceń</a> | <a href="#użycie-z-innym-claude-mcp">Claude (MCP)</a> | <a href="#ograniczenia-i-kwestie-prawne">Ograniczenia i prawo</a> | <a href="#polityka-podpisywania-kodu">Polityka podpisywania kodu</a> | <a href="#prywatność">Prywatność</a> | <a href="#rozwój-projektu">Rozwój projektu</a>
 </p>
 
 <p align="center"><picture>
@@ -70,7 +70,7 @@ Wymagania:
 
 - Autodesk Fusion z Electronics, zalogowany, z projektem w Hubie. Testowane na Windows. macOS nie był testowany.
 - Edge lub Chrome dla okna (Edge jest częścią Windows). Bez żadnej z nich strona otworzy się w domyślnej przeglądarce.
-- Dostęp do internetu (EasyEDA i LCSC).
+- Dostęp do internetu: do EasyEDA, LCSC i JLCPCB (dane części) oraz do GitHuba (opcjonalne sprawdzanie aktualizacji). Dokładna lista hostów i tego, co jest wysyłane, jest w sekcji [Prywatność](#prywatność).
 - Python nie jest potrzebny do używania dodatku, działa on na Pythonie wbudowanym we Fusion. Python 3.11 lub nowszy jest potrzebny tylko do narzędzia wiersza poleceń, serwera MCP i budowania ze źródeł.
 
 ### Instalacja instalatorem (zalecana)
@@ -80,7 +80,7 @@ Wymagania:
 - `LCSC2Fusion-Setup-<version>.exe`: jeden plik, wystarczy go uruchomić.
 - `LCSC2Fusion-<version>-installer.zip`: ten sam instalator w postaci czytelnych skryptów. Rozpakuj go i kliknij dwukrotnie `Install-LCSC2Fusion.bat`. Jeśli Windows oznaczył zip jako zablokowany, przed rozpakowaniem kliknij go prawym przyciskiem, Właściwości (Properties), Odblokuj (Unblock).
 
-**2. Zezwól na uruchomienie.** Instalator nie jest podpisany cyfrowo, bo certyfikaty do podpisywania kosztują, a to mały projekt open source. Dlatego Windows SmartScreen może napisać „System Windows ochronił ten komputer” i podać „nieznanego wydawcę”. Kliknij „Więcej informacji”, potem „Uruchom mimo to”. Niektóre programy antywirusowe są też podejrzliwe wobec samorozpakowujących się plików exe. Jeśli Twój tak reaguje, użyj zipa: zawiera zwykłe skrypty, które możesz przeczytać przed uruchomieniem.
+**2. Zezwól na uruchomienie.** Instalator nie jest jeszcze podpisany cyfrowo, bo certyfikaty do podpisywania kosztują, a to mały projekt open source (starania o darmowy podpis trwają, zob. [Polityka podpisywania kodu](#polityka-podpisywania-kodu)). Dlatego Windows SmartScreen może napisać „System Windows ochronił ten komputer” i podać „nieznanego wydawcę”. Kliknij „Więcej informacji”, potem „Uruchom mimo to”. Niektóre programy antywirusowe są też podejrzliwe wobec samorozpakowujących się plików exe. Jeśli Twój tak reaguje, użyj zipa: zawiera zwykłe skrypty, które możesz przeczytać przed uruchomieniem.
 
 **3. Zainstaluj.** Instalator sprawdza swoje pliki z listą sum kontrolnych i kopiuje dodatek do `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`, zastępując starszą wersję. Działa dla bieżącego użytkownika, nie wymaga praw administratora, sieci ani Pythona. Exe pyta raz i pokazuje wynik w oknie komunikatu; jego log to `%TEMP%\LCSC2Fusion-setup.log`.
 
@@ -101,7 +101,7 @@ starcie tylko dodaje przyciski, a okno otwiera się przy pierwszym kliknięciu. 
 
 **Aktualizacja.** Pobierz nowszy instalator i uruchom go ponownie, potem Stop i Run dodatku we Fusion (albo uruchom Fusion od nowa). Okno informuje, gdy wyjdzie nowsza wersja, zob. [Aktualizacje](#7-aktualizacje).
 
-**Odinstalowanie.** Uruchom `Uninstall-LCSC2Fusion.bat` z zipa instalatora albo usuń folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. To usuwa tylko dodatek. Twoje dane zostają: `%LOCALAPPDATA%\LCSC2Fusion` (dodane części, profil okna) oraz biblioteki w `C:\Users\<ty>\LCSC2Fusion`. Aby usunąć też `%LOCALAPPDATA%\LCSC2Fusion`, uruchom w konsoli `Uninstall-LCSC2Fusion.bat -RemoveData` (najpierw zapyta). Pliki `.lbr` nigdy nie są usuwane przez dezinstalator.
+**Odinstalowanie.** Uruchom `Uninstall-LCSC2Fusion.bat` z zipa instalatora albo usuń folder `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion`. To usuwa tylko dodatek. Twoje dane zostają: `%LOCALAPPDATA%\LCSC2Fusion` (lista dodanych części, pamięć podręczna pobranych danych, ustawienia aktualizacji, profil okna) oraz biblioteki w `C:\Users\<ty>\LCSC2Fusion`. Wszystkie pliki wymienia sekcja [Prywatność](#prywatność). Aby usunąć też `%LOCALAPPDATA%\LCSC2Fusion`, uruchom w konsoli `Uninstall-LCSC2Fusion.bat -RemoveData` (najpierw zapyta). Pliki `.lbr` nigdy nie są usuwane przez dezinstalator.
 
 **macOS.** Manifest na to pozwala, ale nie uruchamiałem tego tam. Weź z wydania `LCSC2Fusion-<version>-addin.zip`, rozpakuj go i użyj zielonego plusa w Scripts and Add-Ins, aby dodać rozpakowany folder, zamiast zgadywać folder Add-Ins.
 
@@ -278,7 +278,7 @@ instaluje ani nie uruchamia.
 
 | Problem | Co zrobić |
 | --- | --- |
-| Windows pisze „System Windows ochronił ten komputer”, gdy uruchamiam instalator. | Instalator nie jest podpisany cyfrowo. Wybierz „Więcej informacji”, potem „Uruchom mimo to”, albo użyj zipa instalatora i najpierw przeczytaj jego skrypty. Zob. Instalacja. |
+| Windows pisze „System Windows ochronił ten komputer”, gdy uruchamiam instalator. | Instalator nie jest jeszcze podpisany cyfrowo. Wybierz „Więcej informacji”, potem „Uruchom mimo to”, albo użyj zipa instalatora i najpierw przeczytaj jego skrypty. Zob. Instalacja i [Polityka podpisywania kodu](#polityka-podpisywania-kodu). |
 | LCSC2Fusion nie ma na liście Add-Ins. | Uruchom instalator ponownie albo sprawdź, czy istnieje `%APPDATA%\Autodesk\FusionAddins\LCSC2Fusion\LCSC2Fusion.manifest` (a nie o folder głębiej). Jeśli zip rozpakowałeś ręcznie, najpierw go odblokuj (Właściwości, Odblokuj). Albo dodaj folder zielonym plusem. Uruchom Fusion ponownie. |
 | Okno się nie otwiera. | Uruchom dodatek (Shift+S, Add-Ins). Naciśnij przycisk na pasku jeszcze raz. Zrób Stop i Run. Zajrzyj do okna Text Commands po linie zaczynające się od `[LCSC2Fusion]`. |
 | Przycisku brakuje w jednym środowisku. | Okno Text Commands zawiera linie `button: ... -> added, exists, missing lub failed` dla każdego środowiska. Na razie użyj przycisku w Design. |
@@ -303,7 +303,7 @@ python -m lcsc2fusion C25804 --3d -o out/             # dodatkowo pobiera model 
 python -m lcsc2fusion --help                          # wszystkie opcje
 ```
 
-Domyślny folder wyjściowy to `out`. Odpowiedzi są cache'owane na dysku przez 7 dni, a żądania mają ograniczoną
+Domyślny folder wyjściowy to `out`. Odpowiedzi z danymi części są cache'owane na dysku przez 7 dni (zob. [Prywatność](#prywatność)), a żądania mają ograniczoną
 częstotliwość. `--no-cache` pobiera dane od nowa. Sam konwerter potrzebuje tylko Pythona. `--render` wymaga
 matplotlib (`pip install -r requirements-dev.txt` w wirtualnym środowisku).
 
@@ -363,6 +363,69 @@ pobierania danych.
   we Fusion. Przed zamówieniem płytki sprawdź wygenerowany footprint z kartą katalogową (pomaga `--render`).
 - Fusion zawiesza się nawet na minutę podczas dołączania części, a dodatek obsługuje jedną część naraz.
 - Autodesk, Fusion, EasyEDA, JLCPCB i LCSC to znaki towarowe ich właścicieli. Projekt nie jest z nimi powiązany.
+
+## Polityka podpisywania kodu
+
+**Stan.** Pliki wydań nie są jeszcze podpisane cyfrowo, więc Windows pokazuje przy instalatorze „nieznanego wydawcę” (zob. [Instalacja](#instalacja)). Opiekun projektu stara się o darmowy podpis kodu dla projektów open source od [SignPath Foundation](https://signpath.org/) (angielski termin tej sekcji to „Code signing policy”). Podpisu jeszcze nie przyznano. Gdy zostanie przyznany i wyjdzie podpisane wydanie, ta sekcja o tym powie, a do tego czasu nic tu nie twierdzi, że podpis istnieje. Reszta sekcji to polityka, która będzie obowiązywać dla podpisanych wydań.
+
+**Role.** To projekt jednej osoby, więc jedna osoba pełni wszystkie role.
+
+| Rola | Osoba | Co to znaczy |
+| --- | --- | --- |
+| Autorzy zmian i recenzenci (committers and reviewers) | Kacper Popko ([@KAJPER](https://github.com/KAJPER)) | Zmienia kod źródłowy. Przegląda każdą zmianę proponowaną przez innych w pull requeście, zanim zostanie włączona. |
+| Zatwierdzający (approvers) | Kacper Popko ([@KAJPER](https://github.com/KAJPER)) | Zatwierdza ręcznie każde żądanie podpisania. Bez tego zatwierdzenia nic nie jest podpisywane. |
+
+**Co jest podpisywane.** Tylko pliki, które ten projekt buduje z własnego kodu źródłowego. Do podpisania przeznaczony jest `LCSC2Fusion-Setup-<version>.exe`, bo to w nim Windows pokazuje wydawcę. Niepodpisane: skrypty w `LCSC2Fusion-<version>-installer.zip` (`Install-LCSC2Fusion.bat` i skrypty PowerShell), `LCSC2Fusion-<version>-addin.zip`, same pliki zip (zip nie może nieść podpisu) oraz `SHA256SUMS.txt`. Ich integralność sprawdza się przez `SHA256SUMS.txt`, zob. [Instalacja](#instalacja).
+
+**Skąd pochodzą podpisane pliki.** Tylko z workflow wydania w tym repozytorium (`.github/workflows/release.yml`, uruchamianego przez wypchnięty tag `v*`, na runnerach hostowanych przez GitHub). Workflow buduje pliki z otagowanego kodu i wysyła exe do SignPath, które przed podpisaniem sprawdza, że plik zbudował to workflow z tego repozytorium. Podpis certyfikatem Fundacji nigdy nie powstaje na komputerze opiekuna projektu.
+
+**Nazwa wydawcy.** Gdy podpisywanie zacznie działać, Windows pokaże jako wydawcę „SignPath Foundation”, bo certyfikat należy do Fundacji, a nie do opiekuna projektu.
+
+**Jak sprawdzić podpisany plik.** W PowerShellu, w folderze z pobranym plikiem:
+
+```
+Get-AuthenticodeSignature .\LCSC2Fusion-Setup-<version>.exe | Format-List Status, SignerCertificate
+```
+
+`Status` musi mieć wartość `Valid`, a podpisującym musi być SignPath Foundation. W Eksploratorze: prawy przycisk na pliku, Właściwości, Podpisy cyfrowe, Szczegóły. Plik zmieniony po podpisaniu pokazuje `HashMismatch`. Sprawdzenie `SHA256SUMS.txt` z sekcji [Instalacja](#instalacja) działa dla każdego wydania, podpisanego lub nie.
+
+**Czego podpis nie załatwia.** Nadaje plikowi nazwę wydawcy. Nie dowodzi, że program nie ma błędów, a SmartScreen ocenia też reputację pliku, więc po pierwszym podpisanym wydaniu może jeszcze przez jakiś czas ostrzegać. Wydania sprzed tego momentu pozostają niepodpisane.
+
+## Prywatność
+
+LCSC2Fusion nie ma telemetrii, analityki, reklam ani kont, a projekt nie prowadzi żadnego serwera. Nic z Twoich plików Fusion ani projektów nie jest nigdzie wysyłane. Program łączy się tylko z hostami wymienionymi niżej, przez HTTPS.
+
+**Z kim program się łączy i co wysyła.**
+
+| Host | Do czego | Co jest wysyłane |
+| --- | --- | --- |
+| `easyeda.com` | Symbol i footprint części, gdy szukasz po numerze LCSC albo dodajesz część | Numer LCSC, na przykład `C2040`, a potem identyfikator EasyEDA, który odpowiedź podaje dla tej części |
+| `modules.easyeda.com` | Model 3D, tylko z „Dołącz model 3D (STEP)” lub `--3d` | Identyfikator modelu (32 cyfry szesnastkowe z footprintu), w adresie |
+| `wmsc.lcsc.com` | Link do karty katalogowej, tylko gdy dane EasyEDA części go nie mają | Numer LCSC |
+| `jlcpcb.com` | Wyszukiwanie po słowach zamiast po numerze | Wpisany tekst i liczba oczekiwanych wyników |
+| `api.github.com` | Opcjonalne sprawdzanie aktualizacji, zob. [Aktualizacje](#7-aktualizacje) | Nic od Ciebie: pyta o najnowsze wydanie `KAJPER/lcsc2fusion` |
+
+Każde żądanie niesie nagłówek User-Agent z nazwą programu i wersją (`lcsc2fusion/0.1.0 (+https://github.com/KAJPER/lcsc2fusion)` dla danych części, `LCSC2Fusion/0.1.0` dla sprawdzania aktualizacji) oraz zwykłe nagłówki klienta HTTP. Host widzi Twój adres IP, tak jak każdy serwer WWW. Nic więcej nie jest wysyłane: żadnego konta, ciasteczka (program żadnych nie wysyła ani nie zachowuje), tokenu, identyfikatora komputera, nazwy użytkownika Windows ani konta Fusion czy Autodesk. Używane są systemowe ustawienia proxy.
+
+**Pamięć podręczna i limity.** Odpowiedzi są trzymane na Twoim dysku, więc powtórzone zapytanie zwykle nic nie wysyła: dane części przez 7 dni, modele 3D przez 30 dni, wyniki wyszukiwania przez 1 godzinę. Żądania wychodzą po jednym, w odstępie co najmniej pół sekundy. Narzędzie wiersza poleceń i serwer MCP używają tego samego klienta, z tymi samymi hostami, pamięcią podręczną i limitami; serwer MCP nie otwiera żadnego innego połączenia poza tym z dodatkiem na Twoim komputerze.
+
+**Co zostaje na Twoim komputerze.**
+
+- `%LOCALAPPDATA%\LCSC2Fusion\cache`: zapamiętane odpowiedzi. Widać w nich, jakich części szukałeś.
+- `%LOCALAPPDATA%\LCSC2Fusion\state.json`: biblioteka i części, które dodatek już dołączył.
+- `%LOCALAPPDATA%\LCSC2Fusion\update.json`: czy sprawdzanie aktualizacji jest włączone, kiedy ostatnio działało, najnowsza widziana wersja i wersja, którą ukryłeś.
+- `%LOCALAPPDATA%\LCSC2Fusion\api.json`: tylko gdy dodatek działa, lokalny adres i losowy token dla serwera MCP. Znika po zatrzymaniu dodatku.
+- `%LOCALAPPDATA%\LCSC2Fusion\browser-profile`: prywatny profil przeglądarki okna, w którym jest też wybrany motyw i język.
+- `C:\Users\<ty>\LCSC2Fusion\libraries`: pliki `.lbr`, a przy 3D pliki STEP i `.3d.json`.
+- `%TEMP%\LCSC2Fusion-setup.log`: log instalatora exe.
+
+**Usuwanie.** `Uninstall-LCSC2Fusion.bat -RemoveData` (najpierw pyta) usuwa `%LOCALAPPDATA%\LCSC2Fusion`, albo usuń ten folder sam; samą pamięć podręczną można skasować w każdej chwili, wypełni się znów, gdy będzie potrzebna. Folder z bibliotekami nigdy nie jest ruszany przez dezinstalator. „LCSC2Fusion Library” w Twoim projekcie Hub należy do Fusion: usuń ją we Fusion.
+
+**Tylko lokalnie.** Okno i lokalne API dla serwera MCP nasłuchują na `127.0.0.1` i nic nie wysyłają na zewnątrz. Strona niczego nie ładuje z internetu (jej polityka bezpieczeństwa treści to `default-src 'self'`). Link do LCSC albo do karty katalogowej otwiera się w Twojej przeglądarce dopiero po kliknięciu, a ta strona widzi wtedy Twoją przeglądarkę jak każda witryna.
+
+**Wyłączenie sprawdzania aktualizacji.** Ustawienia, Aktualizacje, odznacz „Sprawdzaj aktualizacje raz dziennie”. Dodatek nie wysyła wtedy żadnych automatycznych żądań; pyta tylko przycisk „Sprawdź teraz”, gdy go naciśniesz. Instalator w ogóle nie łączy się z siecią.
+
+**Poza tym projektem.** Fusion zapisuje bibliotekę w Twoim projekcie Hub własnym połączeniem z Autodesk, na warunkach Autodesk. Okno to zwykłe okno Edge lub Chrome, a to, co ta przeglądarka wysyła do swojego producenta, zależy od niej. Serwer MCP przekazuje wyniki wyszukiwania i dane części asystentowi, z którym go połączyłeś, a dostawca tego asystenta traktuje je według własnej polityki. Jeśli zauważysz żądanie, którego ta sekcja nie wymienia, to jest błąd: zgłoś go w issue.
 
 ## Rozwój projektu
 

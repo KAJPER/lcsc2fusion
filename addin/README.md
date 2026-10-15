@@ -350,7 +350,10 @@ API job, because both share the controller's one message stream. Leave the windo
 ## Updates
 
 The window tells the user when a newer GitHub release exists: the add-in checks, notifies and links the
-installer. It never downloads or runs anything (see "Possible one click update" below for why). The lookup
+installer. It never downloads or runs anything (see "Possible one click update" below for why). This request
+is the only network access of the add-in's own code; the part data comes from the core (`lcsc2fusion/client`).
+Every host that is contacted and what each one receives is listed in the Privacy section of the repository
+`README.md`; keep that list in step with the code when a request is added or changed. The lookup
 is `update_check.py`, the schedule and `update.json` are `update_service.py`, the protocol is in
 `controller.py`, and the banner and the settings group are in `palette/index.html`, `app.js` and `i18n.js`.
 
